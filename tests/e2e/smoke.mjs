@@ -69,6 +69,31 @@ try {
   await page.getByText('SR veh 481D.xls').waitFor();
   step('template + 5 source files listed');
 
+  // ---- import-cli: a zip built from input/ gives the same result as the 5 loose files ----
+  {
+    const zctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const zp = await zctx.newPage();
+    zp.on('pageerror', (e) => errors.push(`import-cli pageerror: ${e.message}`));
+    await zp.goto(url, { waitUntil: 'networkidle' });
+    const zip = new JSZip();
+    SOURCES.forEach((f) => zip.file(`forecast/${path.basename(f)}`, fs.readFileSync(f)));
+    zip.file('__MACOSX/forecast/._BP veh 481D.xls', 'x');
+    const zipPath = path.join(OUT, 'forecast.zip');
+    fs.writeFileSync(zipPath, await zip.generateAsync({ type: 'uint8array' }));
+    await zp.locator('input[type=file]').nth(1).setInputFiles(zipPath);
+    await zp.getByText('SR veh 481D.xls').waitFor();
+    const noticeText = await zp.getByText(/แตกไฟล์จาก forecast\.zip: เพิ่ม 5 ไฟล์/).first().innerText();
+    if (!noticeText) errors.push('import-cli: no extraction notice');
+    await zp.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
+    await zp.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
+    await zp.getByRole('tab', { name: 'สรุปรวม' }).click().catch(() => {});
+    if (!(await zp.locator('body').innerText()).includes('48,934')) errors.push('import-cli: zip totals differ from the 5 loose files (expected N = 48,934)');
+    await zp.setViewportSize({ width: 390, height: 844 });
+    if (await zp.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('import-cli: page overflows horizontally at 390px');
+    await zctx.close();
+    step('import-cli: zip of the 5 files lists 5 files, totals N=48,934, no overflow at 390px');
+  }
+
   // ---- template-inspector: card under the upload tab, informational only ----
   const inspection = page.getByTestId('template-inspection');
   await inspection.getByText('ผลตรวจเทมเพลต').waitFor();
@@ -357,31 +382,6 @@ try {
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).waitFor();
   await page.getByRole('button', { name: /โหมด/ }).click();
   step('simple/advanced toggle ok');
-
-  // ---- import-cli: a zip built from input/ gives the same result as the 5 loose files ----
-  {
-    const zctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-    const zp = await zctx.newPage();
-    zp.on('pageerror', (e) => errors.push(`import-cli pageerror: ${e.message}`));
-    await zp.goto(url, { waitUntil: 'networkidle' });
-    const zip = new JSZip();
-    SOURCES.forEach((f) => zip.file(`forecast/${path.basename(f)}`, fs.readFileSync(f)));
-    zip.file('__MACOSX/forecast/._BP veh 481D.xls', 'x');
-    const zipPath = path.join(OUT, 'forecast.zip');
-    fs.writeFileSync(zipPath, await zip.generateAsync({ type: 'uint8array' }));
-    await zp.locator('input[type=file]').nth(1).setInputFiles(zipPath);
-    await zp.getByText('SR veh 481D.xls').waitFor();
-    const noticeText = await zp.getByText(/แตกไฟล์จาก forecast\.zip: เพิ่ม 5 ไฟล์/).first().innerText();
-    if (!noticeText) errors.push('import-cli: no extraction notice');
-    await zp.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
-    await zp.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
-    await zp.getByRole('tab', { name: 'สรุปรวม' }).click().catch(() => {});
-    if (!(await zp.locator('body').innerText()).includes('48,934')) errors.push('import-cli: zip totals differ from the 5 loose files (expected N = 48,934)');
-    await zp.setViewportSize({ width: 390, height: 844 });
-    if (await zp.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('import-cli: page overflows horizontally at 390px');
-    await zctx.close();
-    step('import-cli: zip of the 5 files lists 5 files, totals N=48,934, no overflow at 390px');
-  }
 
   // ---- storage-session: opt-in save, reload, restore, forget, wipe (fresh browser context = empty storage) ----
   {
