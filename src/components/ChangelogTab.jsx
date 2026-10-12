@@ -11,6 +11,7 @@ const ACTION_META = {
   export: { label: STRINGS.actions.export, cls: 'bg-blue-100 text-blue-700' },
   file: { label: STRINGS.actions.file, cls: 'bg-slate-100 text-slate-700' },
   share: { label: 'แชร์', cls: 'bg-sky-100 text-sky-700' },
+  qa: { label: 'ตรวจคุณภาพ', cls: 'bg-amber-100 text-amber-800' },
 };
 
 // ==================== CHANGELOG TAB ====================

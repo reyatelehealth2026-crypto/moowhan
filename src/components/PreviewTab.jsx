@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Icons from './Icons.jsx';
 import { PLANTS, PLANT_META } from '../constants.js';
 import { DataGrid, STRINGS, GLOSSARY, Button } from '../features/ui-kit/index.js';
@@ -8,7 +8,13 @@ import { COLUMN_TIPS } from '../features/help-center/columns.js';
 // ==================== PREVIEW TAB ("ตรวจสอบข้อมูล") ====================
 export default function PreviewTab({ state, actions, monthLabels }) {
   const { processedData, sourceFiles, template, fileCounts } = state;
-  const [plant, setPlant] = useState('all');
+  // qa-engine "ไปดูแถว": the QA tab leaves { query, plant } in state.features.preview; consume it once
+  const [handoff] = useState(() => state.features?.preview || {});
+  const [plant, setPlant] = useState(() => (PLANTS.includes(handoff.plant) ? handoff.plant : 'all'));
+  useEffect(() => {
+    if (handoff.query || handoff.plant) actions.setFeatureData?.('preview', { query: '', plant: '' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const allRows = useMemo(() => {
     const out = [];
@@ -71,6 +77,7 @@ export default function PreviewTab({ state, actions, monthLabels }) {
           rows={rows}
           getKey={(r) => `${r.sheet}-${r.id}`}
           resetKey={processedData}
+          initialQuery={handoff.query || ''}
           toolbar={segment}
           emptyMessage={STRINGS.empty.noRows}
         />
