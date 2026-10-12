@@ -15,3 +15,44 @@
     font-family: inherit;
   }
 }
+
+/* ---------- daily-grid: print plan ---------- */
+@page {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
+@media print {
+  body > #root {
+    display: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-overlay {
+    position: static !important;
+    overflow: visible !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-overlay,
+  .print-overlay table {
+    font-size: 9pt;
+  }
+
+  .print-overlay thead {
+    display: table-header-group;
+  }
+
+  .print-overlay tr {
+    break-inside: avoid;
+  }
+
+  .print-overlay .print-break {
+    break-before: page;
+  }
+}

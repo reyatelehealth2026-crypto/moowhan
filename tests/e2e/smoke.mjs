@@ -80,6 +80,36 @@ try {
   await page.getByRole('button', { name: 'ประวัติการแก้ไข' }).click();
   await page.getByText('ประวัติการประมวลผล').waitFor();
 
+  // ---- daily-grid ----
+  await page.getByRole('button', { name: 'ตารางรายวัน', exact: true }).first().click();
+  await page.getByRole('heading', { name: 'ตารางรายวัน' }).waitFor();
+  await page.getByRole('button', { name: 'รายวันทั้ง 4 เดือน' }).click();
+  const numCols = await page.locator('th[data-col=num]').count();
+  if (numCols !== 128) errors.push(`daily-grid: expected 128 numeric columns, got ${numCols}`);
+  const scroller = page.getByTestId('daily-scroll');
+  await scroller.evaluate((el) => { el.scrollLeft = 600; });
+  const stickyLeft = await page.locator('th', { hasText: 'Part Number' }).first().evaluate((el) => el.getBoundingClientRect().left);
+  const scrollerLeft = await scroller.evaluate((el) => el.getBoundingClientRect().left);
+  if (Math.abs(stickyLeft - scrollerLeft) > 2) errors.push('daily-grid: Part Number column is not sticky');
+  await page.getByLabel('กำลังรับต่อวัน').fill('1');
+  if ((await page.locator('td[data-over="1"]').count()) === 0) errors.push('daily-grid: capacity did not shade any cell');
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('daily-grid: page overflows horizontally at 390px');
+  if (!(await scroller.evaluate((el) => el.scrollWidth > el.clientWidth))) errors.push('daily-grid: grid frame should scroll horizontally');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole('button', { name: 'พิมพ์แผนรายวัน' }).first().click();
+  await page.getByRole('dialog', { name: 'พิมพ์แผนรายวัน' }).waitFor();
+  await page.emulateMedia({ media: 'print' });
+  const printState = await page.evaluate(() => ({
+    app: getComputedStyle(document.getElementById('root')).display,
+    thead: getComputedStyle(document.querySelector('.print-overlay thead')).display,
+    tools: getComputedStyle(document.querySelector('.print-overlay .no-print')).display,
+  }));
+  if (printState.app !== 'none' || printState.thead !== 'table-header-group' || printState.tools !== 'none') errors.push(`daily-grid: print css wrong ${JSON.stringify(printState)}`);
+  await page.emulateMedia({ media: 'screen' });
+  await page.getByRole('button', { name: 'ปิด', exact: true }).click();
+  step('daily-grid tab, sticky column, capacity, 390px and print css ok');
+
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'อัปโหลดไฟล์' }).click();
   await shot(page, '05-mobile', true);
