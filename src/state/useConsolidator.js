@@ -142,7 +142,7 @@ export default function useConsolidator() {
     const data = Object.fromEntries(PLANTS.map((p) => [dailySheetName(p), []]));
     const logs = [];
     const months = new Map(); // "202602" -> [file names]
-    const outcomes = new Map(); // file id -> { status, rowCount, meta, error } (ProcessResult.files, used by qa-engine)
+    const outcomes = new Map(); // file id -> { status, rowCount, meta, error } (ProcessResult.files, used by qa-engine and run-history)
 
     try {
       const excel = await loadExcel();
@@ -168,7 +168,7 @@ export default function useConsolidator() {
           }
           if (meta.productionMonthRaw) months.set(meta.productionMonthRaw, [...(months.get(meta.productionMonthRaw) || []), f.name]);
           const status = rows.length ? 'done' : 'warning';
-          outcomes.set(f.id, { status, rowCount: rows.length, meta, error: null });
+          outcomes.set(f.id, { status, rowCount: rows.length, meta, error: null, size: f.size ?? f.file?.size ?? 0, sha256: digest, rows: rows.length }); // size/sha256/rows feed run-history
           setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status, rowCount: rows.length, meta, sha256: digest } : x)));
         } catch (err) {
           const userMsg = toUserError(err).code === 'generic' ? err.message : toUserError(err).title;
