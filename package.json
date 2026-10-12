@@ -14,7 +14,8 @@
     "typecheck": "tsc -p jsconfig.json",
     "check:bundle": "node scripts/check-bundle.mjs",
     "fixtures:expected": "node scripts/make-fixtures.mjs expected",
-    "e2e:office": "node tests/e2e/office.mjs"
+    "e2e:office": "node tests/e2e/office.mjs",
+    "consolidate": "node scripts/consolidate.mjs"
   },
   "license": "UNLICENSED",
   "dependencies": {
@@ -40,5 +41,8 @@
   },
   "engines": {
     "node": ">=20.19"
+  },
+  "bin": {
+    "moowhan-consolidate": "scripts/consolidate.mjs"
   }
 }
