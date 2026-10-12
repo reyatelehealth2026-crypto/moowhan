@@ -92,6 +92,27 @@ try {
   await page.locator('[data-search-input]').first().fill('');
   await shot(page, '04-summary', true);
 
+  // share-clipboard: copy button, share modal, modes, 390px layout
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
+  await page.getByTestId('summary-copy').click();
+  await page.getByRole('button', { name: 'คัดลอกแล้ว' }).first().waitFor();
+  await page.getByTestId('share-summary').click();
+  const shareDlg = page.getByRole('dialog');
+  await shareDlg.waitFor();
+  const shortText = await shareDlg.getByTestId('share-text').inputValue();
+  await shareDlg.getByText('ตาราง TSV').click();
+  const tsvText = await shareDlg.getByTestId('share-text').inputValue();
+  if (shortText === tsvText || !tsvText.includes('\t') || !shortText.includes('48,934')) errors.push('share: modal text did not change per mode');
+  await shareDlg.getByText('เต็ม (อีเมล)').click();
+  await shareDlg.getByTestId('share-copy').click();
+  await shareDlg.getByRole('button', { name: 'คัดลอกแล้ว' }).waitFor();
+  await page.setViewportSize({ width: 390, height: 800 });
+  if ((await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) > 0) errors.push('share: horizontal overflow at 390px');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.keyboard.press('Escape');
+  await shareDlg.waitFor({ state: 'detached' });
+  step('share-clipboard copy + modal ok');
+
   await page.getByRole('button', { name: 'ดูกราฟวิเคราะห์' }).click();
   await page.getByText('ยอดรวมรายเดือน').waitFor();
   if ((await page.getByRole('tab', { name: 'แดชบอร์ด' }).getAttribute('aria-selected')) !== 'true') errors.push('dashboard: tab not selected after ดูกราฟวิเคราะห์');

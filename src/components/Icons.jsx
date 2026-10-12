@@ -121,6 +121,12 @@ const Icons = {
       <path strokeWidth="2" d="M8.59 13.51l6.83 3.98M8.59 10.49l6.83-3.98" />
     </svg>
   ),
+  Copy: () => (
+    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <rect x="9" y="9" width="13" height="13" rx="2" strokeWidth="2" />
+      <path strokeWidth="2" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </svg>
+  ),
   Template: () => (
     <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeWidth="2" />
