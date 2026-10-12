@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import OverflowMenu from './OverflowMenu.jsx';
 
 export const MAX_VISIBLE_TABS = 7;
@@ -24,6 +25,17 @@ export const splitTabs = (tabs, activeId, max = MAX_VISIBLE_TABS) => {
 export default function TabBar({ tabs, activeId, onSelect }) {
   const { visible, overflow } = splitTabs(tabs, activeId);
   const strip = useRef(null);
+  const [hint, setHint] = useState(null); // { id, text, left, top } — shown ~2s when a grey tab is tapped
+  useEffect(() => {
+    if (!hint) return undefined;
+    const t = setTimeout(() => setHint(null), 2000);
+    return () => clearTimeout(t);
+  }, [hint]);
+  const showHint = (e, item) => {
+    if (item.enabled || !item.tooltip) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    setHint({ id: item.id, text: item.tooltip, left: Math.max(8, Math.min(r.left, window.innerWidth - 168)), top: r.bottom + 6 });
+  };
 
   useEffect(() => {
     const el = strip.current?.querySelector('[aria-selected="true"]');
@@ -63,7 +75,7 @@ export default function TabBar({ tabs, activeId, onSelect }) {
               {seg.group !== 'core' && <span aria-hidden="true" className="text-[11px] uppercase tracking-wide text-slate-400 px-1">{seg.group}</span>}
               <div className="flex gap-2" role="presentation">
                 {seg.tabs.map((item) => (
-                  <div key={item.id} className="relative group" role="presentation">
+                  <div key={item.id} className="relative group" role="presentation" onClick={(e) => showHint(e, item)}>
                     <button
                       type="button"
                       onClick={() => item.enabled && onSelect(item.id)}
@@ -76,7 +88,7 @@ export default function TabBar({ tabs, activeId, onSelect }) {
                       tabIndex={activeId === item.id ? 0 : -1}
                       className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-medium transition-all border text-sm sm:text-base whitespace-nowrap ${
                         activeId === item.id ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                          : !item.enabled ? 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed'
+                          : !item.enabled ? 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed pointer-events-none'
                           : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                     >
                       {item.Icon && <span className="w-5 h-5"><item.Icon /></span>}{item.label}
@@ -96,6 +108,10 @@ export default function TabBar({ tabs, activeId, onSelect }) {
           className="flex-shrink-0 self-end"
           items={overflow.map((t) => ({ key: t.id, label: t.label, Icon: t.Icon, disabled: !t.enabled, tooltip: t.tooltip, badge: t.badge, onClick: () => onSelect(t.id) }))}
         />
+      )}
+      {hint && createPortal(
+        <span role="status" style={{ position: 'fixed', left: hint.left, top: hint.top }} className="z-[70] bg-slate-800 text-white text-xs rounded-lg px-3 py-2 shadow-lg max-w-[160px]">{hint.text}</span>,
+        document.body,
       )}
     </nav>
   );

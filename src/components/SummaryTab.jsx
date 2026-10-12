@@ -4,6 +4,8 @@ import { MONTH_META, PLANT_META } from '../constants.js';
 import { formatNumber } from '../utils/format.js';
 import useAnalytics from '../hooks/useAnalytics.js';
 import { DataGrid, KpiCard, Button, STRINGS, GLOSSARY } from '../features/ui-kit/index.js';
+import GlossaryTip from '../features/help-center/GlossaryTip.jsx';
+import { COLUMN_TIPS } from '../features/help-center/columns.js';
 
 const total = (r) => r.n + r.n1 + r.n2 + r.n3;
 
@@ -15,7 +17,7 @@ export default function SummaryTab({ state, actions, monthLabels }) {
   const columns = useMemo(() => [
     { key: 'partNumber', label: GLOSSARY.partNumber, className: 'font-mono text-blue-600' },
     {
-      key: 'plants', label: 'Plants',
+      key: 'plants', label: 'Plants', tip: <GlossaryTip glossaryKey={COLUMN_TIPS.plants} label="อธิบาย Plants" />,
       render: (r) => (
         <div className="flex gap-1">
           {r.plants.split(', ').map((p) => <span key={p} className={`px-2 py-0.5 rounded text-xs ${PLANT_META[p]?.badge}`}>{p}</span>)}

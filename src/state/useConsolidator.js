@@ -6,6 +6,7 @@ import { DEFAULT_PROFILE } from '../features/visibility.js';
 import { monthLabels, parseProductionMonth } from '../utils/format.js';
 import { sha256 } from '../utils/hash.js';
 import { stampSubset } from '../features/provenance-manifest/stamp.js';
+import { buildExportNotice, toUserError, userErrorText } from '../lib/errors.js';
 
 // xlsx + jszip are only downloaded the first time a file is read/exported.
 const loadExcel = () => import('../lib/excel/index.js');
@@ -86,7 +87,7 @@ export default function useConsolidator() {
       }
       log({ fileName: file.name, action: 'file', details: `โหลดไฟล์หลัก (${info.kind}, ${info.sheets.length} sheets)` });
     } catch (err) {
-      setError(`ไม่สามารถอ่านไฟล์หลักได้: ${err.message}`);
+      setError(`ไม่สามารถอ่านไฟล์หลักได้: ${userErrorText(toUserError(err))}`);
     }
   };
 
@@ -157,9 +158,9 @@ export default function useConsolidator() {
             logs.push({ fileName: f.name, plant: f.category, action: 'warning', details: 'ไม่พบแถวข้อมูล (ตรวจสอบแถวหัวตาราง "PART NUMBER")' });
           }
           if (meta.productionMonthRaw) months.set(meta.productionMonthRaw, [...(months.get(meta.productionMonthRaw) || []), f.name]);
-          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'done', rowCount: rows.length, meta, sha256: digest } : x)));
+          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: rows.length ? 'done' : 'warning', rowCount: rows.length, meta, sha256: digest } : x)));
         } catch (err) {
-          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'error', error: err.message } : x)));
+          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'error', error: toUserError(err).code === 'generic' ? err.message : toUserError(err).title } : x)));
           logs.push({ fileName: f.name, plant: f.category, action: 'error', details: err.message });
         }
       }
@@ -262,8 +263,8 @@ export default function useConsolidator() {
       const parts = result.report.mode === 'template'
         ? `เขียนลงเทมเพลต: ${result.report.patched.map((p) => `${p.sheet} ${p.rows} แถว`).join(', ')}`
         : 'สร้างไฟล์ใหม่ (ไม่มีเทมเพลต .xlsx)';
-      const warn = result.report.warnings?.length ? `\n${result.report.warnings.join('\n')}` : '';
-      setNotice(`ดาวน์โหลด ${result.fileName} แล้ว • ${parts}${warn}`, result.report.warnings?.length ? 'warning' : 'success');
+      const exportNotice = buildExportNotice(result.report, result.fileName);
+      setNotice(exportNotice.message, exportNotice.tone);
       log({ fileName: result.fileName, action: 'export', details: parts });
       return result;
     } catch (err) {

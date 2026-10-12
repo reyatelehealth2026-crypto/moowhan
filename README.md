@@ -1,35 +1,31 @@
-# ชอน
+# moowhan — รวมแผนการผลิต TMT
 
-เว็บแอปสำหรับรวมข้อมูลการผลิต (ตัวอย่าง UI) พร้อม 3 แท็บ: อัปโหลดไฟล์, ตรวจสอบข้อมูล และสรุปผลรวม
+เว็บแอปสำหรับรวมไฟล์พยากรณ์การผลิตรายเดือนของโรงงาน Toyota 4 แห่ง (**BP, BPK, GW, SR**) ลงในเทมเพลต Excel ของบริษัท
+ทำงานในเบราว์เซอร์ล้วน **ไฟล์ไม่ออกจากเครื่อง** ไม่มีการส่งข้อมูลไปเซิร์ฟเวอร์
 
-## Requirements
-- Node.js 18+ (แนะนำ LTS)
+## วิธีใช้งาน
+1. แท็บ **อัปโหลดไฟล์**: ใส่เทมเพลต `template.xlsx` (ไม่บังคับ) และไฟล์พยากรณ์ของแต่ละโรงงาน
+2. กด **รวมข้อมูลและคำนวณ** (Ctrl+Enter)
+3. ตรวจในแท็บ **ตรวจสอบข้อมูล**, **รายละเอียด Matching**, **ประวัติการแก้ไข**, **สรุปรวม** และแท็บวิเคราะห์อื่นๆ
+4. ดาวน์โหลด Excel (Ctrl+S) แล้วเปิดไฟล์และกด Refresh All เพื่ออัปเดต Pivot
 
-## ติดตั้งและรันในเครื่อง
+**กติกาชื่อไฟล์:** ชื่อไฟล์ต้องขึ้นต้นด้วย `BP`, `BPK`, `GW` หรือ `SR` เช่น `BPK packing 481D.xls`
+
+กดปุ่ม **วิธีใช้** (หรือกด `?`) ในแอปเพื่อเปิดศูนย์ช่วยเหลือ: คำศัพท์ คีย์ลัด และคำถามที่พบบ่อย
+หากพบปัญหา กด **รายงานปัญหา** เพื่อดาวน์โหลดไฟล์วินิจฉัย (ไม่มี Part Number และจำนวน) ส่งให้ผู้ดูแล
+
+## สำหรับผู้พัฒนา
 ```bash
 npm install
-npm run dev
+npm run dev      # พัฒนา
+npm test         # vitest
+npm run build    # production build
+npm run e2e      # Playwright smoke (ต้องมี Chromium)
 ```
-
-## Build และ Preview
-```bash
-npm run build
-npm run preview
-```
+ดูโครงสร้างและกติกาการพัฒนาใน [CLAUDE.md](./CLAUDE.md) และประวัติการเปลี่ยนแปลงใน [CHANGELOG.md](./CHANGELOG.md)
 
 ## Deploy บน Vercel
-1. สร้าง GitHub repo แล้ว push โปรเจคขึ้น GitHub
-2. เข้า Vercel และกด **New Project**
-3. เลือก repo นี้
-4. ตั้งค่า:
-   - Framework Preset: **Vite**
-   - Build Command: `npm run build`
-   - Output Directory: `dist`
-5. กด Deploy
-
-## หมายเหตุ
-- หน้านี้ใช้ข้อมูลจำลองเพื่อเดโม UI/UX
-# moowhan
+Framework Preset: **Vite** • Build Command: `npm run build` • Output Directory: `dist`
 
 ## ข้อกำหนดเครื่องมือ
 
