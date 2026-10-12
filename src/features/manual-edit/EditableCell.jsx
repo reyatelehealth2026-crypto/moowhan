@@ -27,11 +27,17 @@ export default function EditableCell({ value, pending, packingSize, label, edite
   const wasEditing = useRef(false);
   const done = useRef(false); // Enter/Esc/Tab already resolved this edit: the blur caused by unmounting must not repeat it
 
+  // The draft is reset in the same render that mounts the input (not in an effect): an effect runs after the
+  // first paint, so fast typing or pasting right after double-click used to be overwritten by the saved value.
+  const [wasEditingState, setWasEditingState] = useState(editing);
+  if (editing !== wasEditingState) {
+    setWasEditingState(editing);
+    if (editing) { setText(String(shown)); setError(''); }
+  }
+
   useEffect(() => {
     if (editing) {
       done.current = false;
-      setText(String(shown));
-      setError('');
       requestAnimationFrame(() => { input.current?.focus(); input.current?.select(); });
     } else if (wasEditing.current) btn.current?.focus();
     wasEditing.current = editing;
