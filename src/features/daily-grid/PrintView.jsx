@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PLANTS } from '../../constants.js';
 import { buildDayColumns } from '../../utils/calendar.js';
-import { formatNumber } from '../../utils/format.js';
+import { formatDate, formatNumber } from '../../utils/format.js';
 import { buildPrintSections } from './print.js';
 
 const cell = (v) => (v ? formatNumber(v) : '');
@@ -15,7 +15,7 @@ export default function PrintView({ processedData, monthLabels, productionMonth,
   const [includeZero, setIncludeZero] = useState(false);
   const sections = useMemo(() => buildPrintSections(processedData, { plant, groupByDock, month, includeZero }), [processedData, plant, groupByDock, month, includeZero]);
   const dayCols = useMemo(() => buildDayColumns(productionMonth)[month], [productionMonth, month]);
-  const printedAt = new Date().toLocaleString('th-TH');
+  const printedAt = formatDate(new Date().toISOString(), 'long');
   const metaOf = (pl) => sourceFiles?.find((f) => f.category === pl && f.meta)?.meta || {};
 
   return createPortal(

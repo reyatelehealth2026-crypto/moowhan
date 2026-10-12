@@ -26,9 +26,23 @@ export default function TabBar({ tabs, activeId, onSelect }) {
   const strip = useRef(null);
 
   useEffect(() => {
-    const el = strip.current?.querySelector('[aria-current="page"]');
+    const el = strip.current?.querySelector('[aria-selected="true"]');
     el?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
   }, [activeId]);
+
+  // roving focus: arrows/Home/End move between enabled tabs and activate them
+  const onKeyDown = (e) => {
+    const keys = { ArrowRight: 1, ArrowLeft: -1, Home: 'first', End: 'last' };
+    if (!(e.key in keys)) return;
+    const els = [...e.currentTarget.querySelectorAll('[role="tab"]:not([disabled])')];
+    if (!els.length) return;
+    e.preventDefault();
+    const i = els.indexOf(document.activeElement);
+    const d = keys[e.key];
+    const next = els[d === 'first' ? 0 : d === 'last' ? els.length - 1 : (i + d + els.length) % els.length];
+    next.focus();
+    next.click();
+  };
 
   const segments = [];
   visible.forEach((t) => {
@@ -43,19 +57,23 @@ export default function TabBar({ tabs, activeId, onSelect }) {
   return (
     <nav className="flex items-start gap-2 mb-6" aria-label="แท็บ">
       <div ref={strip} className="flex-1 min-w-0 overflow-x-auto pb-1">
-        <div className="flex items-end gap-4 w-max">
+        <div className="flex items-end gap-4 w-max" role="tablist" aria-label="แท็บหลัก" onKeyDown={onKeyDown}>
           {segments.map((seg, si) => (
-            <div key={`${seg.group}-${si}`} className="flex flex-col gap-1">
-              {seg.group !== 'core' && <span className="text-[11px] uppercase tracking-wide text-slate-400 px-1">{seg.group}</span>}
-              <div className="flex gap-2">
+            <div key={`${seg.group}-${si}`} className="flex flex-col gap-1" role="presentation">
+              {seg.group !== 'core' && <span aria-hidden="true" className="text-[11px] uppercase tracking-wide text-slate-400 px-1">{seg.group}</span>}
+              <div className="flex gap-2" role="presentation">
                 {seg.tabs.map((item) => (
-                  <div key={item.id} className="relative group">
+                  <div key={item.id} className="relative group" role="presentation">
                     <button
                       type="button"
                       onClick={() => item.enabled && onSelect(item.id)}
                       disabled={!item.enabled}
                       title={!item.enabled ? item.tooltip : undefined}
-                      aria-current={activeId === item.id ? 'page' : undefined}
+                      role="tab"
+                      id={`tab-${item.id}`}
+                      aria-selected={activeId === item.id}
+                      aria-controls="tabpanel-main"
+                      tabIndex={activeId === item.id ? 0 : -1}
                       className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-medium transition-all border text-sm sm:text-base whitespace-nowrap ${
                         activeId === item.id ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : !item.enabled ? 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed'

@@ -7,7 +7,7 @@ const SEVERITY = { error: 'bg-red-100 text-red-700', warning: 'bg-amber-100 text
  * Dropdown menu button. items: [{ key, label, Icon, onClick, disabled, active, badge: {count,severity}|null }]
  * Keyboard: Enter/Space/ArrowDown opens, ArrowUp/Down/Home/End move, Escape closes.
  */
-export default function OverflowMenu({ label = 'เพิ่มเติม', items, badgeCount = 0, Icon, className = '' }) {
+export default function OverflowMenu({ label = 'เพิ่มเติม', items, badgeCount = 0, Icon, className = '', testId }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef(null);
   const btn = useRef(null);
@@ -43,6 +43,7 @@ export default function OverflowMenu({ label = 'เพิ่มเติม', it
     <div ref={wrap} className={`relative ${className}`}>
       <button
         ref={btn}
+        data-testid={testId}
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}

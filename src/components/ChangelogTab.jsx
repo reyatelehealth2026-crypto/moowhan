@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
 import { PLANT_META } from '../constants.js';
+import { formatDate } from '../utils/format.js';
+import { STRINGS } from '../features/ui-kit/strings.js';
 
 const ACTION_META = {
-  error: { label: 'ข้อผิดพลาด', cls: 'bg-red-100 text-red-700' },
-  extracted: { label: 'ดึงข้อมูล', cls: 'bg-emerald-100 text-emerald-700' },
-  warning: { label: 'คำเตือน', cls: 'bg-amber-100 text-amber-700' },
-  edit: { label: 'แก้ไข', cls: 'bg-purple-100 text-purple-700' },
-  export: { label: 'ส่งออก', cls: 'bg-blue-100 text-blue-700' },
-  file: { label: 'ไฟล์', cls: 'bg-slate-100 text-slate-700' },
+  error: { label: STRINGS.actions.error, cls: 'bg-red-100 text-red-700' },
+  extracted: { label: STRINGS.actions.extracted, cls: 'bg-emerald-100 text-emerald-700' },
+  warning: { label: STRINGS.actions.warning, cls: 'bg-amber-100 text-amber-700' },
+  edit: { label: STRINGS.actions.edit, cls: 'bg-purple-100 text-purple-700' },
+  export: { label: STRINGS.actions.export, cls: 'bg-blue-100 text-blue-700' },
+  file: { label: STRINGS.actions.file, cls: 'bg-slate-100 text-slate-700' },
 };
 
 // ==================== CHANGELOG TAB ====================
@@ -59,7 +61,7 @@ export default function ChangelogTab({ state }) {
                 const meta = ACTION_META[log.action] || { label: log.action, cls: 'bg-blue-100 text-blue-700' };
                 return (
                   <tr key={idx} className="border-b hover:bg-slate-50">
-                    <td className="py-3 px-4 text-slate-500 text-xs whitespace-nowrap">{log.timestamp ? new Date(log.timestamp).toLocaleString('th-TH') : '-'}</td>
+                    <td className="py-3 px-4 text-slate-500 text-xs whitespace-nowrap">{formatDate(log.timestamp, 'long')}</td>
                     <td className="py-3 text-slate-700 text-xs">{log.fileName || '-'}</td>
                     <td className="py-3">{log.plant ? <span className={`px-2 py-0.5 rounded text-xs ${PLANT_META[log.plant]?.badge || 'bg-gray-100 text-gray-700'}`}>{log.plant}</span> : '-'}</td>
                     <td className="py-3 font-mono text-xs text-blue-600">{log.partNumber || '-'}</td>

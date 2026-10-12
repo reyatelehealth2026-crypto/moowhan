@@ -1,119 +1,78 @@
 import { useMemo, useState } from 'react';
 import Icons from './Icons.jsx';
 import { PLANTS, PLANT_META } from '../constants.js';
-import { formatNumber } from '../utils/format.js';
-
-const PAGE = 50;
+import { DataGrid, STRINGS, GLOSSARY, Button } from '../features/ui-kit/index.js';
 
 // ==================== PREVIEW TAB ("ตรวจสอบข้อมูล") ====================
 export default function PreviewTab({ state, actions, monthLabels }) {
   const { processedData, sourceFiles, template, fileCounts } = state;
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterPlant, setFilterPlant] = useState('all');
-  const [expanded, setExpanded] = useState({});
-  const [limits, setLimits] = useState({});
+  const [plant, setPlant] = useState('all');
 
-  const filtered = useMemo(() => {
-    const out = {};
-    const q = searchTerm.trim().toLowerCase();
+  const allRows = useMemo(() => {
+    const out = [];
     Object.entries(processedData || {}).forEach(([sheet, rows]) => {
-      const plant = sheet.split(' ')[0];
-      if (filterPlant !== 'all' && plant !== filterPlant) return;
-      out[sheet] = q ? rows.filter((r) => r.partNumber.toLowerCase().includes(q) || String(r.partCode).toLowerCase().includes(q)) : rows;
+      const p = sheet.split(' ')[0];
+      rows.forEach((r) => out.push({ ...r, plant: p, sheet }));
     });
     return out;
-  }, [processedData, searchTerm, filterPlant]);
+  }, [processedData]);
+  const rows = useMemo(() => (plant === 'all' ? allRows : allRows.filter((r) => r.plant === plant)), [allRows, plant]);
+
+  const columns = useMemo(() => [
+    { key: 'partNumber', label: GLOSSARY.partNumber, className: 'font-mono text-blue-600' },
+    { key: 'plant', label: 'Plant', render: (r) => <span className={`px-2 py-0.5 rounded text-xs ${PLANT_META[r.plant]?.badge || ''}`}>{r.plant}</span>, value: (r) => r.plant },
+    { key: 'partCode', label: GLOSSARY.partCode, className: 'font-mono text-xs text-slate-600' },
+    { key: 'dockCode', label: GLOSSARY.dockCode, className: 'text-xs text-slate-500' },
+    { key: 'packingSize', label: GLOSSARY.packingSize, num: true, className: 'text-slate-500' },
+    ...['n', 'n1', 'n2', 'n3'].map((k, i) => ({ key: k, label: monthLabels?.[i] || GLOSSARY[k], num: true })),
+  ], [monthLabels]);
 
   const missingPlants = PLANTS.filter((p) => fileCounts[p] === 0);
   const filesWithError = sourceFiles.filter((f) => f.status === 'error').length;
   const filesProcessed = sourceFiles.filter((f) => f.status === 'done').length;
-  const toggle = (sheet) => setExpanded((prev) => ({ ...prev, [sheet]: !prev[sheet] }));
+
+  const segment = (
+    <div role="group" aria-label="เลือกโรงงาน" className="flex flex-wrap gap-1">
+      {['all', ...PLANTS].map((p) => (
+        <button
+          key={p}
+          type="button"
+          aria-pressed={plant === p}
+          onClick={() => setPlant(p)}
+          className={`px-3 py-2 min-h-[44px] rounded-lg text-sm font-medium border ${plant === p ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+        >
+          {p === 'all' ? STRINGS.plants.all : p}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <input
-            type="text"
-            placeholder="ค้นหา Part Number / Part Code..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 px-4 py-2 border border-slate-200 rounded-xl"
-          />
-          <select value={filterPlant} onChange={(e) => setFilterPlant(e.target.value)} className="px-4 py-2 border border-slate-200 rounded-xl">
-            <option value="all">ทุกโรงงาน</option>
-            {PLANTS.map((p) => <option key={p} value={p}>{p} – {PLANT_META[p].label}</option>)}
-          </select>
-        </div>
-      </div>
-
       <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4 sm:p-6">
         <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
           <h3 className="text-lg font-semibold text-emerald-900">ตรวจสอบข้อมูล</h3>
-          <button onClick={actions.openPreview} className="px-4 py-2 bg-emerald-600 text-white rounded-lg flex items-center gap-2">
-            <span className="w-4 h-4"><Icons.Eye /></span>Excel Preview
-          </button>
+          <Button onClick={actions.openPreview} Icon={Icons.Eye} data-testid="preview-excel" className="!bg-emerald-600 hover:!bg-emerald-700">{STRINGS.buttons.previewExcel}</Button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-white/70 rounded-xl p-3"><p className="text-sm text-emerald-600">ไฟล์หลัก</p><p className="font-semibold">{template ? '✓ พร้อม' : 'ไม่มี'}</p></div>
-          <div className="bg-white/70 rounded-xl p-3"><p className="text-sm text-emerald-600">ประมวลผลสำเร็จ</p><p className="font-semibold">{filesProcessed} / {sourceFiles.length}</p></div>
-          <div className="bg-white/70 rounded-xl p-3"><p className="text-sm text-emerald-600">โรงงานขาด</p><p className={`font-semibold ${missingPlants.length ? 'text-amber-600' : ''}`}>{missingPlants.length > 0 ? missingPlants.join(', ') : 'ครบ'}</p></div>
+          <div className="bg-white/70 rounded-xl p-3"><p className="text-sm text-emerald-600">ไฟล์หลัก</p><p className="font-semibold">{template ? `✓ ${STRINGS.status.ready}` : STRINGS.status.missing}</p></div>
+          <div className="bg-white/70 rounded-xl p-3"><p className="text-sm text-emerald-600">ประมวลผลสำเร็จ</p><p className="font-semibold num">{filesProcessed} / {sourceFiles.length}</p></div>
+          <div className="bg-white/70 rounded-xl p-3"><p className="text-sm text-emerald-600">โรงงานขาด</p><p className={`font-semibold ${missingPlants.length ? 'text-amber-600' : ''}`}>{missingPlants.length > 0 ? missingPlants.join(', ') : STRINGS.status.complete}</p></div>
           <div className="bg-white/70 rounded-xl p-3"><p className="text-sm text-emerald-600">ข้อผิดพลาด</p><p className={`font-semibold ${filesWithError ? 'text-red-600' : ''}`}>{filesWithError > 0 ? `${filesWithError} ไฟล์` : 'ไม่มี'}</p></div>
         </div>
       </div>
 
-      {Object.entries(filtered).map(([sheet, rows]) => {
-        const plant = sheet.split(' ')[0];
-        const limit = limits[sheet] || PAGE;
-        return (
-          <div key={sheet} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <button onClick={() => toggle(sheet)} className="w-full px-4 sm:px-5 py-4 flex items-center justify-between hover:bg-slate-50" aria-expanded={!!expanded[sheet]}>
-              <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-lg text-sm font-medium ${PLANT_META[plant]?.badge}`}>{plant}</span>
-                <span className="font-semibold">{sheet}</span>
-                <span className="text-slate-400">({rows.length})</span>
-              </div>
-              <span className="w-5 h-5 text-slate-400">{expanded[sheet] ? <Icons.ChevronUp /> : <Icons.ChevronDown />}</span>
-            </button>
-            {expanded[sheet] && (
-              <div className="px-4 sm:px-5 pb-4 overflow-x-auto">
-                {rows.length === 0 ? (
-                  <p className="text-sm text-slate-400 py-3">ไม่มีข้อมูล</p>
-                ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-slate-500 border-b">
-                        <th className="text-left py-2">Part Number</th>
-                        <th className="text-left">Dock</th>
-                        <th className="text-right">Pack</th>
-                        {monthLabels.map((m) => <th key={m} className="text-right whitespace-nowrap pl-3">{m}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.slice(0, limit).map((row) => (
-                        <tr key={row.id} className="border-b hover:bg-slate-50">
-                          <td className="py-2 font-mono text-blue-600">{row.partNumber}</td>
-                          <td className="text-slate-500 text-xs">{row.dockCode}</td>
-                          <td className="text-right text-slate-500">{formatNumber(row.packingSize)}</td>
-                          <td className="text-right">{formatNumber(row.n)}</td>
-                          <td className="text-right">{formatNumber(row.n1)}</td>
-                          <td className="text-right">{formatNumber(row.n2)}</td>
-                          <td className="text-right">{formatNumber(row.n3)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-                {rows.length > limit && (
-                  <button onClick={() => setLimits((p) => ({ ...p, [sheet]: limit + PAGE }))} className="mt-3 text-sm text-blue-600 hover:underline">
-                    แสดงเพิ่ม ({rows.length - limit} แถวที่เหลือ)
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <DataGrid
+          testId="preview-grid"
+          columns={columns}
+          rows={rows}
+          getKey={(r) => `${r.sheet}-${r.id}`}
+          resetKey={processedData}
+          toolbar={segment}
+          emptyMessage={STRINGS.empty.noRows}
+        />
+      </div>
     </div>
   );
 }

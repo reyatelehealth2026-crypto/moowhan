@@ -56,8 +56,40 @@ try {
   step('processed; header: ' + (await page.locator('header').innerText()).replace(/\s*\n\s*/g, ' | '));
   await shot(page, '03-preview', true);
 
-  await page.getByRole('button', { name: 'สรุปรวม' }).click();
+  // ---- ui-kit: live region, shared grid (search, sort, '/' and Escape), focus trap ----
+  const liveText = await page.getByTestId('live-region').textContent();
+  if (!/ประมวลผลเสร็จ/.test(liveText || '')) errors.push(`ui-kit: live region did not announce processing (${liveText})`);
+  const nHeader = page.getByRole('columnheader', { name: /^N \(/ });
+  await nHeader.getByRole('button').click();
+  await nHeader.getByRole('button').click();
+  if ((await nHeader.getAttribute('aria-sort')) !== 'descending') errors.push('ui-kit: N header is not aria-sort=descending');
+  if (await page.getByText('แสดงเพิ่ม').count()) errors.push('ui-kit: found a "แสดงเพิ่ม" paging button');
+  await page.keyboard.press('/');
+  if (!(await page.evaluate(() => document.activeElement?.hasAttribute('data-search-input')))) errors.push('ui-kit: "/" did not focus the search box');
+  await page.keyboard.type('BN');
+  await page.getByText(/พบ [\d,]+ จาก [\d,]+/).first().waitFor();
+  await page.keyboard.press('Escape');
+  if ((await page.locator('[data-search-input]').first().inputValue()) !== '') errors.push('ui-kit: Escape did not clear search');
+  await page.getByTestId('preview-excel').focus();
+  await page.getByTestId('preview-excel').click();
+  const dlg = page.getByRole('dialog', { name: 'Preview Excel' });
+  await dlg.waitFor();
+  let escaped = false;
+  for (let i = 0; i < 30; i++) {
+    await page.keyboard.press('Tab');
+    if (!(await page.evaluate(() => !!document.activeElement?.closest('[role=dialog]')))) escaped = true;
+  }
+  if (escaped) errors.push('ui-kit: focus escaped the dialog');
+  await page.keyboard.press('Escape');
+  await dlg.waitFor({ state: 'detached' });
+  if (!(await page.evaluate(() => document.activeElement?.getAttribute('data-testid') === 'preview-excel'))) errors.push('ui-kit: focus was not restored to the opener');
+  step('ui-kit grid search/sort/hotkeys/focus trap ok');
+
+  await page.getByRole('tab', { name: 'สรุปรวม' }).click();
   await page.getByText('สรุปยอดรวม').waitFor();
+  await page.locator('[data-search-input]').first().fill('BN');
+  await page.getByText(/พบ [\d,]+ จาก [\d,]+/).first().waitFor();
+  await page.locator('[data-search-input]').first().fill('');
   await shot(page, '04-summary', true);
 
   await page.getByRole('button', { name: 'ดูกราฟวิเคราะห์' }).click();
@@ -68,20 +100,22 @@ try {
 
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 60000 }),
-    page.getByRole('button', { name: 'ดาวน์โหลด' }).click(),
+    page.keyboard.press('Control+s'),
   ]);
   const outFile = path.join(OUT, download.suggestedFilename());
   await download.saveAs(outFile);
   await page.getByText(/ดาวน์โหลด Production_/).waitFor();
   step(`downloaded ${download.suggestedFilename()} (${fs.statSync(outFile).size} bytes)`);
 
-  await page.getByRole('button', { name: 'รายละเอียด Matching' }).click();
+  await page.getByRole('tab', { name: 'รายละเอียด Matching' }).click();
   await page.getByText('รายละเอียดการ Matching').waitFor();
-  await page.getByRole('button', { name: 'ประวัติการแก้ไข' }).click();
+  await page.locator('[data-search-input]').first().fill('BN');
+  await page.getByText(/พบ [\d,]+ จาก [\d,]+/).first().waitFor();
+  await page.getByRole('tab', { name: 'ประวัติการแก้ไข' }).click();
   await page.getByText('ประวัติการประมวลผล').waitFor();
 
   // ---- daily-grid ----
-  await page.getByRole('button', { name: 'ตารางรายวัน', exact: true }).first().click();
+  await page.getByRole('tab', { name: 'ตารางรายวัน', exact: true }).first().click();
   await page.getByRole('heading', { name: 'ตารางรายวัน' }).waitFor();
   await page.getByRole('button', { name: 'รายวันทั้ง 4 เดือน' }).click();
   const numCols = await page.locator('th[data-col=num]').count();
@@ -110,8 +144,15 @@ try {
   await page.getByRole('button', { name: 'ปิด', exact: true }).click();
   step('daily-grid tab, sticky column, capacity, 390px and print css ok');
 
+  // Ctrl+Enter on the upload tab processes the files again
+  await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
+  await page.getByTestId('process').focus();
+  await page.keyboard.press('Control+Enter');
+  await page.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
+  step('Ctrl+Enter processes');
+
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: 'อัปโหลดไฟล์' }).click();
+  await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
   await shot(page, '05-mobile', true);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
   if (overflow) errors.push('mobile viewport has horizontal overflow');
@@ -119,7 +160,7 @@ try {
 
   // simple/advanced toggle must not break the tab bar (no feature tabs yet -> link hidden)
   await page.getByRole('button', { name: /โหมด/ }).click();
-  await page.getByRole('button', { name: 'อัปโหลดไฟล์' }).waitFor();
+  await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).waitFor();
   await page.getByRole('button', { name: /โหมด/ }).click();
   step('simple/advanced toggle ok');
 } finally {

@@ -61,3 +61,57 @@ export const safeSheetName = (name) =>
     .trim()
     .slice(0, 31)
     .trim() || 'Sheet';
+
+// ==================== DATE / DELTA POLICY ====================
+// Gregorian years with Thai month abbreviations: "5 ต.ค. 2026 14:32". Never the Buddhist calendar.
+export const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+// Injectable clock (tests replace format.now).
+export const format = { now: () => Date.now() };
+
+const partsOf = (date, tz) => {
+  const out = {};
+  new Intl.DateTimeFormat('en-GB', {
+    timeZone: tz, year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(date).forEach((p) => { out[p.type] = p.value; });
+  return out;
+};
+
+/** style: 'short' -> "5 ต.ค. 2026", 'long' -> "5 ต.ค. 2026 14:32", 'time' -> "14:32". Invalid -> "-". */
+export const formatDate = (value, style = 'long', { tz = 'Asia/Bangkok' } = {}) => {
+  if (value === null || value === undefined || value === '') return '-';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '-';
+  let p;
+  try { p = partsOf(d, tz); } catch { return '-'; }
+  const date = `${Number(p.day)} ${THAI_MONTHS[Number(p.month) - 1]} ${p.year}`;
+  const time = `${p.hour}:${p.minute}`;
+  if (style === 'short') return date;
+  if (style === 'time') return time;
+  return `${date} ${time}`;
+};
+
+/** "2 นาทีที่แล้ว" / "อีก 3 ชั่วโมง". `now` defaults to the injectable clock. */
+export const relativeTime = (iso, now = format.now()) => {
+  const t = new Date(iso).getTime();
+  const n = now instanceof Date ? now.getTime() : Number(now);
+  if (Number.isNaN(t) || Number.isNaN(n)) return '-';
+  const diff = Math.round((n - t) / 1000);
+  const abs = Math.abs(diff);
+  if (abs < 45) return 'เมื่อสักครู่';
+  const steps = [[60, 'นาที'], [3600, 'ชั่วโมง'], [86400, 'วัน'], [2592000, 'เดือน'], [31104000, 'ปี']];
+  let i = 0;
+  while (i < steps.length - 1 && abs >= steps[i + 1][0]) i++;
+  const text = `${Math.max(1, Math.round(abs / steps[i][0]))} ${steps[i][1]}`;
+  return diff >= 0 ? `${text}ที่แล้ว` : `อีก ${text}`;
+};
+
+/** formatDelta(1234, 0.026) -> "+1,234 (+2.6%)"; pct is a fraction and optional. */
+export const formatDelta = (n, pct) => {
+  const v = Number(n) || 0;
+  const sign = (x) => (x > 0 ? '+' : x < 0 ? '-' : '');
+  const base = `${sign(v)}${formatNumber(Math.abs(v))}`;
+  if (pct === null || pct === undefined || Number.isNaN(Number(pct))) return base;
+  const p = Number(pct) * 100;
+  return `${base} (${sign(p)}${Math.abs(p).toFixed(1)}%)`;
+};

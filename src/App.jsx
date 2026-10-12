@@ -16,6 +16,8 @@ import OverflowMenu from './components/OverflowMenu.jsx';
 import { visibleFeatures } from './features/visibility.js';
 import { collectCellWrites, collectExportSheets, collectIssues, featureName, normalizeBadge, normalizeHeaderActions, runHook } from './features/runtime.js';
 import { DAILY_SHEETS, ANALYZE_SHEET, SUMMARY_SHEET } from './constants.js';
+import { ToastRegion, LiveRegion, pushToast, announce, STRINGS } from './features/ui-kit/index.js';
+import useHotkeys from './hooks/useHotkeys.js';
 import { formatMonth, monthLabels as buildMonthLabels, todayStamp } from './utils/format.js';
 
 const MAX_INLINE_ACTIONS = 3;
@@ -56,6 +58,8 @@ export default function App() {
       const result = await core.processAll();
       if (result) {
         setTab('preview');
+        const rowCount = Object.values(result.processedData || {}).reduce((n, rows) => n + rows.length, 0);
+        announce(`ประมวลผลเสร็จ: ${result.files?.length ?? 0} ไฟล์ ${rowCount} แถว`);
         // fresh ctx: the render-time `state` is from before processing finished
         const labels = buildMonthLabels(result.productionMonth);
         const fresh = {
@@ -79,7 +83,10 @@ export default function App() {
       const { sheets } = await collectExportSheets(features, ctx, { protectedSheets, report, extra: options.extraSheets || [] });
       const cellWrites = await collectCellWrites(features, ctx, report);
       const result = await core.exportExcel({ ...options, extraSheets: sheets, cellWrites, protectedSheets });
-      if (result) features.forEach((f) => runHook(f, 'onExported', [ctx, result], report));
+      if (result) {
+        announce(`ดาวน์โหลดไฟล์ ${result.fileName} แล้ว`);
+        features.forEach((f) => runHook(f, 'onExported', [ctx, result], report));
+      }
       return result;
     },
     reset: () => {
@@ -117,6 +124,21 @@ export default function App() {
   useEffect(() => {
     if (activeTab.id !== tab) setTab(activeTab.id);
   }, [activeTab.id, tab]);
+
+  // success messages are Toasts (errors/warnings stay in Banner)
+  const notice = state.notice;
+  useEffect(() => {
+    if (notice?.tone === 'success') {
+      pushToast({ message: notice.message, tone: 'success' });
+      core.dismissNotice();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notice]);
+
+  useHotkeys(
+    { canProcess: activeTab.id === 'upload' && state.sourceFiles.length > 0 && !state.processing.active, canExport: !!state.processedData && !state.exporting },
+    { process: () => actions.processAll(), export: () => actions.exportExcel() },
+  );
 
   const simple = state.profile?.ui?.mode === 'simple';
   const rawActions = features.flatMap((f) => normalizeHeaderActions(runHook(f, 'headerActions', [ctx], warnOnly)).map((a, i) => ({ ...a, key: `${f.id}-${i}` })));
@@ -159,9 +181,9 @@ export default function App() {
                 {a.Icon && <span className="w-4 h-4"><a.Icon /></span>}<span className="hidden sm:inline">{a.label}</span>
               </button>
             ))}
-            <OverflowMenu label="เมนู" items={menuActions.map((a) => ({ key: a.key, label: a.label, Icon: a.Icon, onClick: a.onClick }))} />
-            <button onClick={actions.reset} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600">
-              <span className="w-4 h-4"><Icons.Reset /></span><span className="hidden sm:inline">รีเซ็ต</span>
+            <OverflowMenu label={STRINGS.buttons.options} testId="options" items={menuActions.map((a) => ({ key: a.key, label: a.label, Icon: a.Icon, onClick: a.onClick }))} />
+            <button onClick={actions.reset} data-testid="reset" className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600">
+              <span className="w-4 h-4"><Icons.Reset /></span><span className="hidden sm:inline">{STRINGS.buttons.reset}</span>
             </button>
           </div>
         </div>
@@ -178,7 +200,7 @@ export default function App() {
         )}
 
         <Banner tone="error" message={state.error} onDismiss={actions.dismissError} />
-        <Banner tone={state.notice?.tone || 'warning'} message={state.notice?.message} onDismiss={actions.dismissNotice} />
+        <Banner tone={state.notice?.tone || 'warning'} message={state.notice?.tone === 'success' ? null : state.notice?.message} onDismiss={actions.dismissNotice} />
         {state.isStale && (
           <Banner tone="warning" message="รายการไฟล์เปลี่ยนไปหลังจากประมวลผลครั้งล่าสุด กด “รวมข้อมูลและคำนวณ” อีกครั้งเพื่ออัปเดตผลลัพธ์" />
         )}
@@ -190,7 +212,9 @@ export default function App() {
         ))}
 
         <FeatureErrorBoundary key={activeTab.id} name={activeFeature ? featureName(activeFeature) : activeTab.label} onError={activeFeature ? logFeatureError(activeFeature) : (error) => report({ message: `แท็บ "${activeTab.label}" เกิดข้อผิดพลาดขณะแสดงผล`, error })}>
-          <activeTab.Component state={state} actions={actions} monthLabels={state.monthLabels} />
+          <div role="tabpanel" id="tabpanel-main" aria-labelledby={`tab-${activeTab.id}`}>
+            <activeTab.Component state={state} actions={actions} monthLabels={state.monthLabels} />
+          </div>
         </FeatureErrorBoundary>
 
         {activeTab.id === 'upload' && features.filter((f) => f.slots?.uploadPanel).map((f) => (
@@ -210,6 +234,9 @@ export default function App() {
           />
         )}
       </main>
+
+      <ToastRegion />
+      <LiveRegion />
 
       <footer className="border-t border-slate-200 mt-12 py-6 bg-white text-center text-slate-400 text-sm">
         moowhan v{__APP_VERSION__}

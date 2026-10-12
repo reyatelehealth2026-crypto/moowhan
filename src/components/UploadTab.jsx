@@ -2,6 +2,7 @@ import Icons from './Icons.jsx';
 import FileDropZone from './FileDropZone.jsx';
 import ProgressBar from './ProgressBar.jsx';
 import { PLANTS, PLANT_META } from '../constants.js';
+import { STRINGS } from '../features/ui-kit/strings.js';
 import { formatSize } from '../utils/format.js';
 
 const STATUS_ICON = {
@@ -133,12 +134,13 @@ export default function UploadTab({ state, actions }) {
         {processing.active && <ProgressBar current={processing.current} total={processing.total} status={processing.status} />}
         <button
           onClick={actions.processAll}
+          data-testid="process"
           disabled={!canProcess}
           className={`w-full py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-3 transition-all ${
             canProcess ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
         >
           <span className="w-6 h-6">{processing.active ? <Icons.Refresh /> : <Icons.Play />}</span>
-          {processing.active ? 'กำลังประมวลผล...' : 'รวมข้อมูลและคำนวณ'}
+          {processing.active ? STRINGS.status.processing : STRINGS.buttons.process}
         </button>
       </div>
     </div>

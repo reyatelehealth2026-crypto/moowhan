@@ -66,18 +66,18 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
   const border = showGridlines ? 'border border-slate-300' : 'border border-transparent';
 
   return (
-    <Modal onClose={onClose} className="max-w-7xl h-[92vh]" label="Excel Preview">
+    <Modal onClose={onClose} className="max-w-7xl h-[92vh]" label="Preview Excel">
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white flex-shrink-0"><Icons.File /></div>
           <div className="min-w-0">
-            <h2 className="text-white font-semibold text-lg">Excel Preview</h2>
+            <h2 className="text-white font-semibold text-lg">Preview Excel</h2>
             <p className="text-emerald-100 text-sm truncate">{fileName || 'Production_Summary.xlsx'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <button onClick={onDownload} className="px-3 sm:px-4 py-2 bg-white text-emerald-700 rounded-lg font-medium hover:bg-emerald-50 flex items-center gap-2">
+          <button onClick={onDownload} data-testid="download-preview" className="px-3 sm:px-4 py-2 bg-white text-emerald-700 rounded-lg font-medium hover:bg-emerald-50 flex items-center gap-2">
             <span className="w-4 h-4"><Icons.Download /></span><span className="hidden sm:inline">ดาวน์โหลด</span>
           </button>
           <button onClick={onClose} className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-lg text-white" aria-label="ปิด">✕</button>
@@ -107,7 +107,7 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
           />
         </div>
         <div className="ml-auto flex items-center gap-3 text-sm text-slate-500">
-          <span>{currentSheet.rows.length.toLocaleString()} แถว</span>
+          <span>{formatNumber(currentSheet.rows.length)} แถว</span>
           <span>•</span>
           <span>{currentSheet.headers.length} คอลัมน์</span>
         </div>
@@ -146,15 +146,14 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
                 {currentSheet.headers.map((header, idx) => (
                   <th
                     key={idx}
-                    onClick={() => handleSort(idx)}
-                    className={`h-10 ${border} text-xs font-semibold text-slate-700 px-2 text-left whitespace-nowrap cursor-pointer select-none ${currentSheet.numberCols.includes(idx) ? 'bg-blue-50 hover:bg-blue-100' : 'bg-emerald-50 hover:bg-emerald-100'}`}
+                    aria-sort={sortConfig.key === idx ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    className={`h-10 ${border} text-xs font-semibold text-slate-700 px-2 text-left whitespace-nowrap select-none ${currentSheet.numberCols.includes(idx) ? 'bg-blue-50 hover:bg-blue-100' : 'bg-emerald-50 hover:bg-emerald-100'}`}
                     style={{ minWidth: currentSheet.colWidths[idx] || 100 }}
-                    title="คลิกเพื่อเรียงลำดับ"
                   >
-                    <div className="flex items-center justify-between gap-2">
+                    <button type="button" onClick={() => handleSort(idx)} title="คลิกเพื่อเรียงลำดับ" className="w-full flex items-center justify-between gap-2 font-semibold min-h-[32px]">
                       {header}
-                      {sortConfig.key === idx && <span className="text-emerald-600">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>}
-                    </div>
+                      {sortConfig.key === idx && <span className="text-emerald-600" aria-hidden="true">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>}
+                    </button>
                   </th>
                 ))}
               </tr>
