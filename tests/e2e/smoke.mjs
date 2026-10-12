@@ -264,6 +264,21 @@ try {
     await page.keyboard.press('Escape');
     step('provenance: Run Info sheet, sent chip, stale warning ok');
   }
+  // ---- run-history: snapshot written on processAll, survives reset, no overflow at 390px ----
+  {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
+    await page.getByTestId('run-history').waitFor();
+    if ((await page.getByTestId('run-row').count()) < 1) errors.push('run-history: no run listed after processing');
+    const before = await page.getByTestId('run-row').count();
+    await page.getByTestId('reset').click();
+    const dlg = page.getByRole('dialog');
+    if (await dlg.count()) { const btn = dlg.getByRole('button', { name: /ล้าง|ยืนยัน|ตกลง|รีเซ็ต/ }).first(); if (await btn.count()) await btn.click(); }
+    await page.getByTestId('run-history').waitFor();
+    if ((await page.getByTestId('run-row').count()) !== before) errors.push('run-history: history lost after reset');
+    if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('run-history: horizontal overflow at 390px');
+    step('run-history: panel lists run, survives reset, no overflow ok');
+  }
 } finally {
   await browser.close();
   if (server) server.kill();

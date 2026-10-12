@@ -133,6 +133,7 @@ export default function useConsolidator() {
     const data = Object.fromEntries(PLANTS.map((p) => [dailySheetName(p), []]));
     const logs = [];
     const months = new Map(); // "202602" -> [file names]
+    const fileInfo = {}; // id -> details for run-history snapshots (result.files)
 
     try {
       const excel = await loadExcel();
@@ -156,6 +157,7 @@ export default function useConsolidator() {
           if (!rows.length) {
             logs.push({ fileName: f.name, plant: f.category, action: 'warning', details: 'ไม่พบแถวข้อมูล (ตรวจสอบแถวหัวตาราง "PART NUMBER")' });
           }
+          fileInfo[f.id] = { size: f.size ?? f.file?.size ?? 0, sha256: digest, rows: rows.length, meta };
           if (meta.productionMonthRaw) months.set(meta.productionMonthRaw, [...(months.get(meta.productionMonthRaw) || []), f.name]);
           setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'done', rowCount: rows.length, meta, sha256: digest } : x)));
         } catch (err) {
@@ -189,7 +191,7 @@ export default function useConsolidator() {
         summary,
         matching,
         productionMonth: pm,
-        files: files.map((f) => ({ id: f.id, name: f.name, category: f.category })),
+        files: files.map((f) => ({ id: f.id, name: f.name, category: f.category, ...fileInfo[f.id] })),
       };
     } catch (err) {
       setError(`เกิดข้อผิดพลาดในการประมวลผล: ${err.message}`);
