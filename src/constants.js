@@ -77,3 +77,11 @@ export const MONTH_META = [
   { key: 'n2', bar: 'bg-amber-500',   text: 'text-amber-600',   gradient: 'from-amber-500 to-amber-600' },
   { key: 'n3', bar: 'bg-purple-500',  text: 'text-purple-600',  gradient: 'from-purple-500 to-purple-600' },
 ];
+
+// ---------- QA engine (src/features/qa-engine) ----------
+// PLANT CODE in a TMT forecast file is a single letter; this is the one map from it to our plant ids.
+export const PLANT_CODE = { P: 'BP', B: 'BPK', G: 'GW', S: 'SR' };
+// Part Number such as 86790-0K051-00 (5 + 5 characters, optional 2-3 character suffix).
+export const PART_NUMBER_PATTERN = /^[0-9A-Z]{5}-[0-9A-Z]{5}(-[0-9A-Z]{2,3})?$/;
+// SUPP CODE every row is expected to carry.
+export const DEFAULT_SUPP_CODE = 'TTETA';

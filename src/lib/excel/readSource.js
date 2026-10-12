@@ -41,6 +41,7 @@ export const readMetadata = (aoa, headerRowIndex) => {
     else if (key === 'REVISION NUMBER') meta.revision = String(val).trim();
     else if (key === 'FORECAST TYPE') meta.forecastType = String(val).trim();
     else if (key === 'PART TYPE') meta.partType = String(val).trim();
+    else if (key === 'REVISION TYPE') meta.revisionType = String(val).trim();
   }
   meta.productionMonth = parseProductionMonth(meta.productionMonthRaw);
   return meta;
@@ -53,12 +54,22 @@ export const extractSourceRows = (aoa) => {
   const meta = readMetadata(aoa, headerRowIndex);
   const [nCol, n1Col, n2Col, n3Col] = findMonthColumns(aoa[headerRowIndex]);
   const rows = [];
+  // qa-engine: raw rows dropped while reading (source row number is 1-based) + which N columns came from the header
+  const skippedRows = [];
+  const headerNorm = (aoa[headerRowIndex] || []).map(norm);
+  meta.monthColumnsFromHeader = MONTH_HEADERS.map((h) => headerNorm.includes(h));
+  meta.skippedRows = skippedRows;
 
   for (let i = dataStartIndex; i < aoa.length; i++) {
     const row = aoa[i];
     if (!row || row[0] === undefined || row[0] === null || row[0] === '<EOF>') continue;
     const partNumber = String(row[0]).trim();
-    if (partNumber.length < 5) continue;
+    if (partNumber.length < 5) {
+      if (partNumber || row.some((v) => v !== undefined && v !== null && String(v).trim() !== '')) {
+        skippedRows.push({ rowNumber: i + 1, values: row.slice(0, 8) });
+      }
+      continue;
+    }
 
     rows.push({
       partNumber,
@@ -79,7 +90,7 @@ export const extractSourceRows = (aoa) => {
     });
   }
 
-  return { rows, meta, headerRowIndex };
+  return { rows, meta, headerRowIndex, skippedRows };
 };
 
 // ArrayBuffer of an .xls/.xlsx -> { sheetName, aoa }

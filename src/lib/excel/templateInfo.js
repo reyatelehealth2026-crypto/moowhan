@@ -12,7 +12,7 @@ import { inspectTemplate } from '../../features/template-inspector/templateInspe
  */
 export const readTemplateBuffer = async (buffer) => {
   if (isZipBuffer(buffer)) {
-    const inspection = await inspectTemplate(buffer); // never throws: failures become an INSPECT_FAILED issue
+    const inspection = await inspectTemplate(buffer, { deep: true }); // deep: qa-engine reads masters (By Plant keys, dock map). never throws: failures become an INSPECT_FAILED issue
     const sheets = inspection.sheets.length ? inspection.sheets.map((s) => s.name) : await listSheetNames(buffer);
     if (!sheets.length) throw new Error('ไฟล์ Excel ไม่มี worksheet');
     return { kind: 'xlsx', buffer, sheets, inspection };
