@@ -92,3 +92,15 @@ export const normalizeBadge = (b) => {
   if (typeof b === 'number') return b > 0 ? { count: b, severity: 'info' } : null;
   return b.count > 0 ? { count: b.count, severity: b.severity || 'info' } : null;
 };
+
+/**
+ * expandFiles(file) of the first feature that recognises the file (returns File[]); null = not an archive.
+ * Used by addSourceFiles before categorising (import-cli).
+ */
+export const expandFilesWith = async (features, file, report) => {
+  for (const f of features) {
+    const out = await runHook(f, 'expandFiles', [file], report);
+    if (Array.isArray(out)) return out;
+  }
+  return null;
+};

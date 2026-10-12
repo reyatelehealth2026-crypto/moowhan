@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { PLANTS, dailySheetName } from '../constants.js';
+import { describeIntake, expandIncoming, isArchive } from '../features/import-cli/intake.js';
 import { buildSummary, computeTotals } from '../lib/excel/aggregate.js';
 import { categorizeFile } from '../lib/excel/categorize.js';
 import { defaultProfile, DEFAULT_FILE_NAME_PATTERN } from '../features/settings-profile/profile.js';
@@ -27,7 +28,7 @@ const emptyProcessing = { active: false, current: 0, total: 0, status: '' };
  * All application state + actions for the consolidator.
  * Components receive `{ state, actions }`; features get the same object as `ctx`.
  */
-export default function useConsolidator() {
+export default function useConsolidator({ expandFiles = null } = {}) {
   const [template, setTemplate] = useState(null);
   const [sourceFiles, setSourceFiles] = useState([]);
   const [processing, setProcessing] = useState(emptyProcessing);
@@ -109,15 +110,22 @@ export default function useConsolidator() {
   };
 
   // ---------- source files ----------
-  const addSourceFiles = (files) => {
+  // import-cli: `expandFiles(file)` (feature hook) turns .zip/.eml into File[]; everything then takes the normal path.
+  // Plain files take the synchronous path (callers such as restore/makeCtx rely on it); only archives await.
+  const addSourceFiles = (incoming) => {
+    const list = Array.from(incoming || []);
+    if (!expandFiles || !list.some((f) => isArchive(f.name))) return intake({ files: list, origin: new Map(), reports: [] });
+    return expandIncoming(list, expandFiles).then(intake);
+  };
+  const intake = ({ files, origin, reports }) => {
     const existing = new Set(refs.current.sourceFiles.map((f) => f.name));
     const accepted = [];
     const rejected = [];
     const duplicates = [];
-    Array.from(files || []).forEach((file) => {
+    files.forEach((file) => {
       const category = categorizeFile(file.name);
-      if (!category) rejected.push(file.name);
-      else if (existing.has(file.name)) duplicates.push(file.name);
+      if (!category) rejected.push(file);
+      else if (existing.has(file.name)) duplicates.push(file);
       else {
         existing.add(file.name);
         accepted.push({ id: nextId(), name: file.name, size: file.size, category, file, status: 'inspecting', rowCount: 0, error: null, meta: null });
@@ -126,9 +134,25 @@ export default function useConsolidator() {
     if (accepted.length) { setSourceFiles((prev) => [...prev, ...accepted]); inspectFiles(accepted); }
 
     const problems = [];
-    if (rejected.length) problems.push(`ไม่สามารถจัดประเภทไฟล์ได้ ${rejected.length} ไฟล์: ${rejected.join(', ')}\nชื่อไฟล์ต้องขึ้นต้นด้วย BP, BPK, GW หรือ SR`);
-    if (duplicates.length) problems.push(`ข้ามไฟล์ที่เพิ่มไว้แล้ว: ${duplicates.join(', ')}`);
-    setError(problems.length ? problems.join('\n') : null);
+    if (rejected.length) problems.push(`ไม่สามารถจัดประเภทไฟล์ได้ ${rejected.length} ไฟล์: ${rejected.map((f) => f.name).join(', ')}\nชื่อไฟล์ต้องขึ้นต้นด้วย BP, BPK, GW หรือ SR`);
+    if (duplicates.length) problems.push(`ข้ามไฟล์ที่เพิ่มไว้แล้ว: ${duplicates.map((f) => f.name).join(', ')}`);
+    const archiveErrors = reports.filter((r) => r.error).map((r) => describeIntake(r));
+    setError([...archiveErrors, ...problems].join('\n') || null);
+
+    const notes = reports.filter((r) => !r.error).map((report) => {
+      const from = (f) => origin.get(f) === report.source;
+      return describeIntake(report, {
+        added: accepted.filter((a) => from(a.file)).map((a) => a.name),
+        skipped: [
+          ...rejected.filter(from).map((f) => ({ name: f.name, reason: 'จัดประเภทโรงงานไม่ได้' })),
+          ...duplicates.filter(from).map((f) => ({ name: f.name, reason: 'เพิ่มไว้แล้ว' })),
+        ],
+      });
+    });
+    if (notes.length) {
+      setNotice(notes.join('\n'), notes.some((n) => n.includes('ข้าม')) ? 'warning' : 'success');
+      log(notes.map((details) => ({ action: 'file', details })));
+    }
   };
 
   const removeSourceFile = (id) => { inspectCache.current.delete(id); setSourceFiles((prev) => prev.filter((f) => f.id !== id)); };

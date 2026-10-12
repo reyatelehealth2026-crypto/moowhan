@@ -1,7 +1,7 @@
 // ==================== FLAT EXPORT (pure, no DOM) ====================
 import { DEFAULT_N_COLS, MONTH_HEADERS, MONTH_KEYS, PLANTS, dailySheetName } from '../../constants.js';
 import { monthKey } from '../../utils/format.js';
-import pkg from '../../../package.json';
+import pkg from '../../../package.json' with { type: 'json' };
 
 export const SCHEMA_VERSION = 1;
 export const APP_VERSION = pkg.version;
