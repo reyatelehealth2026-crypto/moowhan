@@ -408,7 +408,7 @@ describe('export', () => {
     expect((await JSZip.loadAsync(out.buffer).then((z) => z.file('xl/styles.xml').async('string')))).not.toContain('FFFFF1C2');
   });
 
-  it("feature.exportSheets: 'Manual Edits' has one row per edit, sanitised, absent when unused/for customers/switched off", async () => {
+  it("feature.exportSheets: 'Manual Edits' has one row per edit, sanitised, absent when unused/switched off", async () => {
     const { processedData, results } = editedData();
     const ledger = mergeLedger([], results);
     const state = { processedData, features: { 'manual-edit': { ledger } }, profile: {} };
@@ -421,7 +421,6 @@ describe('export', () => {
     const none = (st) => collectExportSheets([feature], { state: st }, {}).then((r) => r.sheets);
     expect(await none({ ...state, features: {} })).toEqual([]);
     expect(await none({ ...state, features: { 'manual-edit': { ledger: [] } } })).toEqual([]);
-    expect(await none({ ...state, profile: { recipient: 'ส่งลูกค้า' } })).toEqual([]);
     expect(await none({ ...state, features: { 'manual-edit': { ledger, exportLedger: false } } })).toEqual([]);
     // an orphaned entry (row no longer edited) is not exported
     expect(await none({ ...state, processedData: load() })).toEqual([]);

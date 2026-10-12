@@ -2,11 +2,12 @@ import Banner from '../../components/Banner.jsx';
 import Icons from '../../components/Icons.jsx';
 import { defineFeature } from '../defineFeature.js';
 import { ID, editedRowCount, featureData, liveLedger, replayAfterProcess } from './controller.js';
-import EditTab from './EditTab.jsx';
+import { lazyComponent } from '../lazy.js';
 import { buildLedgerAoa } from './edits.js';
 
+const EditTab = lazyComponent(() => import('./EditTab.jsx'));
+
 export const SHEET_NAME = 'Manual Edits';
-const CUSTOMER_PROFILE = 'ส่งลูกค้า';
 
 export default defineFeature({
   id: ID,
@@ -39,10 +40,10 @@ export default defineFeature({
     },
   },
   onProcessed: (ctx, result) => { replayAfterProcess(ctx, result); },
-  // 'Manual Edits' ledger: only when edits exist, not for the customer profile, and unless switched off in the tab
+  // 'Manual Edits' ledger: only when edits exist and unless switched off in the tab (exportLedger checkbox)
   exportSheets: (ctx) => {
     const d = featureData(ctx.state);
-    if (d.exportLedger === false || ctx.state.profile?.recipient === CUSTOMER_PROFILE) return [];
+    if (d.exportLedger === false) return [];
     const ledger = liveLedger(ctx.state);
     return ledger.length ? [{ name: SHEET_NAME, aoa: buildLedgerAoa(ledger) }] : [];
   },
