@@ -15,6 +15,7 @@ export function createStorageSession({ storage = getStorage(), debounceMs = AUTO
   const subs = new Set();
   const set = (patch) => { snap = { ...snap, ...patch }; subs.forEach((f) => f(snap)); };
   let timer = null;
+  let inflight = null; // the save that is writing right now; wipe/discard wait for it so it cannot write after them
   let initPromise = null;
 
   storage.subscribe?.((s) => set({ degraded: s.degraded }));
@@ -78,7 +79,13 @@ export function createStorageSession({ storage = getStorage(), debounceMs = AUTO
 
     // ----- session (opt-in) -----
     /** Saves the current job, replacing the previous one. No-op unless the flag is on. */
-    async saveSession(state) {
+    saveSession(state) {
+      const run = ctrl.writeSession(state);
+      const tracked = run.then(() => {}, () => {}).then(() => { if (inflight === tracked) inflight = null; });
+      inflight = tracked;
+      return run;
+    },
+    async writeSession(state) {
       if (!snap.prefs.saveSession) return { ok: false, reason: 'disabled' };
       if (!state?.sourceFiles?.length) return { ok: false, reason: 'empty' };
       set({ saving: true });
@@ -119,6 +126,7 @@ export function createStorageSession({ storage = getStorage(), debounceMs = AUTO
     },
     async discardSession() {
       ctrl.cancelAutosave();
+      await inflight;
       await storage.remove('session', 'session.meta');
       await storage.remove('session', 'session.data');
       set({ sessionMeta: null, lastSavedAt: null });
@@ -128,6 +136,7 @@ export function createStorageSession({ storage = getStorage(), debounceMs = AUTO
     /** Wipes every store and every moowhan.* key, then resets the in-memory view. */
     async wipeAll() {
       ctrl.cancelAutosave();
+      await inflight;
       await storage.wipeAll();
       set({ prefs: { ...DEFAULT_PREFS }, sessionMeta: null, templateMeta: null, lastSavedAt: null });
     },

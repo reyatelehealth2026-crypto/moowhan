@@ -20,13 +20,13 @@ export default function OverflowMenu({ label = 'เพิ่มเติม', it
   }, [open]);
 
   useEffect(() => {
-    if (open) wrap.current?.querySelector('[role="menuitem"]:not([disabled])')?.focus();
+    if (open) wrap.current?.querySelector('[role^="menuitem"]:not([disabled])')?.focus();
   }, [open]);
 
   if (!items.length) return null;
 
   const move = (dir) => {
-    const els = [...wrap.current.querySelectorAll('[role="menuitem"]:not([disabled])')];
+    const els = [...wrap.current.querySelectorAll('[role^="menuitem"]:not([disabled])')];
     if (!els.length) return;
     const i = els.indexOf(document.activeElement);
     const next = dir === 'first' ? 0 : dir === 'last' ? els.length - 1 : (i + dir + els.length) % els.length;
@@ -62,7 +62,8 @@ export default function OverflowMenu({ label = 'เพิ่มเติม', it
             <button
               key={it.key}
               type="button"
-              role="menuitem"
+              role={it.checked !== undefined ? 'menuitemcheckbox' : 'menuitem'}
+              aria-checked={it.checked !== undefined ? it.checked : undefined}
               disabled={it.disabled}
               title={it.disabled ? it.tooltip : undefined}
               onClick={() => { setOpen(false); it.onClick?.(); }}
@@ -70,6 +71,7 @@ export default function OverflowMenu({ label = 'เพิ่มเติม', it
             >
               {it.Icon && <span className="w-4 h-4 flex-shrink-0"><it.Icon /></span>}
               <span className="flex-1 min-w-0 truncate">{it.label}</span>
+              {it.checked && <span className="w-4 h-4 flex-shrink-0 text-blue-600"><Icons.Check /></span>}
               {it.badge && <span className={`px-1.5 py-0.5 rounded-full text-xs ${SEVERITY[it.badge.severity] || SEVERITY.info}`}>{it.badge.count}</span>}
             </button>
           ))}

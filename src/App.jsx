@@ -13,6 +13,7 @@ import { collectCellWrites, collectExportSheets, collectIssues, featureName, nor
 import { DAILY_SHEETS, ANALYZE_SHEET, SUMMARY_SHEET } from './constants.js';
 import { ToastRegion, LiveRegion, pushToast, announce, STRINGS } from './features/ui-kit/index.js';
 import useHotkeys from './hooks/useHotkeys.js';
+import useMediaQuery from './hooks/useMediaQuery.js';
 import { openDiagnostics } from './features/help-center/helpStore.js';
 import { formatMonth, monthLabels as buildMonthLabels, todayStamp } from './utils/format.js';
 import { exportDialog } from './features/export-gate/dialogStore.js';
@@ -28,6 +29,7 @@ const ChangelogTab = lazy(() => import('./components/ChangelogTab.jsx'));
 const ExcelPreview = lazy(() => import('./components/ExcelPreview.jsx'));
 
 const MAX_INLINE_ACTIONS = 3;
+const MAX_INLINE_ACTIONS_PHONE = 1; // 390px fits the logo, the mode toggle, one action, the tools menu and reset
 // renders feature slot output inside the error boundary (a throwing slot cannot blank the app)
 const SlotHost = ({ fn, ctx }) => <Suspense fallback={null}>{fn(ctx) ?? null}</Suspense>;
 const warnOnly = ({ message, error }) => console.warn(message, error);
@@ -40,6 +42,7 @@ export default function App() {
   const { state, actions: core } = useConsolidator({ expandFiles: (file) => expandRef.current?.(file) ?? null });
   const [tab, setTab] = useState('upload');
   const [showPreview, setShowPreview] = useState(false);
+  const wide = useMediaQuery('(min-width: 640px)');
 
   // features that must stay reachable: tabs with block-level issues are never hidden
   const allIssues = useMemo(
@@ -179,8 +182,9 @@ export default function App() {
   const rawActions = features.flatMap((f) => normalizeHeaderActions(runHook(f, 'headerActions', [ctx], warnOnly)).map((a, i) => ({ ...a, key: `${f.id}-${i}` })));
   const inlineNodes = rawActions.filter((a) => a.node).map((a) => a.node);
   const sortedActions = rawActions.filter((a) => !a.node).sort((a, b) => (b.priority || 0) - (a.priority || 0));
-  const inlineActions = sortedActions.slice(0, MAX_INLINE_ACTIONS);
-  const menuActions = sortedActions.slice(MAX_INLINE_ACTIONS);
+  const inlineCount = wide ? MAX_INLINE_ACTIONS : MAX_INLINE_ACTIONS_PHONE;
+  const inlineActions = sortedActions.slice(0, inlineCount);
+  const menuActions = sortedActions.slice(inlineCount);
   const logFeatureError = (f) => (error) => report({ message: `ฟีเจอร์ "${featureName(f)}" เกิดข้อผิดพลาดขณะแสดงผล`, error });
   const activeFeature = features.find((f) => f.id === activeTab.id);
   const previewFileName = `Production_${state.template?.kind === 'xlsx' ? 'Updated' : 'Summary'}_${todayStamp()}.xlsx`;
@@ -212,12 +216,20 @@ export default function App() {
             </button>
             {inlineNodes.map((n, i) => <span key={`n${i}`}><Suspense fallback={null}>{n}</Suspense></span>)}
             {inlineActions.map((a) => (
-              <button key={a.key} type="button" onClick={a.onClick} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600">
+              <button
+                key={a.key}
+                type="button"
+                onClick={a.onClick}
+                aria-label={a.label}
+                title={a.label}
+                aria-pressed={a.checked !== undefined ? a.checked : undefined}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg ${a.checked ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'} hover:bg-slate-200`}
+              >
                 {a.Icon && <span className="w-4 h-4"><a.Icon /></span>}<span className="hidden sm:inline">{a.label}</span>
               </button>
             ))}
-            <OverflowMenu label={STRINGS.buttons.options} testId="options" items={menuActions.map((a) => ({ key: a.key, label: a.label, Icon: a.Icon, onClick: a.onClick }))} />
-            <button onClick={actions.reset} data-testid="reset" className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600">
+            <OverflowMenu label={STRINGS.buttons.options} testId="options" items={menuActions.map((a) => ({ key: a.key, label: a.label, Icon: a.Icon, onClick: a.onClick, checked: a.checked }))} />
+            <button onClick={actions.reset} data-testid="reset" aria-label={STRINGS.buttons.reset} title={STRINGS.buttons.reset} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600">
               <span className="w-4 h-4"><Icons.Reset /></span><span className="hidden sm:inline">{STRINGS.buttons.reset}</span>
             </button>
           </div>

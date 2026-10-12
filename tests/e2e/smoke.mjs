@@ -165,7 +165,7 @@ try {
   if ((await page.locator('[data-search-input]').first().inputValue()) !== '') errors.push('ui-kit: Escape did not clear search');
   await page.getByTestId('preview-excel').focus();
   await page.getByTestId('preview-excel').click();
-  const dlg = page.getByRole('dialog', { name: 'Preview Excel' });
+  const dlg = page.getByRole('dialog', { name: 'ดูตัวอย่างไฟล์ Excel' });
   await dlg.waitFor();
   let escaped = false;
   for (let i = 0; i < 30; i++) {

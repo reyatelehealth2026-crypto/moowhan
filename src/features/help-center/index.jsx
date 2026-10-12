@@ -33,6 +33,6 @@ export default defineFeature({
   order: 99,
   group: 'ตั้งค่า',
   description: 'ศูนย์ช่วยเหลือ คำศัพท์ และรายงานปัญหา',
-  headerActions: () => [{ label: 'วิธีใช้', Icon: Icons.Info, onClick: () => openHelp(), priority: 90 }],
+  headerActions: () => [{ label: 'วิธีใช้', Icon: Icons.Help, onClick: () => openHelp(), priority: 90 }],
   slots: { banner: (ctx) => <HelpHost ctx={ctx} /> },
 });

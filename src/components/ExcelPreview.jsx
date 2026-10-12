@@ -71,18 +71,18 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
   const border = showGridlines ? 'border border-slate-300' : 'border border-transparent';
 
   return (
-    <Modal onClose={onClose} className="max-w-7xl h-[92vh]" label="Preview Excel">
+    <Modal onClose={onClose} className="max-w-7xl h-[92vh]" label="ดูตัวอย่างไฟล์ Excel">
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white flex-shrink-0"><Icons.File /></div>
           <div className="min-w-0">
-            <h2 className="text-white font-semibold text-lg">Preview Excel</h2>
+            <h2 className="text-white font-semibold text-lg">ดูตัวอย่างไฟล์ Excel</h2>
             <p className="text-emerald-100 text-sm truncate">{fileName || 'Production_Summary.xlsx'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <button onClick={onDownload} data-testid="download-preview" className="px-3 sm:px-4 py-2 bg-white text-emerald-700 rounded-lg font-medium hover:bg-emerald-50 flex items-center gap-2">
+          <button onClick={onDownload} data-testid="download-preview" aria-label="ดาวน์โหลด" title="ดาวน์โหลด" className="px-3 sm:px-4 py-2 bg-white text-emerald-700 rounded-lg font-medium hover:bg-emerald-50 flex items-center gap-2">
             <span className="w-4 h-4"><Icons.Download /></span><span className="hidden sm:inline">ดาวน์โหลด</span>
           </button>
           <button onClick={onClose} className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-lg text-white" aria-label="ปิด">✕</button>
@@ -197,9 +197,9 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
         </div>
       </div>
 
-      <div className="bg-emerald-600 text-white px-4 py-2 text-xs sm:text-sm flex items-center justify-between">
-        <div className="flex items-center gap-4"><span>Sheet: {activeSheet}</span><span>|</span><span>Ready</span></div>
-        <div className="flex items-center gap-4"><span>Zoom: {zoom}%</span><span>|</span><span>{highlightedCells.size} cells highlighted</span></div>
+      <div className="bg-emerald-600 text-white px-4 py-2 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0"><span className="truncate">ชีต: {activeSheet}</span><span aria-hidden="true">|</span><span>พร้อม</span></div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span>ซูม: {zoom}%</span><span aria-hidden="true">|</span><span>ไฮไลต์ {highlightedCells.size} เซลล์</span></div>
       </div>
     </Modal>
   );

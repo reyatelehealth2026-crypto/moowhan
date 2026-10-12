@@ -19,7 +19,7 @@ export default defineFeature({
   description: 'สัญญาณ Run-out จากแผน N..N+3',
   tab: {
     label: 'Run-out',
-    Icon: Icons.Alert,
+    Icon: Icons.Clock,
     enabled: (ctx) => !!ctx.state.processedData,
     tooltip: 'ต้องประมวลผลไฟล์ก่อน',
     Component: RunoutView,

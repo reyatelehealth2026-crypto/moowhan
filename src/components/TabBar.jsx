@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import OverflowMenu from './OverflowMenu.jsx';
 
 export const MAX_VISIBLE_TABS = 7;
+// display names of feature groups (the group ids stay the contract keys)
+export const GROUP_LABEL = { ตรวจสอบ: 'ตรวจและแก้ไข' };
 const SEVERITY = { error: 'bg-red-500 text-white', warning: 'bg-amber-400 text-white', info: 'bg-white/30' };
 
 /** Split tabs into the visible ones (max 7, active tab always included) and the overflow rest. Pure. */
@@ -19,12 +21,14 @@ export const splitTabs = (tabs, activeId, max = MAX_VISIBLE_TABS) => {
 
 /**
  * tabs: [{ id, label, Icon, group, enabled, tooltip, badge: {count,severity}|null }] already sorted.
- * Groups render as labelled segments (the "core" group has no label). The strip scrolls on its own
- * on narrow screens so the page never overflows horizontally.
+ * Groups render as labelled segments (the "core" group has no label). On phones the strip scrolls on its own
+ * (with a fade on the edge that still has tabs behind it) so the page never overflows horizontally; from the
+ * sm breakpoint the segments wrap onto a second line instead, so no tab is ever clipped.
  */
 export default function TabBar({ tabs, activeId, onSelect }) {
   const { visible, overflow } = splitTabs(tabs, activeId);
   const strip = useRef(null);
+  const [fade, setFade] = useState(false); // phones: more tabs hidden behind the right edge
   const [hint, setHint] = useState(null); // { id, text, left, top } — shown ~2s when a grey tab is tapped
   useEffect(() => {
     if (!hint) return undefined;
@@ -41,6 +45,16 @@ export default function TabBar({ tabs, activeId, onSelect }) {
     const el = strip.current?.querySelector('[aria-selected="true"]');
     el?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
   }, [activeId]);
+
+  useEffect(() => {
+    const s = strip.current;
+    if (!s) return undefined;
+    const update = () => setFade(s.scrollWidth - s.clientWidth - s.scrollLeft > 4);
+    update();
+    s.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => { s.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
+  }, [tabs.length, activeId]);
 
   // roving focus: arrows/Home/End move between enabled tabs and activate them
   const onKeyDown = (e) => {
@@ -68,12 +82,15 @@ export default function TabBar({ tabs, activeId, onSelect }) {
 
   return (
     <nav className="flex items-start gap-2 mb-6" aria-label="แท็บ">
-      <div ref={strip} className="flex-1 min-w-0 overflow-x-auto pb-1">
-        <div className="flex items-end gap-4 w-max" role="tablist" aria-label="แท็บหลัก" onKeyDown={onKeyDown}>
+      <div
+        ref={strip}
+        className={`flex-1 min-w-0 overflow-x-auto sm:overflow-visible pb-1 ${fade ? 'max-sm:[mask-image:linear-gradient(to_right,black_calc(100%-28px),transparent)]' : ''}`}
+      >
+        <div className="flex items-end gap-x-4 gap-y-2 w-max sm:w-auto sm:flex-wrap" role="tablist" aria-label="แท็บหลัก" onKeyDown={onKeyDown}>
           {segments.map((seg, si) => (
             <div key={`${seg.group}-${si}`} className="flex flex-col gap-1" role="presentation">
-              {seg.group !== 'core' && <span aria-hidden="true" className="text-[11px] uppercase tracking-wide text-slate-400 px-1">{seg.group}</span>}
-              <div className="flex gap-2" role="presentation">
+              {seg.group !== 'core' && <span aria-hidden="true" className="text-[11px] uppercase tracking-wide text-slate-400 px-1">{GROUP_LABEL[seg.group] || seg.group}</span>}
+              <div className="flex gap-2 sm:flex-wrap" role="presentation">
                 {seg.tabs.map((item) => (
                   <div key={item.id} className="relative group" role="presentation" onClick={(e) => showHint(e, item)}>
                     <button

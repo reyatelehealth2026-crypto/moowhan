@@ -16,7 +16,7 @@ export default defineFeature({
   description: 'ตารางยอดรายวัน ค้นหา คัดลอก และพิมพ์แผนรายวัน',
   tab: {
     label: 'ตารางรายวัน',
-    Icon: Icons.Eye,
+    Icon: Icons.Grid,
     enabled: (ctx) => !!ctx.state.processedData,
     tooltip: 'ต้องประมวลผลไฟล์ก่อน',
     Component: DailyGridTab,
@@ -25,8 +25,8 @@ export default defineFeature({
     if (!ctx.state.processedData) return [];
     const on = settingsOf(ctx).includeInExport;
     return [
-      { label: 'พิมพ์แผนรายวัน', Icon: Icons.File, onClick: () => setPrint(ctx, true), priority: 1 },
-      { label: `ส่งออกชีท ${DAILY_TOTAL_SHEET}: ${on ? 'เปิด' : 'ปิด'}`, Icon: Icons.Sort, onClick: () => updateSettings(ctx, { includeInExport: !on }), priority: 0 },
+      { label: 'พิมพ์แผนรายวัน', Icon: Icons.Printer, onClick: () => setPrint(ctx, true), priority: 1 },
+      { label: `ใส่ชีท ${DAILY_TOTAL_SHEET} ตอนดาวน์โหลด`, checked: !!on, Icon: Icons.Sort, onClick: () => updateSettings(ctx, { includeInExport: !on }), priority: 0 },
     ];
   },
   exportSheets: (ctx) => {

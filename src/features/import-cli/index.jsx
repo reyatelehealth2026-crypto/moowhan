@@ -31,7 +31,7 @@ export default defineFeature({
   description: 'นำเข้าไฟล์จาก .zip / .eml / โฟลเดอร์',
   expandFiles: (file) => expandFile(file),
   headerActions: (ctx) => (canPickFolder()
-    ? [{ label: FOLDER_BUTTON_LABEL, Icon: Icons.Upload, onClick: () => pickFolder(ctx), priority: 3 }]
+    ? [{ label: FOLDER_BUTTON_LABEL, Icon: Icons.Folder, onClick: () => pickFolder(ctx), priority: 3 }]
     : []),
   slots: {
     banner: (ctx) => {

@@ -26,7 +26,7 @@ export default defineFeature({
   description: 'ตรวจคุณภาพข้อมูลก่อนส่งออก',
   tab: {
     label: 'ตรวจคุณภาพ',
-    Icon: Icons.Alert,
+    Icon: Icons.Shield,
     enabled: (ctx) => !!ctx.state.processedData,
     tooltip: 'ต้องประมวลผลไฟล์ก่อน',
     // badge = errors not yet acknowledged

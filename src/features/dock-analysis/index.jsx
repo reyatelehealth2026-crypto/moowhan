@@ -12,7 +12,7 @@ export default defineFeature({
   description: 'สรุปยอดตาม Dock, Car Family, Part หลัก และบรรจุภัณฑ์ (กล่อง/พาเลท)',
   tab: {
     label: 'วิเคราะห์ Dock/รุ่น/บรรจุภัณฑ์',
-    Icon: Icons.PieChart,
+    Icon: Icons.Boxes,
     enabled: (ctx) => !!ctx.state.processedData,
     tooltip: 'ต้องประมวลผลไฟล์ก่อน',
     Component: DockPanel,
