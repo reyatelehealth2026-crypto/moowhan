@@ -1,9 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
-import { MONTH_KEYS, PLANTS, dailySheetName } from '../constants.js';
+import { PLANTS, dailySheetName } from '../constants.js';
 import { buildSummary, computeTotals } from '../lib/excel/aggregate.js';
 import { categorizeFile } from '../lib/excel/categorize.js';
 import { DEFAULT_PROFILE } from '../features/visibility.js';
 import { monthLabels, parseProductionMonth } from '../utils/format.js';
+import { planBatchCommit } from '../features/manual-edit/edits.js';
 
 // xlsx + jszip are only downloaded the first time a file is read/exported.
 const loadExcel = () => import('../lib/excel/index.js');
@@ -197,34 +198,34 @@ export default function useConsolidator() {
     }
   };
 
-  // ---------- manual edits (N..N+3 of one row) ----------
-  const updateRowValues = (sheetName, rowId, patch, reason = '') => {
-    const current = refs.current.processedData;
-    if (!current?.[sheetName]) return false;
-    const idx = current[sheetName].findIndex((r) => r.id === rowId);
-    if (idx === -1) return false;
-    const before = current[sheetName][idx];
-    const row = { ...before, rawRow: [...(before.rawRow || [])] };
-    const changes = [];
-    MONTH_KEYS.forEach((k) => {
-      if (patch[k] === undefined || patch[k] === null || patch[k] === '') return;
-      const value = Number(patch[k]);
-      if (!Number.isFinite(value) || value === before[k]) return;
-      row[k] = value;
-      const col = before.colPositions?.[`${k}Col`];
-      if (col !== undefined) row.rawRow[col] = value;
-      changes.push(`${k.toUpperCase().replace('N1', 'N+1').replace('N2', 'N+2').replace('N3', 'N+3')}: ${before[k]} → ${value}`);
-    });
-    if (!changes.length) return false;
-    row.edited = true;
-    const next = { ...current, [sheetName]: current[sheetName].map((r, i) => (i === idx ? row : r)) };
+  // ---------- manual edits (pure core: features/manual-edit/edits.js) ----------
+  // Replaces processedData as a whole: one buildSummary call, refs updated so a following action in the same tick sees it.
+  const commitProcessedData = (next, logEntries = []) => {
     const { summary, matching } = buildSummary(next);
+    refs.current = { ...refs.current, processedData: next, summaryData: summary };
     setProcessedData(next);
     setSummaryData(summary);
     setMatchingDetails(matching);
-    log({ fileName: before.fileName, plant: before.plant, partNumber: before.partNumber, action: 'edit', details: `${changes.join(', ')}${reason ? ` (${reason})` : ''}` });
-    return true;
+    log(logEntries);
   };
+
+  // items: see applyBatch in edits.js. One buildSummary call and one log entry per applied item.
+  const updateRowsBatch = (items, opts = {}) => {
+    const current = refs.current.processedData;
+    if (!current) return { results: [], applied: 0, processedData: current };
+    const plan = { ...planBatchCommit(current, items, { buildSummary, calendar: opts.calendar }), previous: current };
+    if (!plan.applied) return plan;
+    refs.current = { ...refs.current, processedData: plan.processedData, summaryData: plan.summary };
+    setProcessedData(plan.processedData);
+    setSummaryData(plan.summary);
+    setMatchingDetails(plan.matching);
+    log(plan.logs);
+    return plan;
+  };
+
+  // N..N+3 of one row; the day cells are reconciled (default strategy) so Daily sheets still sum to N.
+  const updateRowValues = (sheetName, rowId, patch, reason = '', strategy) =>
+    updateRowsBatch([{ sheet: sheetName, rowId, patch, reason, strategy }]).applied > 0;
 
   // ---------- export ----------
   const exportExcel = async (options = {}) => {
@@ -288,7 +289,7 @@ export default function useConsolidator() {
   const actions = {
     setTemplateFile, removeTemplate,
     addSourceFiles, removeSourceFile, clearSourceFiles,
-    processAll, updateRowValues, exportExcel, reset,
+    processAll, updateRowValues, updateRowsBatch, commitProcessedData, exportExcel, reset,
     setError, setNotice, log, setFeatureData, setProfile, setUiMode,
     dismissError: () => setError(null),
     dismissNotice: () => setNoticeState(null),

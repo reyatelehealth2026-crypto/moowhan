@@ -172,12 +172,61 @@ try {
   await page.setViewportSize({ width: 1280, height: 900 });
   step('dock-analysis tab shows 6 dock groups, no overflow at 390px');
 
+  // ---- manual-edit ----
+  const editTab = page.getByRole('tab', { name: /แก้ไขตัวเลข/ });
+  if (!(await editTab.count())) {
+    const more = page.getByRole('button', { name: /เพิ่มเติม/ });
+    if (await more.count()) await more.click();
+  }
+  await (await editTab.count() ? editTab : page.getByRole('menuitem', { name: /แก้ไขตัวเลข/ })).first().click();
+  await page.getByTestId('manual-edit-tab').waitFor();
+  const srN = page.getByTestId('cell-SR-86790-0K051-00-S1-n');
+  const editSrN = async (text) => {
+    await srN.dblclick();
+    await page.getByTestId('cell-SR-86790-0K051-00-S1-n-input').fill(text);
+    await page.keyboard.press('Enter');
+  };
+  await editSrN('-5');
+  await page.getByText('ต้องเป็นจำนวนเต็ม 0 ขึ้นไป').first().waitFor();
+  await page.getByTestId('cell-SR-86790-0K051-00-S1-n-input').fill('1300');
+  await page.keyboard.press('Enter');
+  await page.getByTestId('edit-bar').waitFor();
+  if (!(await page.getByTestId('edit-save').isDisabled())) errors.push('manual-edit: save should be disabled until a reason is chosen');
+  await page.getByText('N: 1352 → 1300').waitFor();
+  await page.getByTestId('reason-chip-TMT แจ้งแก้').click();
+  await page.getByTestId('edit-save').click();
+  await page.getByTestId('edited-chip').waitFor();
+  await page.getByText('แก้ไขด้วยมือ 1 รายการ').waitFor();
+  await page.getByRole('button', { name: 'เลิกทำ' }).click();
+  await page.getByTestId('edited-chip').waitFor({ state: 'detached' });
+  await editSrN('1300');
+  await page.getByTestId('reason-chip-ปรับตามสต็อก').click();
+  await page.getByTestId('edit-save').click();
+  await page.getByTestId('edited-chip').waitFor();
+  await page.getByTestId('revert-row').click();
+  await page.getByTestId('edited-chip').waitFor({ state: 'detached' });
+  await editSrN('1300');
+  await page.getByTestId('reason-chip-อื่นๆ').click();
+  if (!(await page.getByTestId('edit-save').isDisabled())) errors.push('manual-edit: "อื่นๆ" without text should keep save disabled');
+  await page.getByTestId('reason-text').fill('TMT โทรแจ้ง');
+  await page.getByTestId('edit-save').click();
+  await page.getByTestId('edited-chip').waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('manual-edit: page overflows horizontally at 390px');
+  await shot(page, '06-manual-edit-mobile', true);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  step('manual-edit: validation, reason chips, save, undo, revert, header counter, 390px ok');
+
   // Ctrl+Enter on the upload tab processes the files again
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
   await page.getByTestId('process').focus();
   await page.keyboard.press('Control+Enter');
   await page.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
   step('Ctrl+Enter processes');
+
+  // the edit made above is replayed on the new processing
+  await page.getByText('แก้ไขด้วยมือ 1 รายการ').waitFor();
+  step('manual-edit: edit replayed after processing again');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
