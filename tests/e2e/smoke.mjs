@@ -65,7 +65,7 @@ try {
   step('template inspection card: 11 rows, no overflow at 390px');
   await shot(page, '02-files');
 
-  await page.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
+  await page.getByRole('button', { name: 'รวมข้อมูลและคำนวณ', exact: true }).click();
   await page.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
   step('processed; header: ' + (await page.locator('header').innerText()).replace(/\s*\n\s*/g, ' | '));
   await shot(page, '03-preview', true);
@@ -99,14 +99,14 @@ try {
   if (!(await page.evaluate(() => document.activeElement?.getAttribute('data-testid') === 'preview-excel'))) errors.push('ui-kit: focus was not restored to the opener');
   step('ui-kit grid search/sort/hotkeys/focus trap ok');
 
-  await page.getByRole('tab', { name: 'สรุปรวม' }).click();
+  await page.getByRole('tab', { name: 'สรุปรวม', exact: true }).click();
   await page.getByText('สรุปยอดรวม').waitFor();
   await page.locator('[data-search-input]').first().fill('BN');
   await page.getByText(/พบ [\d,]+ จาก [\d,]+/).first().waitFor();
   await page.locator('[data-search-input]').first().fill('');
   await shot(page, '04-summary', true);
 
-  await page.getByRole('button', { name: 'ดูกราฟวิเคราะห์' }).click();
+  await page.getByRole('button', { name: 'ดูกราฟวิเคราะห์', exact: true }).click();
   await page.getByText('ยอดรวมรายเดือน').waitFor();
   if ((await page.getByRole('tab', { name: 'แดชบอร์ด' }).getAttribute('aria-selected')) !== 'true') errors.push('dashboard: tab not selected after ดูกราฟวิเคราะห์');
   await page.getByTestId('dashboard-kpis').getByText('48,934').waitFor();
@@ -131,7 +131,7 @@ try {
   ]);
   const outFile = path.join(OUT, download.suggestedFilename());
   await download.saveAs(outFile);
-  await page.getByText(/ดาวน์โหลด Production_/).waitFor();
+  await page.getByText(`ดาวน์โหลด ${download.suggestedFilename()}`).first().waitFor();
   step(`downloaded ${download.suggestedFilename()} (${fs.statSync(outFile).size} bytes)`);
 
   await page.getByRole('tab', { name: 'รายละเอียด Matching' }).click();
@@ -144,7 +144,7 @@ try {
   // ---- daily-grid ----
   await page.getByRole('tab', { name: 'ตารางรายวัน', exact: true }).first().click();
   await page.getByRole('heading', { name: 'ตารางรายวัน' }).waitFor();
-  await page.getByRole('button', { name: 'รายวันทั้ง 4 เดือน' }).click();
+  await page.getByRole('button', { name: 'รายวันทั้ง 4 เดือน', exact: true }).click();
   const numCols = await page.locator('th[data-col=num]').count();
   if (numCols !== 128) errors.push(`daily-grid: expected 128 numeric columns, got ${numCols}`);
   const scroller = page.getByTestId('daily-scroll');
@@ -158,7 +158,7 @@ try {
   if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('daily-grid: page overflows horizontally at 390px');
   if (!(await scroller.evaluate((el) => el.scrollWidth > el.clientWidth))) errors.push('daily-grid: grid frame should scroll horizontally');
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.getByRole('button', { name: 'พิมพ์แผนรายวัน' }).first().click();
+  await page.getByRole('button', { name: 'พิมพ์แผนรายวัน', exact: true }).first().click();
   await page.getByRole('dialog', { name: 'พิมพ์แผนรายวัน' }).waitFor();
   await page.emulateMedia({ media: 'print' });
   const printState = await page.evaluate(() => ({

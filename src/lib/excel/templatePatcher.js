@@ -721,11 +721,12 @@ const overflowWarning = (sheet, total, capacity, firstFormulaRow, spilled) =>
  * @param {'block'|'spill'} [opts.overflow='block']  rows that do not fit above the template's formula row
  * @param {boolean} [opts.clearBeyondTable=false]  also clear side columns right of N+3 (old behaviour)
  * @param {boolean} [opts.addAutoFilter=true]  add an autoFilter to daily sheets that have none
+ * @param {Date|number|string} [opts.now]  fixed zip entry date for reproducible output
  * @returns {Promise<{ buffer: ArrayBuffer, report: object }>}
  */
 export const patchTemplate = async (templateBuffer, {
   processedData, analyzeRows = [], highlight = true, extraSheets = [], cellWrites = [],
-  overflow = 'block', clearBeyondTable = false, addAutoFilter = true,
+  overflow = 'block', clearBeyondTable = false, addAutoFilter = true, now = null,
 }) => {
   const zip = await JSZip.loadAsync(templateBuffer);
   const sheets = await listSheets(zip);
@@ -869,6 +870,12 @@ export const patchTemplate = async (templateBuffer, {
   await extendDefinedNames(zip, patched);
   await extendPivotSources(zip, patched);
   await applyRecalcFlags(zip);
+
+  // optional fixed timestamp so two runs give byte-identical archives (tests/golden)
+  if (now) {
+    const stamp = now instanceof Date ? now : new Date(now);
+    zip.forEach((_path, entry) => { entry.date = stamp; });
+  }
 
   const buffer = await zip.generateAsync({
     type: 'arraybuffer',

@@ -71,9 +71,10 @@ const buildFallbackWorkbook = ({ processedData, summaryData, preservedSheets, ex
  * @param {'block'|'spill'} [opts.overflow]  see patchTemplate
  * @param {boolean} [opts.clearBeyondTable]
  * @param {boolean} [opts.addAutoFilter]
+ * @param {Date|number|string} [opts.now]  fixed zip entry date (reproducible output)
  * @returns {Promise<{ blob: Blob, fileName: string, report: object }>}
  */
-export const buildExport = async ({ template, processedData, summaryData, highlight = true, extraSheets: extraIn = [], cellWrites = [], protectedSheets = [], overflow = 'block', clearBeyondTable = false, addAutoFilter = true }) => {
+export const buildExport = async ({ template, processedData, summaryData, highlight = true, extraSheets: extraIn = [], cellWrites = [], protectedSheets = [], overflow = 'block', clearBeyondTable = false, addAutoFilter = true, now = null }) => {
   const warnings = [];
   const skippedSheets = [];
   // an extra sheet must never replace a template/core sheet (cellWrites are applied by the patcher when supported)
@@ -88,7 +89,7 @@ export const buildExport = async ({ template, processedData, summaryData, highli
   if (template?.buffer && isZipBuffer(template.buffer)) {
     try {
       const analyzeRows = buildAnalyzeRows(processedData);
-      const { buffer, report } = await patchTemplate(template.buffer, { processedData, analyzeRows, highlight, extraSheets, cellWrites, overflow, clearBeyondTable, addAutoFilter });
+      const { buffer, report } = await patchTemplate(template.buffer, { processedData, analyzeRows, highlight, extraSheets, cellWrites, overflow, clearBeyondTable, addAutoFilter, now });
       return {
         blob: new Blob([buffer], { type: XLSX_MIME }),
         fileName: `Production_Updated_${todayStamp()}.xlsx`,
