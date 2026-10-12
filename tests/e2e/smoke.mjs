@@ -450,6 +450,52 @@ try {
   await page.keyboard.press('Escape');
   await help.waitFor({ state: 'detached' });
   step('help-center dialog, Escape, "?" and 390px ok');
+  // ---- export-gate: one click when clean, dialog only for block/confirm, override, re-download ----
+  const gateDialog = page.getByRole('dialog', { name: 'ตรวจสอบก่อนดาวน์โหลด' });
+  await page.getByRole('tab', { name: 'สรุปรวม' }).click();
+  await page.getByTestId('export-ready').getByText('พร้อมดาวน์โหลด').waitFor();
+  const [d1] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.getByTestId('download').click()]);
+  if (!/^Production_Updated_Feb26_\d{4}-\d{2}-\d{2}\.xlsx$/.test(d1.suggestedFilename())) errors.push(`export-gate: unexpected file name ${d1.suggestedFilename()}`);
+  if (await gateDialog.count()) errors.push('export-gate: dialog opened for a clean export');
+  await page.getByTestId('export-banner').waitFor();
+  await page.getByTestId('export-open-result').click();
+  await page.getByRole('dialog', { name: /^ผลการส่งออก \(Production_Updated_/ }).waitFor();
+  await page.getByText(/ตรวจไฟล์หลังส่งออก: ผ่าน/).waitFor();
+  const [d2] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByTestId('export-redownload').click()]);
+  if (d2.suggestedFilename() !== d1.suggestedFilename()) errors.push('export-gate: re-download changed the file name');
+  await page.keyboard.press('Escape');
+  step('export-gate clean export, result panel and re-download ok');
+
+  // remove SR -> stale (block) ; override unlocks the download
+  await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
+  await page.getByRole('button', { name: 'ลบ SR veh 481D.xls' }).click();
+  await page.getByRole('tab', { name: 'สรุปรวม' }).click();
+  await page.getByTestId('download').click();
+  await gateDialog.waitFor();
+  const dlBtn = page.getByTestId('export-dialog-download');
+  if (!(await dlBtn.isDisabled())) errors.push('export-gate: download is enabled before the override tick');
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('export-gate: dialog overflows the page at 390px');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByTestId('export-override').check();
+  const [d3] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), dlBtn.click()]);
+  await d3.saveAs(path.join(OUT, d3.suggestedFilename()));
+  await page.getByRole('dialog', { name: /^ผลการส่งออก/ }).waitFor();
+  await page.keyboard.press('Escape');
+  step('export-gate block + override ok');
+
+  // reprocess without SR -> G02 confirm, Ctrl+S goes through the same gate
+  await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
+  await page.getByTestId('process').click();
+  await page.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
+  await page.keyboard.press('Control+s');
+  await gateDialog.waitFor();
+  await page.getByText(/ไม่มีไฟล์ SR - ชีต SR Daily จะถูกล้างข้อมูลเดิม/).waitFor();
+  if (await dlBtn.isDisabled()) errors.push('export-gate: confirm-only dialog should allow download');
+  const [d4] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), dlBtn.click()]);
+  if (!d4.suggestedFilename().endsWith('.xlsx')) errors.push('export-gate: confirm download failed');
+  await page.keyboard.press('Escape');
+  step('export-gate confirm (missing SR) via Ctrl+S ok');
 } finally {
   await browser.close();
   if (server) server.kill();

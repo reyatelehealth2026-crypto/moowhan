@@ -131,3 +131,26 @@ export const monthKey = (pm, offset = 0) => {
   const month = ((idx % 12) + 12) % 12;
   return `${year}-${String(month + 1).padStart(2, '0')}`;
 };
+
+// ==================== EXPORT FILE NAME (export-gate) ====================
+export const DEFAULT_FILE_PATTERN = 'Production_Updated_{month}_{date}.xlsx';
+const FILE_NAME_FORBIDDEN = /[/\\:?*[\]"<>|]/g;
+
+/**
+ * Fill {month} ("Feb26" from the production month) and {date} ("2026-10-05") in a file-name pattern,
+ * drop characters Windows/Excel refuse (/ : \ ? * [ ] " < > |) and make sure it ends with .xlsx.
+ * An empty or all-forbidden result falls back to the default pattern.
+ */
+export const renderFileName = (pattern = DEFAULT_FILE_PATTERN, { productionMonth = null, date = todayStamp() } = {}) => {
+  const fill = (p) => String(p ?? '')
+    .replace(/\{month\}/gi, formatMonth(productionMonth).replace(/'/g, ''))
+    .replace(/\{date\}/gi, date)
+    .replace(FILE_NAME_FORBIDDEN, '')
+    .replace(/_{2,}/g, '_')
+    .replace(/_+(\.[^.]*)?$/, '$1') // "Production_.xlsx" -> "Production.xlsx" when {month} is empty
+    .replace(/\s+/g, ' ')
+    .trim();
+  let name = fill(pattern).replace(/\.xlsx$/i, '').replace(/^[._\s]+|[._\s]+$/g, '');
+  if (!name) name = fill(DEFAULT_FILE_PATTERN).replace(/\.xlsx$/i, '');
+  return `${name.slice(0, 120)}.xlsx`;
+};

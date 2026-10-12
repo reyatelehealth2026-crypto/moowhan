@@ -8,3 +8,5 @@ export { patchTemplate, listSheetNames, forceRecalcOnOpen } from './templatePatc
 export const loadJSZip = async () => (await import('jszip')).default;
 export { inspectTemplate } from '../../features/template-inspector/templateInspect.js';
 export { zipFiles } from './zipFiles.js';
+export { verifyExport } from './verifyExport.js';
+export { expectedTotals } from './expectedTotals.js';
