@@ -132,11 +132,23 @@ export const baselineToJson = (baseline) => JSON.stringify({
   rows: baseline.rows,
 }, null, 1);
 
-/** Parse + validate a JSON baseline. Throws a Thai Error for anything unsupported. */
+// The JSON of "ส่งออกข้อมูล (CSV/JSON)" (flat-export, schemaVersion 1) has no `kind`: rows carry partNumber/dockCode and
+// the month sits in productionMonth. It is accepted as a baseline too, so last round's export can be compared as is.
+const isFlatExport = (d) => !!d && typeof d === 'object' && !d.kind && Array.isArray(d.rows) && Array.isArray(d.files) && 'productionMonth' in d;
+const fromFlatExport = (d) => ({
+  kind: BASELINE_KIND,
+  schemaVersion: d.schemaVersion === 1 ? BASELINE_SCHEMA_VERSION : d.schemaVersion,
+  label: 'ไฟล์ส่งออก JSON รอบก่อน',
+  month: d.productionMonth ? { year: d.productionMonth.year, month: d.productionMonth.month } : null,
+  rows: d.rows.map((r) => ({ plant: r?.plant, part: typeof r?.partNumber === 'string' ? r.partNumber : r?.part, dock: r?.dockCode ?? r?.dock, n: r?.n, n1: r?.n1, n2: r?.n2, n3: r?.n3 })),
+});
+
+/** Parse + validate a JSON baseline (this app's baseline export or its flat-export JSON). Throws a Thai Error for anything unsupported. */
 export const loadForecastJson = (text) => {
   let data;
-  try { data = JSON.parse(text); } catch { throw new Error('ไฟล์ JSON อ่านไม่ได้ (รูปแบบไม่ถูกต้อง) ใช้ไฟล์ baseline ที่ส่งออกจากแอปนี้'); }
-  if (!data || typeof data !== 'object' || data.kind !== BASELINE_KIND) throw new Error('ไม่ใช่ไฟล์ baseline ของแอปนี้ ใช้ไฟล์ JSON ที่ส่งออกจากปุ่ม "ส่งออก baseline"');
+  try { data = JSON.parse(text); } catch { throw new Error('ไฟล์ JSON อ่านไม่ได้ (รูปแบบไม่ถูกต้อง) ใช้ไฟล์ baseline หรือไฟล์ส่งออก JSON ที่ได้จากแอปนี้'); }
+  if (isFlatExport(data)) data = fromFlatExport(data);
+  if (!data || typeof data !== 'object' || data.kind !== BASELINE_KIND) throw new Error('ไม่ใช่ไฟล์ baseline ของแอปนี้ ใช้ไฟล์ JSON ที่ส่งออกจากปุ่ม "ส่งออก baseline" หรือไฟล์ JSON จาก "ส่งออกข้อมูล (CSV/JSON)"');
   if (data.schemaVersion !== BASELINE_SCHEMA_VERSION) {
     throw new Error(`ไฟล์ baseline เวอร์ชัน ${data.schemaVersion ?? 'ไม่ระบุ'} แอปนี้รองรับเฉพาะเวอร์ชัน ${BASELINE_SCHEMA_VERSION} กรุณาส่งออกไฟล์ใหม่จากแอปเวอร์ชันเดียวกัน`);
   }

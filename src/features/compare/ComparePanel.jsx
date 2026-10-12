@@ -109,7 +109,7 @@ export default function ComparePanel({ state, actions }) {
           activeClassName="border-blue-500 bg-blue-50"
         >
           <p data-testid="compare-drop">{busy ? 'กำลังอ่านไฟล์...' : 'ลากไฟล์รอบก่อนมาวาง หรือกดเพื่อเลือก'}</p>
-          <p className="text-xs text-slate-400 mt-1">สมุดผลลัพธ์รอบก่อน (.xlsx) • ไฟล์ TMT (.xls) • baseline (.json) ข้อมูลอยู่ในเบราว์เซอร์เท่านั้น</p>
+          <p className="text-xs text-slate-400 mt-1">สมุดผลลัพธ์รอบก่อน (.xlsx) • ไฟล์ TMT (.xls) • baseline หรือไฟล์ส่งออก (.json) ข้อมูลอยู่ในเบราว์เซอร์เท่านั้น</p>
         </FileDropZone>
         {baseline && (
           <p className="text-sm text-slate-600" data-testid="compare-baseline-label">

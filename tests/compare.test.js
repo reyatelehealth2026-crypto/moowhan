@@ -6,6 +6,7 @@ import { patchTemplate } from '../src/lib/excel/templatePatcher.js';
 import feature from '../src/features/compare/index.jsx';
 import { alignMonths, compare, summarize, filterRows, compareToAoa, COMPARE_HEADERS, rowsFromProcessed } from '../src/features/compare/compare.js';
 import { readPrevious, readPreviousWorkbook, loadForecastJson, baselineToJson, baselineFromProcessed, parseMonYY } from '../src/features/compare/readPrevious.js';
+import { buildJsonExport } from '../src/features/flat-export/logic.js';
 import { tagRows } from '../src/features/compare/tagRows.js';
 import { readSourceBuffer } from '../src/lib/excel/index.js';
 import { categorizeFile } from '../src/lib/excel/categorize.js';
@@ -165,6 +166,17 @@ describe('JSON baseline', () => {
     expect(back.rows).toEqual(b.rows);
     expect(back.month).toEqual(FEB26);
     expect(back.source).toBe('json');
+  });
+  it('accepts the flat-export JSON (last round export) as a baseline', () => {
+    const state = { processedData: processed, productionMonth: FEB26, sourceFiles: [], summaryData: [], monthLabels: [] };
+    const flat = JSON.parse(JSON.stringify(buildJsonExport(state)));
+    expect(flat.kind).toBeUndefined();
+    const back = loadForecastJson(JSON.stringify(flat));
+    expect(back.rows.length).toBe(flat.rows.length);
+    expect(back.rows[0]).toEqual({ plant: flat.rows[0].plant, part: flat.rows[0].partNumber, dock: flat.rows[0].dockCode, n: flat.rows[0].n, n1: flat.rows[0].n1, n2: flat.rows[0].n2, n3: flat.rows[0].n3 });
+    expect(back.month).toEqual(FEB26);
+    // and it is the same baseline the in-memory snapshot of that round would give
+    expect(back.rows).toEqual(baselineFromProcessed(processed, { month: FEB26 }).rows);
   });
   it('rejects other schema versions in Thai', () => {
     const bad = JSON.stringify({ kind: 'moowhan-forecast-baseline', schemaVersion: 99, rows: [{ plant: 'BP', part: 'A' }] });
