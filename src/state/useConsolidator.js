@@ -2,8 +2,9 @@ import { useMemo, useRef, useState } from 'react';
 import { MONTH_KEYS, PLANTS, dailySheetName } from '../constants.js';
 import { buildSummary, computeTotals } from '../lib/excel/aggregate.js';
 import { categorizeFile } from '../lib/excel/categorize.js';
-import { DEFAULT_PROFILE } from '../features/visibility.js';
-import { monthLabels, parseProductionMonth } from '../utils/format.js';
+import { defaultProfile, DEFAULT_FILE_NAME_PATTERN } from '../features/settings-profile/profile.js';
+import useProfileStore from '../features/settings-profile/useProfileStore.js';
+import { monthLabels, parseProductionMonth, renderFileName } from '../utils/format.js';
 
 // xlsx + jszip are only downloaded the first time a file is read/exported.
 const loadExcel = () => import('../lib/excel/index.js');
@@ -34,11 +35,11 @@ export default function useConsolidator() {
   const [notice, setNoticeState] = useState(null); // { tone: 'warning' | 'success', message }
   const [exportReport, setExportReport] = useState(null);
   const [features, setFeatures] = useState({}); // per-feature data: state.features[id]
-  const [profile, setProfileState] = useState(DEFAULT_PROFILE); // standalone default until settings-profile persists it
+  const [profile, setProfileState] = useState(defaultProfile); // loaded/saved by settings-profile (useProfileStore)
 
   // refs so async actions always see the latest values
   const refs = useRef({});
-  refs.current = { template, sourceFiles, processedData, summaryData };
+  refs.current = { template, sourceFiles, processedData, summaryData, profile, productionMonth };
   const processingRef = useRef(false);
 
   const fileCounts = useMemo(
@@ -65,6 +66,9 @@ export default function useConsolidator() {
       const patch = typeof patchOrFn === 'function' ? patchOrFn(prev) : patchOrFn;
       return { ...prev, ...patch, ui: { ...prev.ui, ...patch?.ui }, features: { ...prev.features, ...patch?.features } };
     });
+  const replaceProfile = (next) => setProfileState(next); // whole-profile swap (import / hydrate); callers validate first
+  const resetProfile = () => setProfileState(defaultProfile());
+  useProfileStore(profile, replaceProfile);
   const setUiMode = (mode) => setProfile({ ui: { mode } });
   const setNotice = (message, tone = 'warning') => setNoticeState(message ? { tone, message } : null);
 
@@ -237,7 +241,7 @@ export default function useConsolidator() {
         template: tpl,
         processedData: data,
         summaryData: summary,
-        highlight: options.highlight ?? true,
+        highlight: options.highlight ?? refs.current.profile?.export?.highlight ?? true,
         extraSheets: options.extraSheets || [],
         cellWrites: options.cellWrites || [],
         protectedSheets: options.protectedSheets || [],
@@ -245,6 +249,11 @@ export default function useConsolidator() {
         clearBeyondTable: options.clearBeyondTable,
         addAutoFilter: options.addAutoFilter,
       });
+      const pattern = refs.current.profile?.export?.fileNamePattern;
+      if (pattern) {
+        const named = renderFileName(pattern, { productionMonth: refs.current.productionMonth, fallback: result.fileName });
+        result.fileName = result.report.mode === 'fallback' && pattern === DEFAULT_FILE_NAME_PATTERN ? named.replace('Production_Updated', 'Production_Summary') : named;
+      }
       if (options.download !== false) excel.downloadBlob(result.blob, result.fileName);
       setExportReport(result.report);
       const parts = result.report.mode === 'template'
@@ -289,7 +298,7 @@ export default function useConsolidator() {
     setTemplateFile, removeTemplate,
     addSourceFiles, removeSourceFile, clearSourceFiles,
     processAll, updateRowValues, exportExcel, reset,
-    setError, setNotice, log, setFeatureData, setProfile, setUiMode,
+    setError, setNotice, log, setFeatureData, setProfile, replaceProfile, resetProfile, setUiMode,
     dismissError: () => setError(null),
     dismissNotice: () => setNoticeState(null),
   };

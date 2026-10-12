@@ -143,6 +143,14 @@ const Icons = {
       <path strokeWidth="2" d="M22 12A10 10 0 0012 2v10z" />
     </svg>
   ),
+  Settings: () => (
+    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinecap="round" d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0" />
+      <circle cx="16" cy="6" r="2" strokeWidth="2" />
+      <circle cx="8" cy="12" r="2" strokeWidth="2" />
+      <circle cx="18" cy="18" r="2" strokeWidth="2" />
+    </svg>
+  ),
 };
 
 export default Icons;

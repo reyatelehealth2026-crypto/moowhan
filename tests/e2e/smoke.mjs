@@ -192,6 +192,35 @@ try {
   await page.getByRole('button', { name: /โหมด/ }).click();
   step('simple/advanced toggle ok');
 
+  // ---- settings-profile: file name pattern drives the download, calendar strip, 375px, reset ----
+  {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    if (!(await page.getByRole('tab', { name: 'ตั้งค่า', exact: true }).count())) await page.getByRole('button', { name: /เพิ่มเติม/ }).click();
+    await (await page.getByRole('tab', { name: 'ตั้งค่า', exact: true }).count() ? page.getByRole('tab', { name: 'ตั้งค่า', exact: true }) : page.getByRole('menuitem', { name: /ตั้งค่า/ })).first().click();
+    await page.getByTestId('settings-panel').waitFor();
+    await page.getByTestId('pattern-input').fill('Production_Custom_{month}.xlsx');
+    if ((await page.getByTestId('pattern-sample').innerText()) !== 'Production_Custom_202602.xlsx') errors.push('settings: pattern sample wrong');
+    await page.getByRole('tab', { name: 'ปฏิทินวันทำงาน' }).click();
+    await page.getByTestId('month-strip').waitFor();
+    await page.getByText('20').first().waitFor();
+    await page.setViewportSize({ width: 375, height: 800 });
+    for (const name of ['ทั่วไป', 'ปฏิทินวันทำงาน', 'ขั้นสูง']) {
+      await page.getByRole('tab', { name, exact: true }).click();
+      if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push(`settings: horizontal overflow at 375px (${name})`);
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.keyboard.press('Control+s')]);
+    if (dl.suggestedFilename() !== 'Production_Custom_202602.xlsx') errors.push(`settings: download name ${dl.suggestedFilename()}`);
+    await page.getByText(/ดาวน์โหลด Production_/).first().waitFor();
+    await page.getByRole('tab', { name: 'ทั่วไป', exact: true }).click();
+    await page.getByRole('button', { name: 'คืนค่าเริ่มต้น' }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'คืนค่าเริ่มต้น' }).click();
+    if (!(await page.getByTestId('pattern-input').inputValue()).startsWith('Production_Updated_')) errors.push('settings: reset did not restore the pattern');
+    if (!(await page.getByRole('tab', { name: 'ตรวจสอบข้อมูล' }).isEnabled())) errors.push('settings: reset must keep processed data');
+    await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
+    step('settings: pattern drives download name, 375px ok, reset keeps session');
+  }
+
   // ---- storage-session: opt-in save, reload, restore, forget, wipe (fresh browser context = empty storage) ----
   {
     const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
