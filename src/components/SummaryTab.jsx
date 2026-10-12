@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import Icons from './Icons.jsx';
 import { MONTH_META, PLANT_META } from '../constants.js';
 import { formatNumber } from '../utils/format.js';
+import HorizonBadge from '../features/qa-file-guards/HorizonBadge.jsx';
 import useAnalytics from '../hooks/useAnalytics.js';
 import { DataGrid, KpiCard, Button, STRINGS, GLOSSARY } from '../features/ui-kit/index.js';
 
@@ -22,9 +23,9 @@ export default function SummaryTab({ state, actions, monthLabels }) {
         </div>
       ),
     },
-    ...['n', 'n1', 'n2', 'n3'].map((k, i) => ({ key: k, label: monthLabels[i] || GLOSSARY[k], num: true })),
+    ...['n', 'n1', 'n2', 'n3'].map((k, i) => ({ key: k, label: <>{monthLabels[i] || GLOSSARY[k]}<HorizonBadge k={k} sourceFiles={state.sourceFiles} /></>, num: true })),
     { key: 'total', label: 'Total', num: true, value: total, className: 'font-bold' },
-  ], [monthLabels]);
+  ], [monthLabels, state.sourceFiles]);
 
   const footer = (rows) => {
     const sum = rows.reduce((a, r) => ({ n: a.n + r.n, n1: a.n1 + r.n1, n2: a.n2 + r.n2, n3: a.n3 + r.n3 }), { n: 0, n1: 0, n2: 0, n3: 0 });
@@ -36,7 +37,7 @@ export default function SummaryTab({ state, actions, monthLabels }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         {MONTH_META.map((m, i) => (
           <div key={m.key} className={`bg-gradient-to-br ${m.gradient} rounded-2xl p-4 sm:p-5 text-white shadow-lg`}>
-            <p className="text-white/80 text-sm">{monthLabels[i]}</p>
+            <p className="text-white/80 text-sm">{monthLabels[i]}{i === 0 && <HorizonBadge k="n" sourceFiles={state.sourceFiles} />}</p>
             <p className="num text-2xl sm:text-3xl font-bold">{formatNumber(totals[m.key])}</p>
           </div>
         ))}

@@ -8,6 +8,7 @@
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -65,6 +66,23 @@ try {
   step('template inspection card: 11 rows, no overflow at 390px');
   await shot(page, '02-files');
 
+  // ---- qa-file-guards: metadata chips, duplicate chip, remove duplicate ----
+  await page.getByTestId('file-meta').nth(4).waitFor();
+  const metaText = await page.getByTestId('file-meta').first().innerText();
+  if (!/เดือน 202602/.test(metaText) || !/ออก 23\/01\/2026/.test(metaText) || !/Rev 0/.test(metaText)) errors.push(`qa-file-guards: file meta chip incomplete (${metaText})`);
+  const dupCopy = path.join(os.tmpdir(), 'BPK packing 481D copy.xls');
+  fs.copyFileSync(path.join(ROOT, 'input', 'BPK packing 481D.xls'), dupCopy);
+  await inputs.nth(1).setInputFiles(dupCopy);
+  await page.getByTestId('chip-dup').waitFor();
+  if (!/ซ้ำกับ/.test(await page.getByTestId('chip-dup').innerText())) errors.push('qa-file-guards: duplicate chip text');
+  await page.setViewportSize({ width: 390, height: 800 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth) > 0) errors.push('qa-file-guards: page overflow at 390px with file cards');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole('button', { name: 'ลบไฟล์นี้' }).click();
+  await page.getByTestId('chip-dup').waitFor({ state: 'detached' });
+  fs.rmSync(dupCopy, { force: true });
+  step('qa-file-guards: meta chips, duplicate chip and remove ok');
+
   await page.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
   await page.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
   step('processed; header: ' + (await page.locator('header').innerText()).replace(/\s*\n\s*/g, ' | '));
@@ -104,6 +122,7 @@ try {
   await page.locator('[data-search-input]').first().fill('BN');
   await page.getByText(/พบ [\d,]+ จาก [\d,]+/).first().waitFor();
   await page.locator('[data-search-input]').first().fill('');
+  if (!/Firm/.test(await page.getByTestId('horizon-n').first().innerText())) errors.push('qa-file-guards: Firm badge missing on N');
   await shot(page, '04-summary', true);
 
   await page.getByRole('button', { name: 'ดูกราฟวิเคราะห์' }).click();
