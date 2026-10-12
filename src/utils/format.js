@@ -91,7 +91,11 @@ export const formatDate = (value, style = 'long', { tz = 'Asia/Bangkok' } = {}) 
   return `${date} ${time}`;
 };
 
-/** "2 นาทีที่แล้ว" / "อีก 3 ชั่วโมง". `now` defaults to the injectable clock. */
+/**
+ * "2 นาทีที่แล้ว" / "อีก 3 ชั่วโมง". `now` defaults to the injectable clock.
+ * @param {string|number|Date} iso
+ * @param {Date|number} [now]
+ */
 export const relativeTime = (iso, now = format.now()) => {
   const t = new Date(iso).getTime();
   const n = now instanceof Date ? now.getTime() : Number(now);
@@ -99,6 +103,7 @@ export const relativeTime = (iso, now = format.now()) => {
   const diff = Math.round((n - t) / 1000);
   const abs = Math.abs(diff);
   if (abs < 45) return 'เมื่อสักครู่';
+  /** @type {[number, string][]} */
   const steps = [[60, 'นาที'], [3600, 'ชั่วโมง'], [86400, 'วัน'], [2592000, 'เดือน'], [31104000, 'ปี']];
   let i = 0;
   while (i < steps.length - 1 && abs >= steps[i + 1][0]) i++;
