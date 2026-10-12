@@ -82,7 +82,7 @@ try {
     const zipPath = path.join(OUT, 'forecast.zip');
     fs.writeFileSync(zipPath, await zip.generateAsync({ type: 'uint8array' }));
     await zp.locator('input[type=file]').nth(1).setInputFiles(zipPath);
-    await zp.getByText('SR veh 481D.xls').waitFor();
+    await zp.getByText('SR veh 481D.xls', { exact: true }).waitFor();
     const noticeText = await zp.getByText(/แตกไฟล์จาก forecast\.zip: เพิ่ม 5 ไฟล์/).first().innerText();
     if (!noticeText) errors.push('import-cli: no extraction notice');
     await zp.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();

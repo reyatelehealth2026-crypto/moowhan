@@ -8,7 +8,7 @@ import { parseEml, MSG_ERROR } from '../src/features/import-cli/eml.js';
 import { planFolderImport, uniqueName, writeNoOverwrite, hasTemplateSheets } from '../src/features/import-cli/folder.js';
 import { SOURCE_FILES, fixture } from './helpers.js';
 
-const loadJSZip = async () => JSZip;
+const loadZipLib = async () => JSZip;
 const base = (p) => p.split('/').pop();
 
 async function fixtureZip(extra = (z) => z) {
@@ -25,7 +25,7 @@ async function fixtureZip(extra = (z) => z) {
 
 describe('expandZip', () => {
   it('keeps basenames, byte-identical content, skips junk and nested zips', async () => {
-    const out = await expandZip(await fixtureZip(), { loadJSZip });
+    const out = await expandZip(await fixtureZip(), { loadZipLib });
     expect(out.error).toBeUndefined();
     const names = out.files.map((f) => f.name).sort();
     expect(names).toEqual([...SOURCE_FILES.map(base), 'download.xlsx'].sort());
@@ -37,7 +37,7 @@ describe('expandZip', () => {
 
   it('refuses 201 entries with a Thai message and no files', async () => {
     const buf = await fixtureZip((z) => { for (let i = 0; i < 200; i++) z.file(`f${i}.txt`, 'x'); });
-    const out = await expandZip(buf, { loadJSZip });
+    const out = await expandZip(buf, { loadZipLib });
     expect(out.files).toEqual([]);
     expect(out.error).toMatch(/เกินกำหนด/);
   });
@@ -47,13 +47,13 @@ describe('expandZip', () => {
     z.file('BP big.xls', new Uint8Array(2048));
     z.file('BPK big.xls', new Uint8Array(2048));
     const buf = await z.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
-    const out = await expandZip(buf, { loadJSZip, limits: { maxEntries: 200, maxInflatedBytes: 3000 } });
+    const out = await expandZip(buf, { loadZipLib, limits: { maxEntries: 200, maxInflatedBytes: 3000 } });
     expect(out.files).toEqual([]);
     expect(out.error).toMatch(/50 MB/);
   });
 
   it('reports a corrupt archive in Thai', async () => {
-    const out = await expandZip(new Uint8Array([1, 2, 3]), { loadJSZip });
+    const out = await expandZip(new Uint8Array([1, 2, 3]), { loadZipLib });
     expect(out.error).toMatch(/เปิดไฟล์ .zip ไม่ได้/);
   });
 });
@@ -79,7 +79,7 @@ describe('parseEml', () => {
       part(`Content-Type: application/vnd.ms-excel\r\nContent-Disposition: attachment; filename*=${rfc2231}\r\nContent-Transfer-Encoding: base64`, b64(xls)),
       part('Content-Type: application/vnd.ms-excel; name="SR qp.xls"\r\nContent-Transfer-Encoding: quoted-printable', '=D0=CF'),
     ]);
-    const out = await parseEml(buf, { loadJSZip });
+    const out = await parseEml(buf, { loadZipLib });
     expect(out.files.map((f) => f.name)).toEqual(['BP แผน 481D.xls', 'GW แผน.xls']);
     expect(Buffer.from(out.files[0].bytes).equals(Buffer.from(xls))).toBe(true);
     expect(out.warnings.join()).toMatch(/quoted-printable/);
@@ -89,7 +89,7 @@ describe('parseEml', () => {
 
   it('expands a .zip attachment one level', async () => {
     const zbuf = await fixtureZip();
-    const out = await parseEml(eml([part('Content-Type: application/zip; name="all.zip"\r\nContent-Transfer-Encoding: base64', b64(zbuf))]), { loadJSZip });
+    const out = await parseEml(eml([part('Content-Type: application/zip; name="all.zip"\r\nContent-Transfer-Encoding: base64', b64(zbuf))]), { loadZipLib });
     expect(out.files).toHaveLength(6);
   });
 

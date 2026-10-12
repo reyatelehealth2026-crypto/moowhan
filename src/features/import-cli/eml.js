@@ -95,7 +95,7 @@ function walk(raw, acc) {
 }
 
 /**
- * parseEml(bytes, { loadJSZip }) -> { files:[{name, bytes, lastModified}], skipped, warnings, error? }
+ * parseEml(bytes, { loadZipLib }) -> { files:[{name, bytes, lastModified}], skipped, warnings, error? }
  * A .zip attachment is expanded one level.
  */
 export async function parseEml(input, opts = {}) {

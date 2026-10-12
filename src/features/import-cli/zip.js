@@ -7,19 +7,19 @@ const SOURCE_EXT = /\.(xls|xlsx)$/i;
 export const baseName = (name) => String(name || '').split(/[\\/]/).filter(Boolean).pop() || '';
 const isJunk = (path) => /(^|[\\/])__MACOSX[\\/]/.test(path) || baseName(path).startsWith('._');
 
-const defaultLoader = async () => (await import('../../lib/excel/index.js')).loadJSZip();
+const defaultLoader = async () => (await import('../../lib/excel/index.js')).loadZipLib();
 
 const refuse = (message) => ({ files: [], skipped: [], error: message });
 
 /**
- * expandZip(buf, { loadJSZip, depth }) -> { files:[{name, bytes, lastModified}], skipped:[{name, reason}], error? }
+ * expandZip(buf, { loadZipLib, depth }) -> { files:[{name, bytes, lastModified}], skipped:[{name, reason}], error? }
  * Limits: 200 entries, 50 MB inflated (counted while inflating). Over a limit => error + no files.
  * One nesting level: an inner .zip is skipped with a warning (depth >= 1 skips every nested zip).
  */
-export async function expandZip(buf, { loadJSZip = defaultLoader, limits = ZIP_LIMITS } = {}) {
+export async function expandZip(buf, { loadZipLib = defaultLoader, limits = ZIP_LIMITS } = {}) {
   let zip;
   try {
-    const JSZip = await loadJSZip();
+    const JSZip = await loadZipLib();
     zip = await JSZip.loadAsync(buf);
   } catch {
     return refuse('เปิดไฟล์ .zip ไม่ได้ – ไฟล์อาจเสียหาย ลองบีบอัดใหม่แล้วลากมาวางอีกครั้ง');
