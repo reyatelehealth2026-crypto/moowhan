@@ -241,6 +241,9 @@ export default function useConsolidator() {
         extraSheets: options.extraSheets || [],
         cellWrites: options.cellWrites || [],
         protectedSheets: options.protectedSheets || [],
+        overflow: options.overflow,
+        clearBeyondTable: options.clearBeyondTable,
+        addAutoFilter: options.addAutoFilter,
       });
       if (options.download !== false) excel.downloadBlob(result.blob, result.fileName);
       setExportReport(result.report);

@@ -45,4 +45,5 @@
 ## โครงสร้าง template.xlsx
 - `BP/BPK/GW/SR Daily`: หัวตารางแถว 13, ข้อมูลเริ่มแถว 14 (คัดลอก 1:1 จากไฟล์ต้นทาง), แถวสูตรรวมด้านล่าง
 - `Analyze`: หัวตารางแถว 2, ข้อมูลเริ่มแถว 3, คอลัมน์ B.. = คอลัมน์ A.. ของต้นทาง, คอลัมน์ EH = Plant, คอลัมน์ A/EI/EL/EM เป็นสูตร key สำหรับ pivot
-- `Summary`, `By Plant`, `Total`, `Sheet2` มี pivot/สูตรอ้างถึง sheet ข้างบน — ห้ามแตะ
+- `Summary`, `By Plant`, `Total`, `Sheet2` มี pivot/สูตรอ้างถึง sheet ข้างบน — ห้ามแตะ ยกเว้น value cell ผ่าน `cellWrites` เท่านั้น (`writeCells` ข้ามเซลล์สูตรเสมอ)
+- patcher: เขียนเฉพาะคอลัมน์ 1..N+3 และเหนือแถวสูตรแรกของตาราง (แถวที่เกินไปอยู่ใน `report.overflow`, ตัวเลือก `overflow:'spill'`); sheet ของเทมเพลตเป็น protected (ดู `sheetNames.js`) — extraSheets ทับไม่ได้

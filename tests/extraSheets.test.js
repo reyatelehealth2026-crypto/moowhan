@@ -10,10 +10,10 @@ import { fixture } from './helpers.js';
 const processedData = { 'BP Daily': [], 'BPK Daily': [], 'GW Daily': [], 'SR Daily': [] };
 
 describe('extra sheets in the template export', () => {
-  it('adds a brand-new values sheet and replaces an existing one', async () => {
+  it('adds a brand-new values sheet, replaces an app sheet and refuses a template sheet', async () => {
     const extraSheets = [
       { name: 'QA Report', aoa: [['Severity', 'Part', 'Detail'], ['warning', 'P-1', 'a&b <ok>'], ['error', 'P-2', 123]] },
-      { name: 'Sheet2', aoa: [['replaced'], [1, 2, 3]] }, // exists in the template (has a pivot table)
+      { name: 'Sheet2', aoa: [['replaced'], [1, 2, 3]] }, // exists in the template (has a pivot table) -> refused
     ];
     const { buffer, report } = await patchTemplate(fixture('template.xlsx'), { processedData, extraSheets });
     expect(report.patched.filter((p) => p.created).map((p) => p.sheet)).toEqual(['QA Report']);
@@ -32,8 +32,11 @@ describe('extra sheets in the template export', () => {
     expect(x.SheetNames.at(-1)).toBe('QA Report');
     expect(x.Sheets['QA Report'].C2.v).toBe('a&b <ok>');
     expect(x.Sheets['QA Report'].C3.v).toBe(123);
-    expect(x.Sheets['Sheet2'].A1.v).toBe('replaced');
-    expect(x.Sheets['Sheet2'].C2.v).toBe(3);
+    // Sheet2 is protected: refused and byte-identical
+    expect(report.skippedSheets).toEqual([{ name: 'Sheet2', reason: 'protected' }]);
+    const orig = await JSZip.loadAsync(fixture('template.xlsx'));
+    expect(await zip.file('xl/worksheets/sheet10.xml').async('string')).toBe(await orig.file('xl/worksheets/sheet10.xml').async('string'));
+    expect(x.Sheets['Sheet2'].A1?.v).not.toBe('replaced');
 
     const ex = new ExcelJS.Workbook();
     await ex.xlsx.load(buffer);
