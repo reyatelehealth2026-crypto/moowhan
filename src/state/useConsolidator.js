@@ -9,6 +9,7 @@ import { sha256 } from '../utils/hash.js';
 import { stampSubset } from '../features/provenance-manifest/stamp.js';
 import { buildExportNotice, toUserError, userErrorText } from '../lib/errors.js';
 import { planBatchCommit } from '../features/manual-edit/edits.js';
+import { makeLastExport, redownload } from '../features/export-gate/lastExport.js';
 
 // xlsx + jszip are only downloaded the first time a file is read/exported.
 const loadExcel = () => import('../lib/excel/index.js');
@@ -40,6 +41,8 @@ export default function useConsolidator() {
   const [exportReport, setExportReport] = useState(null);
   const [features, setFeatures] = useState({}); // per-feature data: state.features[id]
   const [profile, setProfileState] = useState(defaultProfile); // loaded/saved by settings-profile (useProfileStore)
+  const [lastExport, setLastExportState] = useState(null); // export-gate: { blob, fileName, report, verification, extraSheets } kept in memory
+  const lastExportRef = useRef(null);
 
   // refs so async actions always see the latest values
   const refs = useRef({});
@@ -266,13 +269,22 @@ export default function useConsolidator() {
         addAutoFilter: options.addAutoFilter,
         stamp: options.stamp ?? await optionalStamp(options.now),
       });
-      const pattern = refs.current.profile?.export?.fileNamePattern;
-      if (pattern) {
-        const named = renderFileName(pattern, { productionMonth: refs.current.productionMonth, fallback: result.fileName });
-        result.fileName = result.report.mode === 'fallback' && pattern === DEFAULT_FILE_NAME_PATTERN ? named.replace('Production_Updated', 'Production_Summary') : named;
+      if (options.fileName) {
+        result.fileName = options.fileName;
+      } else {
+        const pattern = refs.current.profile?.export?.fileNamePattern;
+        if (pattern) {
+          const named = renderFileName(pattern, { productionMonth: refs.current.productionMonth, fallback: result.fileName });
+          result.fileName = result.report.mode === 'fallback' && pattern === DEFAULT_FILE_NAME_PATTERN ? named.replace('Production_Updated', 'Production_Summary') : named;
+        }
       }
       result.report.fileName = result.fileName;
       result.report.sha256 = await sha256(result.blob); // identifies the bytes this app produced
+      setLastExport(makeLastExport(result, { extraSheets: options.extraSheets || [], highlight: options.highlight ?? true }), true);
+      if (options.hold) { // export-gate verifies first and downloads later through downloadLastExport()
+        setExportReport(result.report);
+        return { ...result, extraSheets: options.extraSheets || [] };
+      }
       if (options.download !== false) excel.downloadBlob(result.blob, result.fileName);
       setExportReport(result.report);
       const parts = result.report.mode === 'template'
@@ -290,8 +302,32 @@ export default function useConsolidator() {
     }
   };
 
+  // ---------- last export (export-gate) ----------
+  // replace = true stores a whole entry, otherwise `entry` is merged into the remembered one; null clears
+  const setLastExport = (entry, replace = false) => {
+    const next = entry === null ? null : replace ? entry : lastExportRef.current ? { ...lastExportRef.current, ...entry } : null;
+    lastExportRef.current = next;
+    setLastExportState(next);
+  };
+  // download the remembered file again: the template is NOT patched a second time
+  const downloadLastExport = async () => {
+    const last = lastExportRef.current;
+    if (!last) return null;
+    const excel = await loadExcel();
+    redownload(last, excel.downloadBlob);
+    const report = last.report;
+    const parts = report.mode === 'template'
+      ? `เขียนลงเทมเพลต: ${report.patched.map((p) => `${p.sheet} ${p.rows} แถว`).join(', ')}`
+      : 'สร้างไฟล์ใหม่ (ไม่มีเทมเพลต .xlsx)';
+    const warn = report.warnings?.length ? `\n${report.warnings.join('\n')}` : '';
+    setNotice(`ดาวน์โหลด ${last.fileName} แล้ว • ${parts}${warn}`, report.warnings?.length ? 'warning' : 'success');
+    log({ fileName: last.fileName, action: 'export', details: parts });
+    return last;
+  };
+
   // ---------- reset ----------
   const reset = () => {
+    setLastExport(null);
     setTemplate(null);
     setSourceFiles([]);
     setProcessing(emptyProcessing);
@@ -311,13 +347,14 @@ export default function useConsolidator() {
     template, sourceFiles, processing, exporting,
     processedData, summaryData, matchingDetails, changeLog,
     productionMonth, monthLabels: labels, totals, fileCounts,
-    error, notice, exportReport, isStale, features, profile,
+    error, notice, exportReport, isStale, features, profile, lastExport,
   };
   const actions = {
     setTemplateFile, removeTemplate,
     addSourceFiles, removeSourceFile, clearSourceFiles,
     processAll, updateRowValues, updateRowsBatch, commitProcessedData, exportExcel, reset,
     setError, setNotice, log, setFeatureData, setProfile, replaceProfile, resetProfile, setUiMode,
+    downloadLastExport, setLastExport, getLastExport: () => lastExportRef.current,
     dismissError: () => setError(null),
     dismissNotice: () => setNoticeState(null),
   };

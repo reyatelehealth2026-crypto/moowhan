@@ -132,18 +132,19 @@ export const monthKey = (pm, offset = 0) => {
   return `${year}-${String(month + 1).padStart(2, '0')}`;
 };
 
-// ==================== FILE NAME PATTERN ====================
+// ==================== FILE NAME PATTERN (settings-profile) ====================
+
 const RESERVED_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 const pad2 = (n) => String(n).padStart(2, '0');
 
 /**
- * renderFileName('Production_Updated_{monthLabel}_{date}.xlsx', { productionMonth, rev, now })
+ * renderProfileFileName('Production_Updated_{monthLabel}_{date}.xlsx', { productionMonth, rev, now })
  * Tokens: {month} 202602 · {monthLabel} Feb'26 · {rev} · {date} 2026-02-05 · {time} 1432.
  * Unknown tokens stay as typed. The result is safe for Windows/macOS: forbidden characters, "/" "\",
  * leading dots and reserved names (CON, NUL ...) are cleaned and the length is capped.
  * `now` (Date | ms) is injectable for tests; defaults to the format.now clock.
  */
-export const renderFileName = (pattern, ctx = {}) => {
+export const renderProfileFileName = (pattern, ctx = {}) => {
   const { productionMonth = null, rev = '', now = format.now(), fallback = 'Production_Updated.xlsx' } = ctx;
   const d = now instanceof Date ? now : new Date(now);
   const valid = !Number.isNaN(d.getTime());
@@ -169,3 +170,34 @@ export const renderFileName = (pattern, ctx = {}) => {
   if (base.length > 120) base = base.slice(0, 120);
   return `${base}${ext}`;
 };
+
+// ==================== EXPORT FILE NAME (export-gate) ====================
+export const DEFAULT_FILE_PATTERN = 'Production_Updated_{month}_{date}.xlsx';
+const FILE_NAME_FORBIDDEN = /[/\\:?*[\]"<>|]/g;
+
+/**
+ * Fill {month} ("Feb26" from the production month) and {date} ("2026-10-05") in a file-name pattern,
+ * drop characters Windows/Excel refuse (/ : \ ? * [ ] " < > |) and make sure it ends with .xlsx.
+ * An empty or all-forbidden result falls back to the default pattern.
+ */
+export const renderGateFileName = (pattern = DEFAULT_FILE_PATTERN, { productionMonth = null, date = todayStamp() } = {}) => {
+  const fill = (p) => String(p ?? '')
+    .replace(/\{month\}/gi, formatMonth(productionMonth).replace(/'/g, ''))
+    .replace(/\{date\}/gi, date)
+    .replace(FILE_NAME_FORBIDDEN, '')
+    .replace(/_{2,}/g, '_')
+    .replace(/_+(\.[^.]*)?$/, '$1') // "Production_.xlsx" -> "Production.xlsx" when {month} is empty
+    .replace(/\s+/g, ' ')
+    .trim();
+  let name = fill(pattern).replace(/\.xlsx$/i, '').replace(/^[._\s]+|[._\s]+$/g, '');
+  if (!name) name = fill(DEFAULT_FILE_PATTERN).replace(/\.xlsx$/i, '');
+  return `${name.slice(0, 120)}.xlsx`;
+};
+
+/**
+ * One entry point for both naming styles (settings-profile and export-gate):
+ *  - with an explicit `date` string -> export-gate style: {month} = "Feb26", forbidden characters are dropped
+ *  - otherwise -> profile style: {month} = 202602, {monthLabel} = Feb'26, {rev}, {time}; forbidden characters become "_"
+ */
+export const renderFileName = (pattern, ctx = {}) =>
+  (ctx.date !== undefined ? renderGateFileName(pattern ?? DEFAULT_FILE_PATTERN, ctx) : renderProfileFileName(pattern, ctx));

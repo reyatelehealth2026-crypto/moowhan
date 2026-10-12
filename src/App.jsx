@@ -19,6 +19,10 @@ import { ToastRegion, LiveRegion, pushToast, announce, STRINGS } from './feature
 import useHotkeys from './hooks/useHotkeys.js';
 import { openDiagnostics } from './features/help-center/helpStore.js';
 import { formatMonth, monthLabels as buildMonthLabels, todayStamp } from './utils/format.js';
+import { exportDialog } from './features/export-gate/dialogStore.js';
+import { gateIssuesFor, requestExport } from './features/export-gate/flow.js';
+import { summarizeGate } from './features/export-gate/gate.js';
+import { attachOverrideNote } from './features/export-gate/lastExport.js';
 
 const MAX_INLINE_ACTIONS = 3;
 // renders feature slot output inside the error boundary (a throwing slot cannot blank the app)
@@ -76,17 +80,37 @@ export default function App() {
       }
       return result;
     },
-    exportExcel: async (options = {}) => {
+    // export-gate: the user-facing exportExcel goes through the gate (dialog only for block/confirm issues);
+    // exportDirect is the ungated build. options.hold builds without downloading (the flow verifies first).
+    exportExcel: async (options = {}) =>
+      gateActive && !options.skipGate ? requestExport(ctx, features, options, report) : actions.exportDirect(options),
+    exportDirect: async (options = {}) => {
       const protectedSheets = [...new Set([...(state.template?.sheets || []), ...DAILY_SHEETS, ANALYZE_SHEET, SUMMARY_SHEET])];
-      const { sheets } = await collectExportSheets(features, ctx, { protectedSheets, report, extra: options.extraSheets || [] });
+      const collected = await collectExportSheets(features, ctx, { protectedSheets, report, extra: options.extraSheets || [] });
+      const sheets = attachOverrideNote(collected.sheets.filter((s) => !options.excludeSheets?.includes(s.name)), options.overrideIssues);
       const cellWrites = await collectCellWrites(features, ctx, report);
       const result = await core.exportExcel({ ...options, extraSheets: sheets, cellWrites, protectedSheets });
+      if (result && !options.hold) {
+        announce(`ดาวน์โหลดไฟล์ ${result.fileName} แล้ว`);
+        features.forEach((f) => runHook(f, 'onExported', [ctx, result], report));
+      }
+      return result;
+    },
+    downloadLastExport: async () => {
+      const result = await core.downloadLastExport();
       if (result) {
         announce(`ดาวน์โหลดไฟล์ ${result.fileName} แล้ว`);
         features.forEach((f) => runHook(f, 'onExported', [ctx, result], report));
       }
       return result;
     },
+    // extra sheets / header cells other features would add (for the export dialog)
+    previewExport: async () => {
+      const protectedSheets = [...new Set([...(state.template?.sheets || []), ...DAILY_SHEETS, ANALYZE_SHEET, SUMMARY_SHEET])];
+      const { sheets } = await collectExportSheets(features, ctx, { protectedSheets, report: warnOnly });
+      return { extraSheets: sheets.map((s) => ({ name: s.name, rows: s.aoa?.length ?? 0 })), cellWrites: await collectCellWrites(features, ctx, warnOnly) };
+    },
+    openExportOptions: () => exportDialog.open('options', { busy: false }),
     reset: () => {
       core.reset();
       setTab('upload');
@@ -94,6 +118,15 @@ export default function App() {
     },
   };
   const ctx = { state, actions, monthLabels: state.monthLabels, profile: state.profile };
+
+  // export-gate: issues of every visible feature + the gate rules; read by SummaryTab's ready strip and the dialog
+  const gateActive = features.some((f) => f.id === 'export-gate');
+  const gateIssues = useMemo(
+    () => (gateActive && state.processedData ? gateIssuesFor(features, ctx, warnOnly) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gateActive, state.processedData, state.summaryData, state.isStale, state.template, state.sourceFiles, state.features],
+  );
+  actions.gate = gateActive ? { issues: gateIssues, ...summarizeGate(gateIssues) } : null;
 
   const resolveBadge = (f) => {
     const b = f.tab.badge;
