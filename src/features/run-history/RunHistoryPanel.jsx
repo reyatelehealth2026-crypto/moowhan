@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSyncExternalStore } from 'react';
 import Icons from '../../components/Icons.jsx';
 import { Button, EmptyState, pushToast } from '../ui-kit/index.js';
+import { downloadText } from '../../utils/download.js';
 import { formatDate, formatNumber } from '../../utils/format.js';
 import { PLANTS } from '../../constants.js';
 import { accuracy, EMPTY_MESSAGE, HORIZONS } from './accuracy.js';
@@ -14,11 +15,7 @@ const FEATURE_ID = 'run-history';
 const pctText = (v) => (v == null ? '-' : `${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}%`);
 const cellText = (c, key) => (c ? pctText(c[key]) : '-');
 
-function download(text, name) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+const download = (text, name) => downloadText(text, name, 'application/json');
 
 function AccuracyTable({ runs, level }) {
   const acc = accuracy(runs, { level });
