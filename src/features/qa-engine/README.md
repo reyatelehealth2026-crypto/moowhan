@@ -49,7 +49,7 @@ runRules({ processedData, sourceFiles, productionMonth, template, inspection, se
 ## Waivers (`waivers.js`)
 `createWaiverStore(adapter)` · `waive({ issue, reason (≥3 ตัว), expires, productionMonth })` · `unwaive(key)` · `applyWaivers`
 คีย์ = `rule|scopeKey|เดือนผลิต` → ไม่ข้ามเดือน, หมดอายุสิ้นเดือนผลิต, “ต้องแก้” รับทราบไม่ได้, waived ออกจาก badge/validate แต่ยังอยู่ใน QA Report
-Storage ฉีดผ่าน `setWaiverAdapter({ read, write })` (storage-session ใช้ namespace `waivers`); ค่าเริ่มต้น localStorage (try/catch) หรือ memory
+Storage ฉีดผ่าน `setWaiverAdapter({ read, write })`; ค่าเริ่มต้นเก็บผ่าน `src/lib/storage` (tier `prefs`, key `qa.waivers`) และ QaTab โหลดค่าที่บันทึกไว้ด้วย `loadSavedWaivers()`
 
 ## ตั้งค่า (`settings.js`)
 `settings.rules[id] === false` ข้ามกฎ · `suppCode` · `partPattern` · `allowedForecastTypes` · `thresholds.swingRatio` · (ไม่บังคับ) `knownDocks`

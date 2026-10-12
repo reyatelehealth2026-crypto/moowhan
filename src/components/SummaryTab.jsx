@@ -9,6 +9,7 @@ import CopyButton from './CopyButton.jsx';
 import { DataGrid, KpiCard, Button, STRINGS, GLOSSARY } from '../features/ui-kit/index.js';
 import GlossaryTip from '../features/help-center/GlossaryTip.jsx';
 import { COLUMN_TIPS } from '../features/help-center/columns.js';
+import ReadyStrip from '../features/export-gate/ReadyStrip.jsx';
 
 const total = (r) => r.n + r.n1 + r.n2 + r.n3;
 
@@ -47,6 +48,8 @@ export default function SummaryTab({ state, actions, monthLabels }) {
         ))}
       </div>
 
+      <ReadyStrip gate={actions.gate} onDetails={actions.openExportOptions} />
+
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <Button size="lg" onClick={() => actions.goTo('dashboard')} Icon={Icons.PieChart} className="flex-1 !bg-gradient-to-r from-purple-600 to-pink-600">ดูกราฟวิเคราะห์</Button>
         <Button size="lg" variant="secondary" onClick={actions.openPreview} Icon={Icons.Eye} className="flex-1 !border-2 !border-blue-600 !text-blue-600" data-testid="preview-excel-summary">{STRINGS.buttons.previewExcel}</Button>
@@ -54,6 +57,9 @@ export default function SummaryTab({ state, actions, monthLabels }) {
         <Button size="lg" onClick={() => actions.exportExcel()} loading={exporting} Icon={Icons.Download} className="flex-1" data-testid="download">
           {exporting ? STRINGS.status.exporting : STRINGS.buttons.download}
         </Button>
+        {actions.openExportOptions && actions.gate && (
+          <Button size="lg" variant="secondary" onClick={actions.openExportOptions} Icon={Icons.Filter} data-testid="export-options">ตัวเลือก</Button>
+        )}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">

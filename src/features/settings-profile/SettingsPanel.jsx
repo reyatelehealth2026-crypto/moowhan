@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import Banner from '../../components/Banner.jsx';
 import { Button, Chip, ConfirmDialog, pushToast } from '../ui-kit/index.js';
+import { downloadText } from '../../utils/download.js';
 import { WEEKDAY_LABELS, daysInMonth } from '../../utils/calendar.js';
 import { formatMonth, renderFileName } from '../../utils/format.js';
 import { PLANTS } from '../../constants.js';
@@ -235,14 +236,7 @@ export default function SettingsPanel({ state, actions }) {
   const fileRef = useRef(null);
   const [rev, setRev] = useState(0); // remounts the advanced draft after import / reset
 
-  const download = () => {
-    const blob = new Blob([exportProfile(profile)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'moowhan-profile.json';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+  const download = () => downloadText(exportProfile(profile), 'moowhan-profile.json', 'application/json');
   const onImport = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';

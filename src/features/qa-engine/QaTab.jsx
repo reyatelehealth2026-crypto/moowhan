@@ -1,5 +1,4 @@
-import { copyText } from '../../utils/clipboard.js';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Icons from '../../components/Icons.jsx';
 import { PLANTS } from '../../constants.js';
 import { Button, Chip, EmptyState, STRINGS, pushToast } from '../ui-kit/index.js';
@@ -7,7 +6,9 @@ import { formatMonth } from '../../utils/format.js';
 import { FEATURE_ID, computeIssues } from './compute.js';
 import { GROUPS, GROUP_LABEL, LEVELS, LEVEL_LABEL, countActive, filterIssues, locationOf, toCsv } from './model.js';
 import { summaryText } from './report.js';
-import { getWaiverStore } from './waivers.js';
+import { getWaiverStore, loadSavedWaivers } from './waivers.js';
+import { copyText } from '../../utils/clipboard.js';
+import { downloadText } from '../../utils/download.js';
 import { listRules } from './engine.js';
 
 const LEVEL_STYLE = {
@@ -25,6 +26,19 @@ export default function QaTab({ state, actions }) {
   const [limit, setLimit] = useState(PAGE);
   const [waiving, setWaiving] = useState(null); // { index, reason, error }
   const data = state.features?.[FEATURE_ID] || {};
+
+  // waivers saved in an earlier session (storage layer) are merged in once
+  useEffect(() => {
+    let alive = true;
+    loadSavedWaivers().then((saved) => {
+      if (!alive || !Object.keys(saved).length) return;
+      const store = getWaiverStore();
+      store.hydrate(saved);
+      actions.setFeatureData?.(FEATURE_ID, { waivers: store.all() });
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // re-validates when processed data (incl. manual edits), files, template, settings or waivers change
   const issues = useMemo(
@@ -49,22 +63,13 @@ export default function QaTab({ state, actions }) {
     if (file) actions.removeSourceFile?.(file.id);
   };
   const copySummary = async () => {
-    try {
-      const res = await copyText(summaryText(issues, { productionLabel: pmLabel }));
-      if (!res.ok) throw new Error('copy failed');
-      pushToast({ message: 'คัดลอกสรุปผลตรวจแล้ว', tone: 'success' });
-    } catch {
-      actions.setNotice?.('คัดลอกไม่ได้ในเบราว์เซอร์นี้ ใช้ปุ่ม “ดาวน์โหลด QA (.csv)” แทน');
-    }
+    const res = await copyText(summaryText(issues, { productionLabel: pmLabel }));
+    if (res.ok) pushToast({ message: 'คัดลอกสรุปผลตรวจแล้ว', tone: 'success' });
+    else actions.setNotice?.('คัดลอกไม่ได้ในเบราว์เซอร์นี้ ใช้ปุ่ม “ดาวน์โหลด QA (.csv)” แทน');
   };
   const downloadCsv = () => {
     try {
-      const url = URL.createObjectURL(new Blob([toCsv(issues)], { type: 'text/csv;charset=utf-8' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `QA_${pmLabel.replace(/'/g, '') || 'report'}.csv`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      downloadText(toCsv(issues), `QA_${pmLabel.replace(/'/g, '') || 'report'}.csv`, 'text/csv;charset=utf-8');
     } catch {
       actions.setNotice?.('สร้างไฟล์ CSV ไม่สำเร็จ ลองอีกครั้ง');
     }

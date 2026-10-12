@@ -11,6 +11,7 @@ import { sha256 } from '../utils/hash.js';
 import { stampSubset } from '../features/provenance-manifest/stamp.js';
 import { buildExportNotice, toUserError, userErrorText } from '../lib/errors.js';
 import { planBatchCommit } from '../features/manual-edit/edits.js';
+import { makeLastExport, redownload } from '../features/export-gate/lastExport.js';
 
 // xlsx + jszip are only downloaded the first time a file is read/exported.
 const loadExcel = () => import('../lib/excel/index.js');
@@ -41,11 +42,14 @@ export default function useConsolidator() {
   const [notice, setNoticeState] = useState(null); // { tone: 'warning' | 'success', message }
   const [exportReport, setExportReport] = useState(null);
   const [features, setFeatures] = useState({}); // per-feature data: state.features[id]
+  const [isDemo, setIsDemo] = useState(false); // onboarding: sample data in use
   const [profile, setProfileState] = useState(defaultProfile); // loaded/saved by settings-profile (useProfileStore)
+  const [lastExport, setLastExportState] = useState(null); // export-gate: { blob, fileName, report, verification, extraSheets } kept in memory
+  const lastExportRef = useRef(null);
 
   // refs so async actions always see the latest values
   const refs = useRef({});
-  refs.current = { template, sourceFiles, processedData, summaryData, profile, productionMonth, features };
+  refs.current = { template, sourceFiles, processedData, summaryData, profile, productionMonth, features, isDemo, processedSignature };
   const processingRef = useRef(false);
   const inspectCache = useRef(new Map()); // qa-file-guards: file id -> parsed source (processAll reuses it)
 
@@ -194,7 +198,7 @@ export default function useConsolidator() {
     const data = Object.fromEntries(PLANTS.map((p) => [dailySheetName(p), []]));
     const logs = [];
     const months = new Map(); // "202602" -> [file names]
-    const outcomes = new Map(); // file id -> { status, rowCount, meta, error } (ProcessResult.files, used by qa-engine)
+    const outcomes = new Map(); // file id -> { status, rowCount, meta, error } (ProcessResult.files, used by qa-engine and run-history)
 
     try {
       const excel = await loadExcel();
@@ -221,11 +225,13 @@ export default function useConsolidator() {
             logs.push({ fileName: f.name, plant: f.category, action: 'warning', details: 'ไม่พบแถวข้อมูล (ตรวจสอบแถวหัวตาราง "PART NUMBER")' });
           }
           if (meta.productionMonthRaw) months.set(meta.productionMonthRaw, [...(months.get(meta.productionMonthRaw) || []), f.name]);
-          outcomes.set(f.id, { status: rows.length ? 'done' : 'warning', rowCount: rows.length, meta, error: null });
-          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: rows.length ? 'done' : 'warning', rowCount: rows.length, meta, sha256: digest } : x)));
+          const status = rows.length ? 'done' : 'warning';
+          outcomes.set(f.id, { status, rowCount: rows.length, meta, error: null, size: f.size ?? f.file?.size ?? 0, sha256: digest, rows: rows.length }); // size/sha256/rows feed run-history
+          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status, rowCount: rows.length, meta, sha256: digest } : x)));
         } catch (err) {
-          outcomes.set(f.id, { status: 'error', rowCount: 0, meta: null, error: err.message });
-          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'error', error: toUserError(err).code === 'generic' ? err.message : toUserError(err).title } : x)));
+          const userMsg = toUserError(err).code === 'generic' ? err.message : toUserError(err).title;
+          outcomes.set(f.id, { status: 'error', rowCount: 0, meta: null, error: userMsg });
+          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'error', error: userMsg } : x)));
           logs.push({ fileName: f.name, plant: f.category, action: 'error', details: err.message });
         }
       }
@@ -321,13 +327,25 @@ export default function useConsolidator() {
         addAutoFilter: options.addAutoFilter,
         stamp: options.stamp ?? await optionalStamp(options.now),
       });
-      const pattern = refs.current.profile?.export?.fileNamePattern;
-      if (pattern) {
-        const named = renderFileName(pattern, { productionMonth: refs.current.productionMonth, fallback: result.fileName });
-        result.fileName = result.report.mode === 'fallback' && pattern === DEFAULT_FILE_NAME_PATTERN ? named.replace('Production_Updated', 'Production_Summary') : named;
+      if (options.fileName) {
+        result.fileName = options.fileName;
+      } else {
+        const pattern = refs.current.profile?.export?.fileNamePattern;
+        if (pattern) {
+          const named = renderFileName(pattern, { productionMonth: refs.current.productionMonth, fallback: result.fileName });
+          result.fileName = result.report.mode === 'fallback' && pattern === DEFAULT_FILE_NAME_PATTERN ? named.replace('Production_Updated', 'Production_Summary') : named;
+        }
       }
+      if (refs.current.isDemo && !result.fileName.startsWith('DEMO_')) result.fileName = `DEMO_${result.fileName}`; // onboarding: sample data is never mistaken for real output
       result.report.fileName = result.fileName;
       result.report.sha256 = await sha256(result.blob); // identifies the bytes this app produced
+      // signature = which data was downloaded (onboarding step 5); held exports get it when downloadLastExport() runs
+      const downloaded = options.download !== false && !options.hold;
+      setLastExport(makeLastExport(result, { extraSheets: options.extraSheets || [], highlight: options.highlight ?? true, ...(downloaded ? { signature: refs.current.processedSignature } : {}) }), true);
+      if (options.hold) { // export-gate verifies first and downloads later through downloadLastExport()
+        setExportReport(result.report);
+        return { ...result, extraSheets: options.extraSheets || [] };
+      }
       if (options.download !== false) excel.downloadBlob(result.blob, result.fileName);
       setExportReport(result.report);
       const parts = result.report.mode === 'template'
@@ -345,9 +363,34 @@ export default function useConsolidator() {
     }
   };
 
+  // ---------- last export (export-gate) ----------
+  // replace = true stores a whole entry, otherwise `entry` is merged into the remembered one; null clears
+  const setLastExport = (entry, replace = false) => {
+    const next = entry === null ? null : replace ? entry : lastExportRef.current ? { ...lastExportRef.current, ...entry } : null;
+    lastExportRef.current = next;
+    setLastExportState(next);
+  };
+  // download the remembered file again: the template is NOT patched a second time
+  const downloadLastExport = async () => {
+    const last = lastExportRef.current;
+    if (!last) return null;
+    const excel = await loadExcel();
+    redownload(last, excel.downloadBlob);
+    setLastExport({ signature: refs.current.processedSignature }); // onboarding: this data has now been downloaded
+    const report = last.report;
+    const parts = report.mode === 'template'
+      ? `เขียนลงเทมเพลต: ${report.patched.map((p) => `${p.sheet} ${p.rows} แถว`).join(', ')}`
+      : 'สร้างไฟล์ใหม่ (ไม่มีเทมเพลต .xlsx)';
+    const warn = report.warnings?.length ? `\n${report.warnings.join('\n')}` : '';
+    setNotice(`ดาวน์โหลด ${last.fileName} แล้ว • ${parts}${warn}`, report.warnings?.length ? 'warning' : 'success');
+    log({ fileName: last.fileName, action: 'export', details: parts });
+    return last;
+  };
+
   // ---------- reset ----------
   const reset = () => {
     inspectCache.current.clear();
+    setLastExport(null);
     setTemplate(null);
     setSourceFiles([]);
     setProcessing(emptyProcessing);
@@ -361,19 +404,22 @@ export default function useConsolidator() {
     setNoticeState(null);
     setExportReport(null);
     setFeatures({});
+    setIsDemo(false);
   };
 
   const state = {
     template, sourceFiles, processing, exporting,
     processedData, summaryData, matchingDetails, changeLog,
     productionMonth, monthLabels: labels, totals, fileCounts,
-    error, notice, exportReport, isStale, features, profile,
+    error, notice, exportReport, isStale, features, profile, lastExport,
+    isDemo, processedSignature,
   };
   const actions = {
     setTemplateFile, removeTemplate,
     addSourceFiles, removeSourceFile, clearSourceFiles, useNewerFile, replaceSourceFile,
     processAll, updateRowValues, updateRowsBatch, commitProcessedData, exportExcel, reset,
-    setError, setNotice, log, setFeatureData, setProfile, replaceProfile, resetProfile, setUiMode,
+    setError, setNotice, log, setDemo: setIsDemo, setFeatureData, setProfile, replaceProfile, resetProfile, setUiMode,
+    downloadLastExport, setLastExport, getLastExport: () => lastExportRef.current,
     dismissError: () => setError(null),
     dismissNotice: () => setNoticeState(null),
   };
