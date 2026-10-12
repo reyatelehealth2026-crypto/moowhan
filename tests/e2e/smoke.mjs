@@ -86,6 +86,12 @@ try {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
   if (overflow) errors.push('mobile viewport has horizontal overflow');
   step('mobile layout checked');
+
+  // simple/advanced toggle must not break the tab bar (no feature tabs yet -> link hidden)
+  await page.getByRole('button', { name: /โหมด/ }).click();
+  await page.getByRole('button', { name: 'อัปโหลดไฟล์' }).waitFor();
+  await page.getByRole('button', { name: /โหมด/ }).click();
+  step('simple/advanced toggle ok');
 } finally {
   await browser.close();
   if (server) server.kill();

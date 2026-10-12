@@ -70,17 +70,24 @@ const buildFallbackWorkbook = ({ processedData, summaryData, preservedSheets, ex
  * @param {{ name: string, aoa: any[][] }[]} [opts.extraSheets]
  * @returns {Promise<{ blob: Blob, fileName: string, report: object }>}
  */
-export const buildExport = async ({ template, processedData, summaryData, highlight = true, extraSheets = [] }) => {
+export const buildExport = async ({ template, processedData, summaryData, highlight = true, extraSheets: extraIn = [], cellWrites = [], protectedSheets = [] }) => {
   const warnings = [];
+  // an extra sheet must never replace a template/core sheet (cellWrites are applied by the patcher when supported)
+  const blocked = new Set([...protectedSheets, ...OVERWRITE_SHEETS].map((n) => String(n).toLowerCase()));
+  const extraSheets = extraIn.filter((s) => {
+    if (!blocked.has(String(s?.name).toLowerCase())) return true;
+    warnings.push(`ข้าม sheet "${s.name}" เพราะชื่อซ้ำกับ sheet ในเทมเพลต`);
+    return false;
+  });
 
   if (template?.buffer && isZipBuffer(template.buffer)) {
     try {
       const analyzeRows = buildAnalyzeRows(processedData);
-      const { buffer, report } = await patchTemplate(template.buffer, { processedData, analyzeRows, highlight, extraSheets });
+      const { buffer, report } = await patchTemplate(template.buffer, { processedData, analyzeRows, highlight, extraSheets, cellWrites });
       return {
         blob: new Blob([buffer], { type: XLSX_MIME }),
         fileName: `Production_Updated_${todayStamp()}.xlsx`,
-        report: { mode: 'template', ...report },
+        report: { mode: 'template', ...report, warnings: [...warnings, ...(report.warnings || [])] },
       };
     } catch (err) {
       console.error('patchTemplate failed, falling back to a new workbook', err);

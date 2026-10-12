@@ -20,6 +20,10 @@
 - `src/features/<id>/index.jsx` — **ฟีเจอร์เสริม auto‑discover** (ดู `src/features/index.js`): `export default { id, order, tab, headerActions, exportSheets, onProcessed }`
   - logic ของฟีเจอร์ไว้ไฟล์ข้างเคียง (เช่น `src/features/<id>/logic.js`) และเขียน test ใน `tests/<id>.test.js`
   - ฟีเจอร์ได้รับ `ctx = { state, actions, monthLabels }`
+  - **Feature contract**: ห่อด้วย `defineFeature({...})` (`src/features/defineFeature.js`) — ตรวจ id (kebab-case, ไม่ซ้ำ), `group` (`core` 10-49, `ตรวจสอบ` 50-69, `วิเคราะห์` 70-89 [default], `ประวัติ` 90-94, `ตั้งค่า` 95-99), `order` ในช่วงของกลุ่ม, คีย์ที่รู้จักเท่านั้น (DEV: throw ข้อความไทย; production: warn แล้วตัดฟีเจอร์ออก) รายละเอียด hooks ดู JSDoc ใน `src/features/index.js`
+  - ทุก hook เรียกผ่าน `runtime.js` (`runHook`, `collectExportSheets` ฯลฯ) — error ถูกกลืนและรายงานเป็นภาษาไทย ไม่ทำให้แอป/การส่งออกล้ม; `exportSheets` เป็น async ได้; ชื่อ sheet ห้ามเกิน 31 ตัวอักษร/ซ้ำ/ซ้ำกับ sheet ในเทมเพลต
+  - `visibility.js` `visibleFeatures` ถูกเรียกครั้งเดียวใน `App.jsx` (ซ่อนตาม `profile.features[id].enabled` และโหมดเริ่มต้น); เก็บข้อมูลฟีเจอร์ด้วย `actions.setFeatureData(id, patch)` → `state.features[id]`
+  - `processAll` คืน `ProcessResult` `{ processedData, summary, matching, productionMonth, files }`; `onProcessed(ctx, result)` ได้ ctx ใหม่เสมอ
 - `src/constants.js` — รายชื่อโรงงาน, layout ของ template, สี; `src/utils/format.js` — formatNumber, month labels, column letters, safeSheetName
 
 ## กติกา

@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { MONTH_KEYS, PLANTS, dailySheetName } from '../constants.js';
 import { buildSummary, computeTotals } from '../lib/excel/aggregate.js';
 import { categorizeFile } from '../lib/excel/categorize.js';
+import { DEFAULT_PROFILE } from '../features/visibility.js';
 import { monthLabels, parseProductionMonth } from '../utils/format.js';
 
 // xlsx + jszip are only downloaded the first time a file is read/exported.
@@ -32,6 +33,8 @@ export default function useConsolidator() {
   const [error, setError] = useState(null);
   const [notice, setNoticeState] = useState(null); // { tone: 'warning' | 'success', message }
   const [exportReport, setExportReport] = useState(null);
+  const [features, setFeatures] = useState({}); // per-feature data: state.features[id]
+  const [profile, setProfileState] = useState(DEFAULT_PROFILE); // standalone default until settings-profile persists it
 
   // refs so async actions always see the latest values
   const refs = useRef({});
@@ -51,6 +54,18 @@ export default function useConsolidator() {
     const list = (Array.isArray(entries) ? entries : [entries]).map(stamp);
     if (list.length) setChangeLog((prev) => [...prev, ...list]);
   };
+  const setFeatureData = (id, patchOrFn) =>
+    setFeatures((prev) => {
+      const cur = prev[id] || {};
+      const patch = typeof patchOrFn === 'function' ? patchOrFn(cur) : patchOrFn;
+      return { ...prev, [id]: { ...cur, ...patch } };
+    });
+  const setProfile = (patchOrFn) =>
+    setProfileState((prev) => {
+      const patch = typeof patchOrFn === 'function' ? patchOrFn(prev) : patchOrFn;
+      return { ...prev, ...patch, ui: { ...prev.ui, ...patch?.ui }, features: { ...prev.features, ...patch?.features } };
+    });
+  const setUiMode = (mode) => setProfile({ ui: { mode } });
   const setNotice = (message, tone = 'warning') => setNoticeState(message ? { tone, message } : null);
 
   // ---------- template ----------
@@ -165,7 +180,13 @@ export default function useConsolidator() {
       setMatchingDetails(matching);
       setProcessedSignature(files.map((f) => f.id).join('|'));
       log(logs);
-      return true;
+      return {
+        processedData: data,
+        summary,
+        matching,
+        productionMonth: pm,
+        files: files.map((f) => ({ id: f.id, name: f.name, category: f.category })),
+      };
     } catch (err) {
       setError(`เกิดข้อผิดพลาดในการประมวลผล: ${err.message}`);
       return false;
@@ -217,6 +238,8 @@ export default function useConsolidator() {
         summaryData: summary,
         highlight: options.highlight ?? true,
         extraSheets: options.extraSheets || [],
+        cellWrites: options.cellWrites || [],
+        protectedSheets: options.protectedSheets || [],
       });
       if (options.download !== false) excel.downloadBlob(result.blob, result.fileName);
       setExportReport(result.report);
@@ -249,19 +272,20 @@ export default function useConsolidator() {
     setError(null);
     setNoticeState(null);
     setExportReport(null);
+    setFeatures({});
   };
 
   const state = {
     template, sourceFiles, processing, exporting,
     processedData, summaryData, matchingDetails, changeLog,
     productionMonth, monthLabels: labels, totals, fileCounts,
-    error, notice, exportReport, isStale,
+    error, notice, exportReport, isStale, features, profile,
   };
   const actions = {
     setTemplateFile, removeTemplate,
     addSourceFiles, removeSourceFile, clearSourceFiles,
     processAll, updateRowValues, exportExcel, reset,
-    setError, setNotice, log,
+    setError, setNotice, log, setFeatureData, setProfile, setUiMode,
     dismissError: () => setError(null),
     dismissNotice: () => setNoticeState(null),
   };
