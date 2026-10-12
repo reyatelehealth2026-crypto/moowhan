@@ -1,38 +1,48 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import Icons from './components/Icons.jsx';
 import Banner from './components/Banner.jsx';
 import UploadTab from './components/UploadTab.jsx';
-import PreviewTab from './components/PreviewTab.jsx';
-import SummaryTab from './components/SummaryTab.jsx';
-import MatchingTab from './components/MatchingTab.jsx';
-import ChangelogTab from './components/ChangelogTab.jsx';
-import ChartDashboard from './components/ChartDashboard.jsx';
-import ExcelPreview from './components/ExcelPreview.jsx';
+import LoadingFallback from './components/LoadingFallback.jsx';
 import useConsolidator from './state/useConsolidator.js';
 import { FEATURES } from './features/index.js';
 import FeatureErrorBoundary from './components/FeatureErrorBoundary.jsx';
 import TabBar from './components/TabBar.jsx';
 import OverflowMenu from './components/OverflowMenu.jsx';
 import { visibleFeatures } from './features/visibility.js';
-import { collectCellWrites, collectExportSheets, collectIssues, featureName, normalizeBadge, normalizeHeaderActions, runHook } from './features/runtime.js';
+import { collectCellWrites, collectExportSheets, collectIssues, featureName, normalizeBadge, normalizeHeaderActions, runHook, expandFilesWith } from './features/runtime.js';
 import { DAILY_SHEETS, ANALYZE_SHEET, SUMMARY_SHEET } from './constants.js';
 import { ToastRegion, LiveRegion, pushToast, announce, STRINGS } from './features/ui-kit/index.js';
 import useHotkeys from './hooks/useHotkeys.js';
+import useMediaQuery from './hooks/useMediaQuery.js';
+import { openDiagnostics } from './features/help-center/helpStore.js';
 import { formatMonth, monthLabels as buildMonthLabels, todayStamp } from './utils/format.js';
+import { exportDialog } from './features/export-gate/dialogStore.js';
+import { gateIssuesFor, requestExport } from './features/export-gate/flow.js';
+import { summarizeGate } from './features/export-gate/gate.js';
+import { attachOverrideNote } from './features/export-gate/lastExport.js';
+
+// tabs after the upload step are separate chunks (the entry keeps only the upload step and the shell)
+const PreviewTab = lazy(() => import('./components/PreviewTab.jsx'));
+const SummaryTab = lazy(() => import('./components/SummaryTab.jsx'));
+const MatchingTab = lazy(() => import('./components/MatchingTab.jsx'));
+const ChangelogTab = lazy(() => import('./components/ChangelogTab.jsx'));
+const ExcelPreview = lazy(() => import('./components/ExcelPreview.jsx'));
 
 const MAX_INLINE_ACTIONS = 3;
+const MAX_INLINE_ACTIONS_PHONE = 1; // 390px fits the logo, the mode toggle, one action, the tools menu and reset
 // renders feature slot output inside the error boundary (a throwing slot cannot blank the app)
-const SlotHost = ({ fn, ctx }) => fn(ctx) ?? null;
+const SlotHost = ({ fn, ctx }) => <Suspense fallback={null}>{fn(ctx) ?? null}</Suspense>;
 const warnOnly = ({ message, error }) => console.warn(message, error);
 
 const APP_TITLE = 'รีบทำเดียวอดเลนเกม';
 
 // ==================== MAIN APP ====================
 export default function App() {
-  const { state, actions: core } = useConsolidator();
+  const expandRef = useRef(null); // import-cli: the visible features' expandFiles hooks (set below, read at drop time)
+  const { state, actions: core } = useConsolidator({ expandFiles: (file) => expandRef.current?.(file) ?? null });
   const [tab, setTab] = useState('upload');
   const [showPreview, setShowPreview] = useState(false);
-  const [showChart, setShowChart] = useState(false);
+  const wide = useMediaQuery('(min-width: 640px)');
 
   // features that must stay reachable: tabs with block-level issues are never hidden
   const allIssues = useMemo(
@@ -42,6 +52,7 @@ export default function App() {
   );
   const keepIds = new Set(allIssues.filter((i) => i.level === 'block').map((i) => i.featureId));
   const features = visibleFeatures(FEATURES, state.profile, { keepIds }); // the single visibility filter point
+  expandRef.current = (file) => expandFilesWith(features, file, warnOnly);
   const simpleHiddenTabs = FEATURES.filter((f) => f.tab && !features.includes(f) && state.profile?.features?.[f.id]?.enabled !== false).length;
 
   const report = ({ message, error }) => {
@@ -53,7 +64,6 @@ export default function App() {
     ...core,
     goTo: setTab,
     openPreview: () => setShowPreview(true),
-    openChart: () => setShowChart(true),
     processAll: async () => {
       const result = await core.processAll();
       if (result) {
@@ -78,25 +88,53 @@ export default function App() {
       }
       return result;
     },
-    exportExcel: async (options = {}) => {
+    // export-gate: the user-facing exportExcel goes through the gate (dialog only for block/confirm issues);
+    // exportDirect is the ungated build. options.hold builds without downloading (the flow verifies first).
+    exportExcel: async (options = {}) =>
+      gateActive && !options.skipGate ? requestExport(ctx, features, options, report) : actions.exportDirect(options),
+    exportDirect: async (options = {}) => {
       const protectedSheets = [...new Set([...(state.template?.sheets || []), ...DAILY_SHEETS, ANALYZE_SHEET, SUMMARY_SHEET])];
-      const { sheets } = await collectExportSheets(features, ctx, { protectedSheets, report, extra: options.extraSheets || [] });
+      const collected = await collectExportSheets(features, ctx, { protectedSheets, report, extra: options.extraSheets || [] });
+      const sheets = attachOverrideNote(collected.sheets.filter((s) => !options.excludeSheets?.includes(s.name)), options.overrideIssues);
       const cellWrites = await collectCellWrites(features, ctx, report);
       const result = await core.exportExcel({ ...options, extraSheets: sheets, cellWrites, protectedSheets });
-      if (result) {
+      if (result && !options.hold) {
         announce(`ดาวน์โหลดไฟล์ ${result.fileName} แล้ว`);
         features.forEach((f) => runHook(f, 'onExported', [ctx, result], report));
       }
       return result;
     },
+    downloadLastExport: async (options) => {
+      const result = await core.downloadLastExport(options);
+      if (result) {
+        announce(result.savedAs ? `บันทึกไฟล์ ${result.savedAs} ลงโฟลเดอร์แล้ว` : `ดาวน์โหลดไฟล์ ${result.fileName} แล้ว`);
+        features.forEach((f) => runHook(f, 'onExported', [ctx, result], report));
+      }
+      return result;
+    },
+    // extra sheets / header cells other features would add (for the export dialog)
+    previewExport: async () => {
+      const protectedSheets = [...new Set([...(state.template?.sheets || []), ...DAILY_SHEETS, ANALYZE_SHEET, SUMMARY_SHEET])];
+      const { sheets } = await collectExportSheets(features, ctx, { protectedSheets, report: warnOnly });
+      return { extraSheets: sheets.map((s) => ({ name: s.name, rows: s.aoa?.length ?? 0 })), cellWrites: await collectCellWrites(features, ctx, warnOnly) };
+    },
+    openExportOptions: () => exportDialog.open('options', { busy: false }),
     reset: () => {
       core.reset();
       setTab('upload');
       setShowPreview(false);
-      setShowChart(false);
     },
   };
-  const ctx = { state, actions, monthLabels: state.monthLabels };
+  const ctx = { state, actions, monthLabels: state.monthLabels, profile: state.profile };
+
+  // export-gate: issues of every visible feature + the gate rules; read by SummaryTab's ready strip and the dialog
+  const gateActive = features.some((f) => f.id === 'export-gate');
+  const gateIssues = useMemo(
+    () => (gateActive && state.processedData ? gateIssuesFor(features, ctx, warnOnly) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gateActive, state.processedData, state.summaryData, state.isStale, state.template, state.sourceFiles, state.features],
+  );
+  actions.gate = gateActive ? { issues: gateIssues, ...summarizeGate(gateIssues) } : null;
 
   const resolveBadge = (f) => {
     const b = f.tab.badge;
@@ -144,15 +182,16 @@ export default function App() {
   const rawActions = features.flatMap((f) => normalizeHeaderActions(runHook(f, 'headerActions', [ctx], warnOnly)).map((a, i) => ({ ...a, key: `${f.id}-${i}` })));
   const inlineNodes = rawActions.filter((a) => a.node).map((a) => a.node);
   const sortedActions = rawActions.filter((a) => !a.node).sort((a, b) => (b.priority || 0) - (a.priority || 0));
-  const inlineActions = sortedActions.slice(0, MAX_INLINE_ACTIONS);
-  const menuActions = sortedActions.slice(MAX_INLINE_ACTIONS);
+  const inlineCount = wide ? MAX_INLINE_ACTIONS : MAX_INLINE_ACTIONS_PHONE;
+  const inlineActions = sortedActions.slice(0, inlineCount);
+  const menuActions = sortedActions.slice(inlineCount);
   const logFeatureError = (f) => (error) => report({ message: `ฟีเจอร์ "${featureName(f)}" เกิดข้อผิดพลาดขณะแสดงผล`, error });
   const activeFeature = features.find((f) => f.id === activeTab.id);
   const previewFileName = `Production_${state.template?.kind === 'xlsx' ? 'Updated' : 'Summary'}_${todayStamp()}.xlsx`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 text-slate-900">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+      <header className="print:hidden bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-11 h-11 sm:w-12 sm:h-12 p-2.5 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl text-white shadow-lg flex-shrink-0"><Icons.File /></div>
@@ -175,14 +214,22 @@ export default function App() {
               <span className="w-4 h-4"><Icons.Filter /></span>
               <span className="hidden sm:inline">{simple ? 'โหมดเริ่มต้น' : 'ขั้นสูง'}</span>
             </button>
-            {inlineNodes.map((n, i) => <span key={`n${i}`}>{n}</span>)}
+            {inlineNodes.map((n, i) => <span key={`n${i}`}><Suspense fallback={null}>{n}</Suspense></span>)}
             {inlineActions.map((a) => (
-              <button key={a.key} type="button" onClick={a.onClick} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600">
+              <button
+                key={a.key}
+                type="button"
+                onClick={a.onClick}
+                aria-label={a.label}
+                title={a.label}
+                aria-pressed={a.checked !== undefined ? a.checked : undefined}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg ${a.checked ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'} hover:bg-slate-200`}
+              >
                 {a.Icon && <span className="w-4 h-4"><a.Icon /></span>}<span className="hidden sm:inline">{a.label}</span>
               </button>
             ))}
-            <OverflowMenu label={STRINGS.buttons.options} testId="options" items={menuActions.map((a) => ({ key: a.key, label: a.label, Icon: a.Icon, onClick: a.onClick }))} />
-            <button onClick={actions.reset} data-testid="reset" className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600">
+            <OverflowMenu label={STRINGS.buttons.options} testId="options" items={menuActions.map((a) => ({ key: a.key, label: a.label, Icon: a.Icon, onClick: a.onClick, checked: a.checked }))} />
+            <button onClick={actions.reset} data-testid="reset" aria-label={STRINGS.buttons.reset} title={STRINGS.buttons.reset} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600">
               <span className="w-4 h-4"><Icons.Reset /></span><span className="hidden sm:inline">{STRINGS.buttons.reset}</span>
             </button>
           </div>
@@ -190,7 +237,7 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <TabBar tabs={tabs} activeId={activeTab.id} onSelect={setTab} />
+        <div className="print:hidden"><TabBar tabs={tabs} activeId={activeTab.id} onSelect={setTab} /></div>
         {simple && simpleHiddenTabs > 0 && (
           <p className="-mt-3 mb-4 text-sm">
             <button type="button" onClick={() => actions.setUiMode('advanced')} className="text-blue-600 hover:underline">
@@ -199,7 +246,7 @@ export default function App() {
           </p>
         )}
 
-        <Banner tone="error" message={state.error} onDismiss={actions.dismissError} />
+        <Banner tone="error" message={state.error} onDismiss={actions.dismissError} actions={[{ label: 'รายงานปัญหา', onClick: openDiagnostics }]} />
         <Banner tone={state.notice?.tone || 'warning'} message={state.notice?.tone === 'success' ? null : state.notice?.message} onDismiss={actions.dismissNotice} />
         {state.isStale && (
           <Banner tone="warning" message="รายการไฟล์เปลี่ยนไปหลังจากประมวลผลครั้งล่าสุด กด “รวมข้อมูลและคำนวณ” อีกครั้งเพื่ออัปเดตผลลัพธ์" />
@@ -213,7 +260,9 @@ export default function App() {
 
         <FeatureErrorBoundary key={activeTab.id} name={activeFeature ? featureName(activeFeature) : activeTab.label} onError={activeFeature ? logFeatureError(activeFeature) : (error) => report({ message: `แท็บ "${activeTab.label}" เกิดข้อผิดพลาดขณะแสดงผล`, error })}>
           <div role="tabpanel" id="tabpanel-main" aria-labelledby={`tab-${activeTab.id}`}>
-            <activeTab.Component state={state} actions={actions} monthLabels={state.monthLabels} />
+            <Suspense fallback={<LoadingFallback />}>
+              <activeTab.Component state={state} actions={actions} monthLabels={state.monthLabels} />
+            </Suspense>
           </div>
         </FeatureErrorBoundary>
 
@@ -223,22 +272,22 @@ export default function App() {
           </FeatureErrorBoundary>
         ))}
 
-        {showChart && <ChartDashboard data={state.processedData} summaryData={state.summaryData} monthLabels={state.monthLabels} onClose={() => setShowChart(false)} />}
         {showPreview && (
-          <ExcelPreview
+          <Suspense fallback={null}><ExcelPreview
             data={state.processedData}
             summaryData={state.summaryData}
+            template={state.template}
             fileName={previewFileName}
             onClose={() => setShowPreview(false)}
             onDownload={() => actions.exportExcel()}
-          />
+          /></Suspense>
         )}
       </main>
 
       <ToastRegion />
       <LiveRegion />
 
-      <footer className="border-t border-slate-200 mt-12 py-6 bg-white text-center text-slate-400 text-sm">
+      <footer className="print:hidden border-t border-slate-200 mt-12 py-6 bg-white text-center text-slate-400 text-sm">
         moowhan v{__APP_VERSION__}
       </footer>
     </div>

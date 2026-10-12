@@ -1,32 +1,52 @@
-# ชอน
+# moowhan — รวมแผนการผลิต TMT
 
-เว็บแอปสำหรับรวมข้อมูลการผลิต (ตัวอย่าง UI) พร้อม 3 แท็บ: อัปโหลดไฟล์, ตรวจสอบข้อมูล และสรุปผลรวม
+เว็บแอปสำหรับรวมไฟล์พยากรณ์การผลิตรายเดือนของโรงงาน Toyota 4 แห่ง (**BP, BPK, GW, SR**) ลงในเทมเพลต Excel ของบริษัท
+ทำงานในเบราว์เซอร์ล้วน **ไฟล์ไม่ออกจากเครื่อง** ไม่มีการส่งข้อมูลไปเซิร์ฟเวอร์
 
-## Requirements
-- Node.js 18+ (แนะนำ LTS)
+## วิธีใช้งาน
+1. แท็บ **อัปโหลดไฟล์**: ใส่เทมเพลต `template.xlsx` (ไม่บังคับ) และไฟล์พยากรณ์ของแต่ละโรงงาน
+2. กด **รวมข้อมูลและคำนวณ** (Ctrl+Enter)
+3. ตรวจในแท็บ **ตรวจสอบข้อมูล**, **รายละเอียด Matching**, **ประวัติการแก้ไข**, **สรุปรวม** และแท็บวิเคราะห์อื่นๆ
+4. ดาวน์โหลด Excel (Ctrl+S) แล้วเปิดไฟล์และกด Refresh All เพื่ออัปเดต Pivot
 
-## ติดตั้งและรันในเครื่อง
+**กติกาชื่อไฟล์:** ชื่อไฟล์ต้องขึ้นต้นด้วย `BP`, `BPK`, `GW` หรือ `SR` เช่น `BPK packing 481D.xls` (วางไฟล์ `.zip` / `.eml` ที่มีไฟล์แนบได้ด้วย)
+
+## ฟีเจอร์ในแอป
+| กลุ่ม | ฟีเจอร์ |
+|---|---|
+| นำเข้า | วาง `.xls/.xlsx/.zip/.eml`, เปิดโฟลเดอร์เดือนนี้ (Chrome/Edge), "ลองข้อมูลตัวอย่าง", จำเทมเพลต/งานค้างในเครื่อง (ต้องเปิดเอง) |
+| ตรวจสอบ | ตรวจสอบข้อมูล, ตารางรายวัน, แก้ตัวเลขด้วยมือ (มีเหตุผลและเลิกทำได้), ตรวจคุณภาพ (QA), ตรวจไฟล์ซ้ำ/revision เก่า/ไฟล์ที่ขาด, ตรวจโครงสร้างเทมเพลต |
+| วิเคราะห์ | แดชบอร์ด, วิเคราะห์ Dock/รุ่น/บรรจุภัณฑ์, สัญญาณ Run-out, เทียบรอบก่อน, ประวัติการรันและความแม่นยำ forecast |
+| ส่งออก | ดาวน์โหลด Excel (หรือบันทึกลงโฟลเดอร์ที่เลือก — เฉพาะ Chrome/Edge ไม่เขียนทับไฟล์เดิม), ดูตัวอย่างไฟล์ Excel, CSV/JSON/zip สำหรับระบบอื่น, แชร์สรุป (LINE/อีเมล/TSV), Manifest รอบรัน |
+
+**ด่านก่อนดาวน์โหลด:** คำเตือน QA เป็นข้อมูลเท่านั้น — ถ้าไม่มี QA error / รายการที่ต้องยืนยัน ปุ่มดาวน์โหลดทำงานคลิกเดียว; ถ้ามี QA error หรือโรงงานไม่มีไฟล์ จะมีหน้าต่างให้ยืนยัน และรายการ "ต้องแก้" (เช่น ไฟล์เปลี่ยนหลังประมวลผล, เดือนผลิตไม่ตรงกัน) ต้องติ๊กรับความเสี่ยงก่อน
+
+กดปุ่ม **วิธีใช้** (หรือกด `?`) ในแอปเพื่อเปิดศูนย์ช่วยเหลือ: คำศัพท์ คีย์ลัด และคำถามที่พบบ่อย
+หากพบปัญหา กด **รายงานปัญหา** เพื่อดาวน์โหลดไฟล์วินิจฉัย (ไม่มี Part Number และจำนวน) ส่งให้ผู้ดูแล
+
+## สำหรับผู้พัฒนา
 ```bash
-npm install
-npm run dev
+npm ci
+npm run dev            # พัฒนา
+npm test               # vitest (~13 วินาที)
+npm run typecheck      # JSDoc + checkJs
+npm run build          # production build
+npm run check:bundle   # หลัง build: xlsx/jszip แยก chunk และ entry ≤ 300 kB
+npm run e2e            # Playwright smoke (ต้องมี Chromium: npx playwright install chromium)
+npm run consolidate -- --input ./input --template ./template.xlsx   # CLI แบบ batch
 ```
+ฟีเจอร์เสริมอยู่ใน `src/features/<id>/` และถูกค้นพบอัตโนมัติ (`defineFeature`); `index.jsx` เก็บเฉพาะเมตาดาตา ส่วน UI และ logic หนักโหลดแบบ lazy เพื่อให้ entry chunk เล็ก
+ดูโครงสร้าง สัญญาของฟีเจอร์ และกติกาการพัฒนาใน [CLAUDE.md](./CLAUDE.md) และประวัติการเปลี่ยนแปลงใน [CHANGELOG.md](./CHANGELOG.md)
 
-## Build และ Preview
-```bash
-npm run build
-npm run preview
-```
+**CI** (`.github/workflows/ci.yml`): typecheck → test → build → check:bundle บน Node 20/22 และ e2e (Playwright) บน Node 22 ต้องผ่านทั้งหมดก่อน merge
+
+## สำหรับ IT / รันแบบ batch
+รันขั้นตอนเดียวกับหน้าเว็บ (ด่านตรวจ QA + ตรวจไฟล์ส่งออก) ผ่านคำสั่ง `npm run consolidate -- --input ./input --template ./template.xlsx`
+ดู exit code, รูปแบบ JSON และตัวอย่าง n8n ใน [docs/cli.md](./docs/cli.md) — ไฟล์ตัวอย่างใน `input/` ผ่านโดยไม่ต้องใช้ `--allow-warnings` (คำเตือน QA ไม่ขวางการสร้างไฟล์)
 
 ## Deploy บน Vercel
-1. สร้าง GitHub repo แล้ว push โปรเจคขึ้น GitHub
-2. เข้า Vercel และกด **New Project**
-3. เลือก repo นี้
-4. ตั้งค่า:
-   - Framework Preset: **Vite**
-   - Build Command: `npm run build`
-   - Output Directory: `dist`
-5. กด Deploy
+Framework Preset: **Vite** • Build Command: `npm run build` • Output Directory: `dist`
 
-## หมายเหตุ
-- หน้านี้ใช้ข้อมูลจำลองเพื่อเดโม UI/UX
-# moowhan
+## ข้อกำหนดเครื่องมือ
+
+- Node.js >= 20.19 (CI ทดสอบบน Node 20 และ 22)

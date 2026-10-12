@@ -14,14 +14,14 @@ const ROW_H = 40;
  *  rows, getKey(row), footer(filteredRows) -> { [columnKey]: node } (optional), footerLabel
  *  searchable, searchFields, initialSort {key,dir}, resetKey (sort + search reset when it changes)
  *  toolbar (node left of the search), renderExpanded(row) -> node (turns rows into expandable groups)
- *  emptyMessage, emptyIcon, maxHeight
+ *  emptyMessage, emptyIcon, maxHeight, initialQuery (search box value on first render, e.g. from a QA "ไปดูแถว" link)
  */
 export default function DataGrid({
   columns, rows, getKey, footer, footerLabel, searchable = true, searchFields = DEFAULT_SEARCH_FIELDS,
   initialSort = null, resetKey, toolbar, renderExpanded, emptyMessage = STRINGS.empty.noData, emptyIcon = Icons.Search,
-  maxHeight = '70vh', rowHeight = ROW_H, testId,
+  maxHeight = '70vh', rowHeight = ROW_H, testId, initialQuery = '',
 }) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [sort, setSort] = useState(initialSort);
   const [open, setOpen] = useState({});
   const scroller = useRef(null);
@@ -100,6 +100,7 @@ export default function DataGrid({
                         </span>
                       </button>
                     ) : col.label}
+                    {col.tip && <span className="ml-1 align-middle">{col.tip}</span>}
                   </th>
                 );
               })}

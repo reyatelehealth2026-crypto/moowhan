@@ -8,3 +8,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>,
 );
+
+// signals public/boot-check.js that the app started
+window.__moowhanBooted = true;

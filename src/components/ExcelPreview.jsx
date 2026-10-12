@@ -3,16 +3,21 @@ import Icons from './Icons.jsx';
 import Modal from './Modal.jsx';
 import { MONTH_HEADERS, SOURCE_HEADERS } from '../constants.js';
 import { formatNumber, getColumnLetter } from '../utils/format.js';
+import { PreviewDiffBar, PreviewDiffToggle, TAG_CLASS, TAG_LABEL, useTemplateDiff } from '../features/compare/PreviewDiff.jsx';
+import { rowKey } from '../features/compare/tagRows.js';
 
 // ==================== EXCEL PREVIEW ====================
 // Spreadsheet-like preview of what the export will contain.
-export default function ExcelPreview({ data, summaryData, fileName, onClose, onDownload }) {
+export default function ExcelPreview({ data, summaryData, fileName, onClose, onDownload, template = null }) {
   const [activeSheet, setActiveSheet] = useState('Summary');
   const [zoom, setZoom] = useState(100);
   const [showGridlines, setShowGridlines] = useState(true);
   const [highlightedCells, setHighlightedCells] = useState(() => new Set());
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [filterValue, setFilterValue] = useState('');
+  const [diffOn, setDiffOn] = useState(false); // compare feature: tag rows against the template's own sheet
+  const diff = useTemplateDiff(template, diffOn, data);
+  const tagOf = (row) => (diff?.status === 'ready' && diff.bySheet[activeSheet] ? diff.bySheet[activeSheet].tags.get(rowKey({ part: row[0], dock: row[5] })) : undefined);
 
   const sheets = useMemo(() => {
     const list = [];
@@ -66,18 +71,18 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
   const border = showGridlines ? 'border border-slate-300' : 'border border-transparent';
 
   return (
-    <Modal onClose={onClose} className="max-w-7xl h-[92vh]" label="Preview Excel">
+    <Modal onClose={onClose} className="max-w-7xl h-[92vh]" label="ดูตัวอย่างไฟล์ Excel">
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white flex-shrink-0"><Icons.File /></div>
           <div className="min-w-0">
-            <h2 className="text-white font-semibold text-lg">Preview Excel</h2>
+            <h2 className="text-white font-semibold text-lg">ดูตัวอย่างไฟล์ Excel</h2>
             <p className="text-emerald-100 text-sm truncate">{fileName || 'Production_Summary.xlsx'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <button onClick={onDownload} data-testid="download-preview" className="px-3 sm:px-4 py-2 bg-white text-emerald-700 rounded-lg font-medium hover:bg-emerald-50 flex items-center gap-2">
+          <button onClick={onDownload} data-testid="download-preview" aria-label="ดาวน์โหลด" title="ดาวน์โหลด" className="px-3 sm:px-4 py-2 bg-white text-emerald-700 rounded-lg font-medium hover:bg-emerald-50 flex items-center gap-2">
             <span className="w-4 h-4"><Icons.Download /></span><span className="hidden sm:inline">ดาวน์โหลด</span>
           </button>
           <button onClick={onClose} className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-lg text-white" aria-label="ปิด">✕</button>
@@ -106,6 +111,7 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
             className="pl-8 pr-3 py-1 border border-slate-300 rounded text-sm w-40"
           />
         </div>
+        {template?.kind === 'xlsx' && activeSheet !== 'Summary' && <PreviewDiffToggle checked={diffOn} onChange={setDiffOn} />}
         <div className="ml-auto flex items-center gap-3 text-sm text-slate-500">
           <span>{formatNumber(currentSheet.rows.length)} แถว</span>
           <span>•</span>
@@ -127,6 +133,8 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
           </button>
         ))}
       </div>
+
+      {diffOn && activeSheet !== 'Summary' && <PreviewDiffBar diff={diff} sheet={activeSheet} />}
 
       {/* Grid */}
       <div className="flex-1 overflow-auto bg-white">
@@ -159,9 +167,11 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
               </tr>
             </thead>
             <tbody>
-              {currentSheet.rows.map((row, rowIdx) => (
+              {currentSheet.rows.map((row, rowIdx) => {
+                const tag = tagOf(row);
+                return (
                 <tr key={rowIdx}>
-                  <td className={`w-12 h-8 bg-slate-50 ${border} sticky left-0 z-10 text-xs text-slate-500 text-center font-medium`}>{rowIdx + 2}</td>
+                  <td className={`w-12 h-8 bg-slate-50 ${border} sticky left-0 z-10 text-xs text-slate-500 text-center font-medium`} title={TAG_LABEL[tag]}>{rowIdx + 2}{tag && TAG_LABEL[tag] && <span className="sr-only"> ({TAG_LABEL[tag]})</span>}</td>
                   {row.map((cell, colIdx) => {
                     const isHighlighted = highlightedCells.has(`${activeSheet}-${rowIdx}-${colIdx}`);
                     const isNumberCol = currentSheet.numberCols.includes(colIdx);
@@ -169,7 +179,7 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
                       <td
                         key={colIdx}
                         onClick={() => toggleHighlight(rowIdx, colIdx)}
-                        className={`h-8 ${border} text-xs px-2 whitespace-nowrap cursor-pointer ${isHighlighted ? 'bg-yellow-200 ring-2 ring-yellow-400 ring-inset' : isNumberCol ? 'bg-blue-50/50' : 'bg-white hover:bg-slate-50'}`}
+                        className={`h-8 ${border} text-xs px-2 whitespace-nowrap cursor-pointer ${isHighlighted ? 'bg-yellow-200 ring-2 ring-yellow-400 ring-inset' : TAG_CLASS[tag] ? TAG_CLASS[tag] : isNumberCol ? 'bg-blue-50/50' : 'bg-white hover:bg-slate-50'}`}
                         style={{ textAlign: typeof cell === 'number' ? 'right' : 'left' }}
                       >
                         {typeof cell === 'number' ? formatNumber(cell) : (cell ?? '')}
@@ -177,7 +187,8 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
                     );
                   })}
                 </tr>
-              ))}
+                );
+              })}
               {currentSheet.rows.length === 0 && (
                 <tr><td colSpan={currentSheet.headers.length + 1} className="py-10 text-center text-slate-400 text-sm">ไม่พบข้อมูล</td></tr>
               )}
@@ -186,9 +197,9 @@ export default function ExcelPreview({ data, summaryData, fileName, onClose, onD
         </div>
       </div>
 
-      <div className="bg-emerald-600 text-white px-4 py-2 text-xs sm:text-sm flex items-center justify-between">
-        <div className="flex items-center gap-4"><span>Sheet: {activeSheet}</span><span>|</span><span>Ready</span></div>
-        <div className="flex items-center gap-4"><span>Zoom: {zoom}%</span><span>|</span><span>{highlightedCells.size} cells highlighted</span></div>
+      <div className="bg-emerald-600 text-white px-4 py-2 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0"><span className="truncate">ชีต: {activeSheet}</span><span aria-hidden="true">|</span><span>พร้อม</span></div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span>ซูม: {zoom}%</span><span aria-hidden="true">|</span><span>ไฮไลต์ {highlightedCells.size} เซลล์</span></div>
       </div>
     </Modal>
   );

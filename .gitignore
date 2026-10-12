@@ -8,3 +8,5 @@ dist-ssr
 .vscode
 .DS_Store
 .e2e-out
+tests/fixtures/out
+.omx/

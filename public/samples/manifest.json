@@ -1,0 +1,33 @@
+{
+  "demo": true,
+  "productionMonth": "202602",
+  "template": null,
+  "sources": [
+    "BP veh DEMO.xls",
+    "BPK packing DEMO.xls",
+    "GW veh DEMO.xls",
+    "GW packing DEMO.xls",
+    "SR veh DEMO.xls"
+  ],
+  "expected": {
+    "rows": {
+      "BP veh DEMO.xls": 6,
+      "BPK packing DEMO.xls": 5,
+      "GW veh DEMO.xls": 6,
+      "GW packing DEMO.xls": 4,
+      "SR veh DEMO.xls": 5
+    },
+    "partNumbers": [
+      "86790-T0001-00",
+      "86790-T0002-00",
+      "86790-T0003-00",
+      "86790-T0004-00",
+      "86790-T0005-00",
+      "86790-T0006-00",
+      "86790-T0011-00",
+      "86790-T0012-00",
+      "86790-T0013-00",
+      "86790-T0014-00"
+    ]
+  }
+}

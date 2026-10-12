@@ -121,6 +121,12 @@ const Icons = {
       <path strokeWidth="2" d="M8.59 13.51l6.83 3.98M8.59 10.49l6.83-3.98" />
     </svg>
   ),
+  Copy: () => (
+    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <rect x="9" y="9" width="13" height="13" rx="2" strokeWidth="2" />
+      <path strokeWidth="2" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </svg>
+  ),
   Template: () => (
     <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeWidth="2" />
@@ -141,6 +147,55 @@ const Icons = {
     <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeWidth="2" d="M21.21 15.89A10 10 0 118 2.83" />
       <path strokeWidth="2" d="M22 12A10 10 0 0012 2v10z" />
+    </svg>
+  ),
+  Settings: () => (
+    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinecap="round" d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0" />
+      <circle cx="16" cy="6" r="2" strokeWidth="2" />
+      <circle cx="8" cy="12" r="2" strokeWidth="2" />
+      <circle cx="18" cy="18" r="2" strokeWidth="2" />
+    </svg>
+  ),
+  Help: () => (
+    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" strokeWidth="2" />
+      <path strokeWidth="2" strokeLinecap="round" d="M9.1 9a3 3 0 015.8 1c0 2-3 2.5-3 4M12 17.5h.01" />
+    </svg>
+  ),
+  Grid: () => (
+    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="2" />
+      <path strokeWidth="2" d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+    </svg>
+  ),
+  Shield: () => (
+    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinejoin="round" d="M12 3l8 3v6c0 4.5-3.2 8.2-8 9-4.8-.8-8-4.5-8-9V6z" />
+      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
+    </svg>
+  ),
+  Clock: () => (
+    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" strokeWidth="2" />
+      <path strokeWidth="2" strokeLinecap="round" d="M12 7v5l3 2" />
+    </svg>
+  ),
+  Boxes: () => (
+    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinejoin="round" d="M12 3l9 4.5v9L12 21l-9-4.5v-9z" />
+      <path strokeWidth="2" strokeLinejoin="round" d="M3 7.5l9 4.5 9-4.5M12 12v9" />
+    </svg>
+  ),
+  Folder: () => (
+    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinejoin="round" d="M3 6a2 2 0 012-2h4l2 3h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+    </svg>
+  ),
+  Printer: () => (
+    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinejoin="round" d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a2 2 0 012-2h14a2 2 0 012 2v6a1 1 0 01-1 1h-2" />
+      <rect x="6" y="14" width="12" height="7" strokeWidth="2" />
     </svg>
   ),
 };

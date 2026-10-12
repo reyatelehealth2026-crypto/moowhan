@@ -4,12 +4,14 @@ import ProgressBar from './ProgressBar.jsx';
 import { PLANTS, PLANT_META } from '../constants.js';
 import { STRINGS } from '../features/ui-kit/strings.js';
 import { formatSize } from '../utils/format.js';
+import FileCard from '../features/qa-file-guards/FileCard.jsx';
 
 const STATUS_ICON = {
   done: 'text-emerald-500',
   error: 'text-red-500',
   processing: 'text-blue-500',
   ready: 'text-slate-400',
+  warning: 'text-amber-500',
 };
 
 // ==================== UPLOAD TAB ====================
@@ -70,7 +72,7 @@ export default function UploadTab({ state, actions }) {
             <span className="w-5 h-5 text-blue-600"><Icons.Chart /></span>ไฟล์ข้อมูลรายโรงงาน
           </h2>
           <FileDropZone
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.zip,.eml"
             multiple
             onFiles={actions.addSourceFiles}
             disabled={processing.active}
@@ -82,6 +84,7 @@ export default function UploadTab({ state, actions }) {
                 <span className="w-10 h-10 mx-auto text-blue-400 block mb-2"><Icons.Upload /></span>
                 <p className="text-slate-600 mb-1">{dragging ? 'ปล่อยไฟล์ได้เลย' : 'ลากไฟล์มาวางหรือคลิกเลือก (เลือกได้หลายไฟล์)'}</p>
                 <p className="text-sm text-slate-400">ชื่อไฟล์ขึ้นต้นด้วย BP, BPK, GW หรือ SR</p>
+                <p className="text-sm text-slate-400">ลากไฟล์ .xls/.xlsx หรือ .zip ที่มีไฟล์แนบมาวางได้เลย</p>
               </>
             )}
           </FileDropZone>
@@ -102,16 +105,16 @@ export default function UploadTab({ state, actions }) {
                 <div key={file.id} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-lg px-3 sm:px-4 py-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className={`w-5 h-5 flex-shrink-0 ${STATUS_ICON[file.status] || STATUS_ICON.ready}`}>
-                      {file.status === 'done' ? <Icons.Check /> : file.status === 'processing' ? <Icons.Refresh /> : file.status === 'error' ? <Icons.Alert /> : <Icons.File />}
+                      {file.status === 'done' ? <Icons.Check /> : file.status === 'processing' ? <Icons.Refresh /> : file.status === 'error' || file.status === 'warning' ? <Icons.Alert /> : <Icons.File />}
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate" title={file.name}>{file.name}</p>
                       <p className="text-xs text-slate-400 truncate">
                         {formatSize(file.size)}
-                        {file.rowCount > 0 && ` • ${file.rowCount} แถว`}
-                        {file.meta?.productionMonthRaw && ` • เดือน ${file.meta.productionMonthRaw}`}
+                        {file.status === 'warning' && file.rowCount === 0 && <span className="text-amber-600"> • ไม่พบแถวข้อมูล</span>}
                         {file.error && <span className="text-red-500"> • {file.error}</span>}
                       </p>
+                      <FileCard file={file} files={sourceFiles} actions={actions} disabled={processing.active} />
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">

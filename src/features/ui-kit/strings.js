@@ -19,13 +19,13 @@ export const STRINGS = {
   buttons: {
     process: 'รวมข้อมูลและคำนวณ',
     download: 'ดาวน์โหลด',
-    previewExcel: 'Preview Excel',
+    previewExcel: 'ดูตัวอย่างไฟล์ Excel',
     reset: 'รีเซ็ต',
     close: 'ปิด',
     cancel: 'ยกเลิก',
     confirm: 'ยืนยัน',
     undo: 'เลิกทำ',
-    options: 'เมนู',
+    options: 'เครื่องมือ',
   },
   empty: {
     noData: 'ไม่พบข้อมูล',

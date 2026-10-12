@@ -28,6 +28,14 @@ export const findMonthColumns = (headers) => {
   return cols.map((c, i) => (c === -1 ? DEFAULT_N_COLS[i] : c));
 };
 
+// qa-file-guards: PART TYPE -> 'V' (Vehicle) | 'P' (Packing) | '' (unknown / missing)
+export const normalizePartType = (v) => {
+  const t = norm(v);
+  if (t === 'V' || t.startsWith('VEH')) return 'V';
+  if (t === 'P' || t.startsWith('PACK')) return 'P';
+  return '';
+};
+
 // Key/value lines above the header, e.g. "PRODUCTION MONTH" | 202602
 export const readMetadata = (aoa, headerRowIndex) => {
   const meta = {};
@@ -40,8 +48,14 @@ export const readMetadata = (aoa, headerRowIndex) => {
     else if (key === 'PLANT CODE') meta.plantCode = String(val).trim();
     else if (key === 'REVISION NUMBER') meta.revision = String(val).trim();
     else if (key === 'FORECAST TYPE') meta.forecastType = String(val).trim();
-    else if (key === 'PART TYPE') meta.partType = String(val).trim();
+    else if (key === 'PART TYPE') meta.partType = normalizePartType(val);
+    else if (key === 'REVISION TYPE') meta.revisionType = String(val).trim();
+    else if (key === 'WOC WEEK') meta.wocWeek = String(val).trim();
   }
+  // qa-file-guards: always present so consumers can read them without guards
+  meta.partType = meta.partType || '';
+  meta.revisionType = meta.revisionType || '';
+  meta.wocWeek = meta.wocWeek || '';
   meta.productionMonth = parseProductionMonth(meta.productionMonthRaw);
   return meta;
 };
@@ -53,12 +67,22 @@ export const extractSourceRows = (aoa) => {
   const meta = readMetadata(aoa, headerRowIndex);
   const [nCol, n1Col, n2Col, n3Col] = findMonthColumns(aoa[headerRowIndex]);
   const rows = [];
+  // qa-engine: raw rows dropped while reading (source row number is 1-based) + which N columns came from the header
+  const skippedRows = [];
+  const headerNorm = (aoa[headerRowIndex] || []).map(norm);
+  meta.monthColumnsFromHeader = MONTH_HEADERS.map((h) => headerNorm.includes(h));
+  meta.skippedRows = skippedRows;
 
   for (let i = dataStartIndex; i < aoa.length; i++) {
     const row = aoa[i];
     if (!row || row[0] === undefined || row[0] === null || row[0] === '<EOF>') continue;
     const partNumber = String(row[0]).trim();
-    if (partNumber.length < 5) continue;
+    if (partNumber.length < 5) {
+      if (partNumber || row.some((v) => v !== undefined && v !== null && String(v).trim() !== '')) {
+        skippedRows.push({ rowNumber: i + 1, values: row.slice(0, 8) });
+      }
+      continue;
+    }
 
     rows.push({
       partNumber,
@@ -79,7 +103,7 @@ export const extractSourceRows = (aoa) => {
     });
   }
 
-  return { rows, meta, headerRowIndex };
+  return { rows, meta, headerRowIndex, skippedRows };
 };
 
 // ArrayBuffer of an .xls/.xlsx -> { sheetName, aoa }
@@ -105,4 +129,35 @@ export const workbookToRawSheets = (arrayBuffer) => {
     rawSheets[name] = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: null, blankrows: false });
   });
   return { sheetNames: workbook.SheetNames, rawSheets };
+};
+
+// ---------- qa-file-guards ----------
+const squash = (v) => String(v ?? '').trim().toUpperCase().replace(/\s+/g, ' ');
+
+// Small synchronous 2x32-bit string hash (not cryptographic) -> 16 hex chars. Used to compare file *content*
+// ignoring cosmetic differences; the cryptographic sha256 of the raw bytes lives in features/qa-file-guards/hash.js.
+const hashString = (str) => {
+  let h1 = 0xdeadbeef; let h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+};
+
+// Content fingerprint of parsed rows: PART NUMBER | DOCK CODE | N..N+3, normalised and sorted. PART DESC is ignored.
+export const fingerprintRows = (rows) => {
+  const lines = (rows || [])
+    .map((r) => `${squash(r.partNumber)}|${squash(r.dockCode)}|${r.n ?? 0}|${r.n1 ?? 0}|${r.n2 ?? 0}|${r.n3 ?? 0}`)
+    .sort();
+  return hashString(lines.join('\n'));
+};
+
+// Parse once: ArrayBuffer -> { meta, rowCount, rows, fingerprint, parsed } (parsed = full readSourceBuffer result, reusable by processAll)
+export const inspectSourceBuffer = (arrayBuffer) => {
+  const parsed = readSourceBuffer(arrayBuffer);
+  return { meta: parsed.meta, rowCount: parsed.rows.length, rows: parsed.rows, fingerprint: fingerprintRows(parsed.rows), parsed };
 };

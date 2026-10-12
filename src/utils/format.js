@@ -1,4 +1,6 @@
 // ==================== FORMATTING HELPERS ====================
+import { today as clockToday } from './clock.js';
+
 export const formatNumber = (num) => (Number(num) || 0).toLocaleString('en-US');
 
 export const formatSize = (bytes) => {
@@ -50,7 +52,7 @@ export const formatMonth = (pm, offset = 0) => {
 export const monthLabels = (pm) =>
   ['N', 'N+1', 'N+2', 'N+3'].map((h, i) => (pm ? `${h} (${formatMonth(pm, i)})` : h));
 
-export const todayStamp = () => new Date().toISOString().slice(0, 10);
+export const todayStamp = () => clockToday();
 
 // Excel sheet names: max 31 chars, none of []*?/\: and no leading/trailing apostrophe.
 export const safeSheetName = (name) =>
@@ -91,7 +93,11 @@ export const formatDate = (value, style = 'long', { tz = 'Asia/Bangkok' } = {}) 
   return `${date} ${time}`;
 };
 
-/** "2 นาทีที่แล้ว" / "อีก 3 ชั่วโมง". `now` defaults to the injectable clock. */
+/**
+ * "2 นาทีที่แล้ว" / "อีก 3 ชั่วโมง". `now` defaults to the injectable clock.
+ * @param {string|number|Date} iso
+ * @param {Date|number} [now]
+ */
 export const relativeTime = (iso, now = format.now()) => {
   const t = new Date(iso).getTime();
   const n = now instanceof Date ? now.getTime() : Number(now);
@@ -99,6 +105,7 @@ export const relativeTime = (iso, now = format.now()) => {
   const diff = Math.round((n - t) / 1000);
   const abs = Math.abs(diff);
   if (abs < 45) return 'เมื่อสักครู่';
+  /** @type {[number, string][]} */
   const steps = [[60, 'นาที'], [3600, 'ชั่วโมง'], [86400, 'วัน'], [2592000, 'เดือน'], [31104000, 'ปี']];
   let i = 0;
   while (i < steps.length - 1 && abs >= steps[i + 1][0]) i++;
@@ -115,3 +122,82 @@ export const formatDelta = (n, pct) => {
   const p = Number(pct) * 100;
   return `${base} (${sign(p)}${Math.abs(p).toFixed(1)}%)`;
 };
+
+/** monthKey({ year: 2026, month: 2 }, 1) -> "2026-03"; null production month -> "". */
+export const monthKey = (pm, offset = 0) => {
+  if (!pm) return '';
+  const idx = pm.month - 1 + offset;
+  const year = pm.year + Math.floor(idx / 12);
+  const month = ((idx % 12) + 12) % 12;
+  return `${year}-${String(month + 1).padStart(2, '0')}`;
+};
+
+// ==================== FILE NAME PATTERN (settings-profile) ====================
+
+const RESERVED_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/**
+ * renderProfileFileName('Production_Updated_{monthLabel}_{date}.xlsx', { productionMonth, rev, now })
+ * Tokens: {month} 202602 · {monthLabel} Feb'26 · {rev} · {date} 2026-02-05 · {time} 1432.
+ * Unknown tokens stay as typed. The result is safe for Windows/macOS: forbidden characters, "/" "\",
+ * leading dots and reserved names (CON, NUL ...) are cleaned and the length is capped.
+ * `now` (Date | ms) is injectable for tests; defaults to the format.now clock.
+ */
+export const renderProfileFileName = (pattern, ctx = {}) => {
+  const { productionMonth = null, rev = '', now = format.now(), fallback = 'Production_Updated.xlsx' } = ctx;
+  const d = now instanceof Date ? now : new Date(now);
+  const valid = !Number.isNaN(d.getTime());
+  const tokens = {
+    month: productionMonth ? `${productionMonth.year}${pad2(productionMonth.month)}` : '',
+    monthLabel: productionMonth ? formatMonth(productionMonth) : '',
+    rev: String(rev ?? ''),
+    date: valid ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : '',
+    time: valid ? `${pad2(d.getHours())}${pad2(d.getMinutes())}` : '',
+  };
+  let name = String(pattern ?? '').replace(/\{(\w+)\}/g, (m, k) => (Object.prototype.hasOwnProperty.call(tokens, k) ? tokens[k] : m));
+  name = name
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+    .replace(/_{2,}/g, '_')
+    .replace(/^[.\s_]+/, '')
+    .replace(/[.\s]+$/, '');
+  const dot = name.lastIndexOf('.');
+  let base = dot > 0 ? name.slice(0, dot) : name;
+  let ext = dot > 0 ? name.slice(dot) : '';
+  base = base.replace(/_+$/, '');
+  if (!/\.xlsx$/i.test(ext)) { base = `${base}${ext}`.replace(/\.+$/, ''); ext = '.xlsx'; }
+  if (!base || RESERVED_NAMES.test(base)) base = base ? `${base}_file` : fallback.replace(/\.xlsx$/i, '');
+  if (base.length > 120) base = base.slice(0, 120);
+  return `${base}${ext}`;
+};
+
+// ==================== EXPORT FILE NAME (export-gate) ====================
+export const DEFAULT_FILE_PATTERN = 'Production_Updated_{month}_{date}.xlsx';
+const FILE_NAME_FORBIDDEN = /[/\\:?*[\]"<>|]/g;
+
+/**
+ * Fill {month} ("Feb26" from the production month) and {date} ("2026-10-05") in a file-name pattern,
+ * drop characters Windows/Excel refuse (/ : \ ? * [ ] " < > |) and make sure it ends with .xlsx.
+ * An empty or all-forbidden result falls back to the default pattern.
+ */
+export const renderGateFileName = (pattern = DEFAULT_FILE_PATTERN, { productionMonth = null, date = todayStamp() } = {}) => {
+  const fill = (p) => String(p ?? '')
+    .replace(/\{month\}/gi, formatMonth(productionMonth).replace(/'/g, ''))
+    .replace(/\{date\}/gi, date)
+    .replace(FILE_NAME_FORBIDDEN, '')
+    .replace(/_{2,}/g, '_')
+    .replace(/_+(\.[^.]*)?$/, '$1') // "Production_.xlsx" -> "Production.xlsx" when {month} is empty
+    .replace(/\s+/g, ' ')
+    .trim();
+  let name = fill(pattern).replace(/\.xlsx$/i, '').replace(/^[._\s]+|[._\s]+$/g, '');
+  if (!name) name = fill(DEFAULT_FILE_PATTERN).replace(/\.xlsx$/i, '');
+  return `${name.slice(0, 120)}.xlsx`;
+};
+
+/**
+ * One entry point for both naming styles (settings-profile and export-gate):
+ *  - with an explicit `date` string -> export-gate style: {month} = "Feb26", forbidden characters are dropped
+ *  - otherwise -> profile style: {month} = 202602, {monthLabel} = Feb'26, {rev}, {time}; forbidden characters become "_"
+ */
+export const renderFileName = (pattern, ctx = {}) =>
+  (ctx.date !== undefined ? renderGateFileName(pattern ?? DEFAULT_FILE_PATTERN, ctx) : renderProfileFileName(pattern, ctx));
