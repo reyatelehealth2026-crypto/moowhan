@@ -4,6 +4,10 @@
 // contract at module-eval (DEV: throws a Thai error; production: warns and excludes the module).
 // Plain objects still work and are validated the same way.
 //
+// Code splitting: this registry is eager, so index.jsx must only carry metadata (id, order, group, tab label/Icon/badge/
+// enabled) and the hooks that run synchronously. Load tab Components, modals and heavy logic with lazyComponent()
+// (./lazy.js) and `await import(...)` inside async hooks, otherwise `npm run check:bundle` fails the entry budget.
+//
 // @typedef {{ level: 'block'|'confirm'|'info', code: string, message: string, sheet?: string, rowId?: string, fix?: any }} Issue
 // @typedef {{ name: string, aoa: any[][] }} Sheet
 //
