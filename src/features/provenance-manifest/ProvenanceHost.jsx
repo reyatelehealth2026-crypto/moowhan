@@ -3,6 +3,7 @@ import Icons from '../../components/Icons.jsx';
 import Modal from '../../components/Modal.jsx';
 import { Button, Chip, pushToast } from '../ui-kit/index.js';
 import { shortHash } from '../../utils/hash.js';
+import { copyText } from '../../utils/clipboard.js';
 import { isoNow } from '../../utils/clock.js';
 import { formatNumber, formatSize } from '../../utils/format.js';
 import { FEATURE_ID, buildManifest, manifestFileName, manifestJson } from './manifest.js';
@@ -58,12 +59,9 @@ function ManifestPanel({ ctx, onClose }) {
     }
   };
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(manifestJson(m));
-      pushToast({ message: 'คัดลอก JSON แล้ว', tone: 'success' });
-    } catch {
-      actions.setError('คัดลอกไม่สำเร็จ ให้ใช้ปุ่มดาวน์โหลดแทน');
-    }
+    const { ok } = await copyText(manifestJson(m));
+    if (ok) pushToast({ message: 'คัดลอก JSON แล้ว', tone: 'success' });
+    else actions.setError('คัดลอกไม่สำเร็จ ให้ใช้ปุ่มดาวน์โหลดแทน');
   };
 
   return (

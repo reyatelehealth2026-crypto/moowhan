@@ -3,6 +3,7 @@ import Modal from '../../components/Modal.jsx';
 import Icons from '../../components/Icons.jsx';
 import { listHotkeys } from '../ui-kit/hotkeys.js';
 import { pushToast } from '../ui-kit/index.js';
+import { copyText } from '../../utils/clipboard.js';
 import { GLOSSARY, GROUP_LABELS, renderWritePlanSummary, searchGlossary } from './glossary.js';
 import { getSnapshot, subscribe, closeHelp, openDiagnostics } from './helpStore.js';
 import { parseChangelog } from './changelog.js';
@@ -81,8 +82,9 @@ function Diagnostics({ ctx, onClose }) {
     env: { userAgent: navigator.userAgent, language: navigator.language, viewport: `${window.innerWidth}x${window.innerHeight}` },
   }), null, 2), [ctx.state, sha]);
   const copy = async () => {
-    try { await navigator.clipboard.writeText(json); pushToast({ message: 'คัดลอกรายงานแล้ว', tone: 'success' }); }
-    catch { pushToast({ message: 'คัดลอกไม่สำเร็จ ลองดาวน์โหลดเป็นไฟล์แทน', tone: 'warning' }); }
+    const { ok } = await copyText(json);
+    if (ok) pushToast({ message: 'คัดลอกรายงานแล้ว', tone: 'success' });
+    else pushToast({ message: 'คัดลอกไม่สำเร็จ ลองดาวน์โหลดเป็นไฟล์แทน', tone: 'warning' });
   };
   const download = () => {
     const a = document.createElement('a');
