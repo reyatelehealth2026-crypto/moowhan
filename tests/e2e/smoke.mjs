@@ -48,6 +48,20 @@ try {
   step(`loaded ${url} — ${await page.title()}`);
   await shot(page, '01-upload');
 
+  // ---- compare: tab is disabled until files are processed ----
+  {
+    const t = page.getByRole('tab', { name: 'เทียบรอบก่อน' });
+    let disabled;
+    if (await t.count()) disabled = await t.first().isDisabled();
+    else {
+      await page.getByRole('button', { name: /เพิ่มเติม/ }).click();
+      const mi = page.getByRole('menuitem', { name: /เทียบรอบก่อน/ }).first();
+      disabled = (await mi.isDisabled()) || (await mi.getAttribute('aria-disabled')) === 'true';
+      await page.keyboard.press('Escape');
+    }
+    if (!disabled) errors.push('compare: tab is not disabled before processing');
+  }
+
   const inputs = page.locator('input[type=file]');
   await inputs.nth(0).setInputFiles(path.join(ROOT, 'template.xlsx'));
   await page.getByText('template.xlsx').waitFor();
@@ -235,6 +249,28 @@ try {
   await shot(page, '06-manual-edit-mobile', true);
   await page.setViewportSize({ width: 1280, height: 900 });
   step('manual-edit: validation, reason chips, save, undo, revert, header counter, 390px ok');
+
+  // ---- compare ----
+  {
+    const t = page.getByRole('tab', { name: 'เทียบรอบก่อน' });
+    if (await t.count()) await t.first().click();
+    else { await page.getByRole('button', { name: /เพิ่มเติม/ }).click(); await page.getByRole('menuitem', { name: /เทียบรอบก่อน/ }).first().click(); }
+    await page.getByTestId('compare').waitFor();
+    if (!(await page.getByTestId('compare-empty').innerText()).includes('ยังไม่มีข้อมูลรอบก่อน')) errors.push('compare: missing "ยังไม่มีข้อมูลรอบก่อน" before a baseline');
+    await page.getByTestId('compare-drop').locator('xpath=ancestor::div[@role="button"]').locator('input[type=file]').setInputFiles(path.join(ROOT, 'input', 'download.xlsx'));
+    await page.getByTestId('compare-month').waitFor();
+    if (await page.getByTestId('compare-table').count()) errors.push('compare: table shown before the month was confirmed');
+    if (!(await page.getByTestId('compare-empty').innerText()).includes('ยืนยันเดือน')) errors.push('compare: no prompt to confirm the month');
+    await page.getByTestId('compare-month').selectOption('202602');
+    await page.getByTestId('compare-table').waitFor();
+    if (!(await page.getByTestId('compare-sentence').innerText()).includes('รอบเดียวกัน')) errors.push('compare: alignment sentence missing');
+    const kpis = await page.getByTestId('compare-kpis').innerText();
+    if (!/หายไป\s*13/.test(kpis)) errors.push(`compare: expected 13 missing, got ${kpis.replace(/\s+/g, ' ')}`);
+    await page.setViewportSize({ width: 390, height: 844 });
+    if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('compare: page overflows horizontally at 390px');
+    await page.setViewportSize({ width: 1280, height: 900 });
+    step('compare tab: disabled before processing, month confirmation, 13 missing, no overflow at 390px');
+  }
 
   // Ctrl+Enter on the upload tab processes the files again
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
