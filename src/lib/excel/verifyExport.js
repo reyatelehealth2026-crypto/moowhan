@@ -9,7 +9,7 @@
 //   V05 zip parts, pivot refreshOnLoad, fullCalcOnLoad
 //
 // `ok: null` = not applicable / could not be checked (e.g. V05, V08-V10 in fallback mode).
-import JSZip from 'jszip';
+import { loadZip } from './zipLoad.js';
 import {
   cellText, decodeXml, findRowWithText, lastColWithText, listSheets, loadSharedStrings, parseSheet, readText,
 } from './templatePatcher.js';
@@ -65,7 +65,7 @@ export const verifyExport = async (buffer, {
   const checks = [];
   const add = (c) => checks.push({ ok: null, expected: null, actual: null, sheet: null, advisory: false, ...c });
 
-  const zip = await JSZip.loadAsync(buffer);
+  const zip = await loadZip(buffer);
   const sheetList = await listSheets(zip);
   const sst = await loadSharedStrings(zip);
   const patchedBy = new Map((report?.patched || []).map((p) => [p.sheet, p]));
@@ -237,7 +237,7 @@ export const verifyExport = async (buffer, {
     na('V09', 'จำนวนสูตรไม่เปลี่ยน');
     na('V10', 'สไตล์ของเทมเพลตคงเดิม');
   } else {
-    const tzip = templateBuffer ? await JSZip.loadAsync(templateBuffer) : null;
+    const tzip = templateBuffer ? await loadZip(templateBuffer) : null;
     const partsOf = (z, re) => Object.keys(z.files).filter((p) => re.test(p));
     const pivotRe = /^xl\/pivotCache\/pivotCacheDefinition\d+\.xml$/;
 
