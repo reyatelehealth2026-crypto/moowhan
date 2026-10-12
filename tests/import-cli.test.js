@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 import { expandZip } from '../src/features/import-cli/zip.js';
 import { parseEml, MSG_ERROR } from '../src/features/import-cli/eml.js';
+import { planFolderImport, uniqueName, writeNoOverwrite, hasTemplateSheets } from '../src/features/import-cli/folder.js';
 import { SOURCE_FILES, fixture } from './helpers.js';
 
 const loadJSZip = async () => JSZip;
@@ -93,5 +97,116 @@ describe('parseEml', () => {
     const out = await parseEml(new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0, 0]));
     expect(out.error).toBe(MSG_ERROR);
     expect(out.files).toEqual([]);
+  });
+});
+
+// ---------- contract: the CLI's import graph stays free of UI / bundler / network code ----------
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const IMPORT_RE = /(?:import|export)\s[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g;
+
+function crawl(entry) {
+  const seen = new Set();
+  const external = new Set();
+  const visit = (file) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const src = fs.readFileSync(file, 'utf8');
+    for (const m of src.matchAll(IMPORT_RE)) {
+      const spec = m[1] || m[2] || m[3];
+      if (spec.startsWith('.')) {
+        const target = path.resolve(path.dirname(file), spec);
+        if (/\.(js|mjs|jsx)$/.test(target) && fs.existsSync(target)) visit(target);
+        else if (/\.json$/.test(target)) seen.add(target);
+        else external.add(`${spec} (from ${path.relative(repo, file)})`);
+      } else external.add(spec);
+    }
+  };
+  visit(entry);
+  return { files: [...seen].map((f) => path.relative(repo, f).replaceAll('\\', '/')), external: [...external] };
+}
+
+describe('CLI import contract', () => {
+  const { files, external } = crawl(path.join(repo, 'scripts', 'consolidate.mjs'));
+
+  it('reaches the pipeline modules', () => {
+    expect(files).toEqual(expect.arrayContaining(['src/features/import-cli/cli.js', 'src/features/qa-engine/engine.js', 'src/lib/excel/verifyExport.js']));
+  });
+  it('imports no react, vite, components, feature registry or .jsx', () => {
+    expect(files.filter((f) => /\.jsx$|(^|\/)components\/|features\/index\.js$|features\/visibility\.js$/.test(f))).toEqual([]);
+    expect(external.filter((e) => /^(react|react-dom|vite|@vitejs|tailwindcss)/.test(e))).toEqual([]);
+  });
+  it('uses no network API', () => {
+    const net = /\bfetch\s*\(|XMLHttpRequest|WebSocket|node:(http|https|net|dgram|tls)\b|navigator\.sendBeacon/;
+    files.filter((f) => f.endsWith('.js') || f.endsWith('.mjs')).forEach((f) => {
+      expect(net.test(fs.readFileSync(path.join(repo, f), 'utf8')), f).toBe(false);
+    });
+  });
+  it('only needs libraries that are already dependencies', () => {
+    const allowed = new Set(['xlsx', 'jszip']);
+    const bare = external.filter((e) => !e.startsWith('node:') && !allowed.has(e) && !e.includes(' (from '));
+    expect(bare).toEqual([]);
+  });
+});
+
+// ---------- folder planning ----------
+
+const SHEETS = ['BP Daily', 'BPK Daily', 'GW Daily', 'SR Daily', 'Analyze', 'Summary'];
+const entry = (name, extra = {}) => ({ name, size: 10, lastModified: 1, ...extra });
+
+describe('planFolderImport', () => {
+  it('picks the template with Daily+Analyze sheets, lists previous output and skipped files', () => {
+    const plan = planFolderImport([
+      entry('BP veh 481D.xls'), entry('BPK packing 481D.xls'), entry('GW veh DG7.xls'), entry('SR veh 481D.xls'),
+      entry('company.xlsx', { sheets: SHEETS, lastModified: 5 }),
+      entry('old company.xlsx', { sheets: SHEETS, lastModified: 2 }),
+      entry('Production_Updated_Feb26_2026-02-05.xlsx', { sheets: SHEETS }),
+      entry('run_202602.json'),
+      entry('download.xlsx', { sheets: ['Sheet1'] }),
+      entry('~$company.xlsx'), entry('notes.txt'),
+    ]);
+    expect(plan.template.name).toBe('company.xlsx');
+    expect(plan.sources.map((s) => s.name)).toEqual(['BP veh 481D.xls', 'BPK packing 481D.xls', 'GW veh DG7.xls', 'SR veh 481D.xls']);
+    expect(plan.previousOutput.map((e) => e.name).sort()).toEqual(['Production_Updated_Feb26_2026-02-05.xlsx', 'run_202602.json']);
+    const reasons = Object.fromEntries(plan.skipped.map((s) => [s.name, s.reason]));
+    expect(reasons['old company.xlsx']).toMatch(/ใหม่กว่า/);
+    expect(reasons['download.xlsx']).toMatch(/จัดประเภท/);
+    expect(reasons['~$company.xlsx']).toMatch(/ชั่วคราว/);
+    expect(reasons['notes.txt']).toMatch(/ไม่ใช่ไฟล์ Excel/);
+  });
+
+  it('returns no template when no workbook has the required sheets', () => {
+    const plan = planFolderImport([entry('BP a.xls'), entry('x.xlsx', { sheets: ['Analyze'] })]);
+    expect(plan.template).toBeNull();
+    expect(hasTemplateSheets(['Analyze'])).toBe(false);
+  });
+});
+
+describe('never overwrite', () => {
+  it('uniqueName adds _v2, _v3', () => {
+    expect(uniqueName('a.xlsx', [])).toBe('a.xlsx');
+    expect(uniqueName('a.xlsx', ['a.xlsx'])).toBe('a_v2.xlsx');
+    expect(uniqueName('a.xlsx', ['a.xlsx', 'a_v2.xlsx'])).toBe('a_v3.xlsx');
+  });
+
+  it('writeNoOverwrite keeps an existing file untouched', async () => {
+    const files = new Map([['out.xlsx', 'old']]);
+    const dir = {
+      async *entries() { for (const k of files.keys()) yield [k, { kind: 'file' }]; },
+      async getFileHandle(name) { return { async createWritable() { return { async write(b) { files.set(name, b); }, async close() {} }; } }; },
+    };
+    expect(await writeNoOverwrite(dir, 'out.xlsx', 'new')).toBe('out_v2.xlsx');
+    expect(files.get('out.xlsx')).toBe('old');
+    expect(files.get('out_v2.xlsx')).toBe('new');
+  });
+
+  it('the folder button only renders when showDirectoryPicker exists', async () => {
+    const { default: feature } = await import('../src/features/import-cli/index.jsx');
+    const ctx = { state: {}, actions: {} };
+    expect(feature.headerActions(ctx)).toEqual([]);
+    globalThis.window = { showDirectoryPicker: () => {} };
+    try {
+      const [a] = feature.headerActions(ctx);
+      expect(a.label).toBe('เปิดโฟลเดอร์เดือนนี้ (ทดลอง – Chrome/Edge)');
+    } finally { delete globalThis.window; }
   });
 });

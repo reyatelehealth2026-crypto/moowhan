@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Icons from './components/Icons.jsx';
 import Banner from './components/Banner.jsx';
 import UploadTab from './components/UploadTab.jsx';
@@ -13,7 +13,7 @@ import FeatureErrorBoundary from './components/FeatureErrorBoundary.jsx';
 import TabBar from './components/TabBar.jsx';
 import OverflowMenu from './components/OverflowMenu.jsx';
 import { visibleFeatures } from './features/visibility.js';
-import { collectCellWrites, collectExportSheets, collectIssues, featureName, normalizeBadge, normalizeHeaderActions, runHook } from './features/runtime.js';
+import { collectCellWrites, collectExportSheets, collectIssues, featureName, normalizeBadge, normalizeHeaderActions, runHook, expandFilesWith } from './features/runtime.js';
 import { DAILY_SHEETS, ANALYZE_SHEET, SUMMARY_SHEET } from './constants.js';
 import { ToastRegion, LiveRegion, pushToast, announce, STRINGS } from './features/ui-kit/index.js';
 import useHotkeys from './hooks/useHotkeys.js';
@@ -33,7 +33,8 @@ const APP_TITLE = 'รีบทำเดียวอดเลนเกม';
 
 // ==================== MAIN APP ====================
 export default function App() {
-  const { state, actions: core } = useConsolidator();
+  const expandRef = useRef(null); // import-cli: the visible features' expandFiles hooks (set below, read at drop time)
+  const { state, actions: core } = useConsolidator({ expandFiles: (file) => expandRef.current?.(file) ?? null });
   const [tab, setTab] = useState('upload');
   const [showPreview, setShowPreview] = useState(false);
 
@@ -45,6 +46,7 @@ export default function App() {
   );
   const keepIds = new Set(allIssues.filter((i) => i.level === 'block').map((i) => i.featureId));
   const features = visibleFeatures(FEATURES, state.profile, { keepIds }); // the single visibility filter point
+  expandRef.current = (file) => expandFilesWith(features, file, warnOnly);
   const simpleHiddenTabs = FEATURES.filter((f) => f.tab && !features.includes(f) && state.profile?.features?.[f.id]?.enabled !== false).length;
 
   const report = ({ message, error }) => {

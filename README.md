@@ -24,6 +24,10 @@ npm run e2e      # Playwright smoke (ต้องมี Chromium)
 ```
 ดูโครงสร้างและกติกาการพัฒนาใน [CLAUDE.md](./CLAUDE.md) และประวัติการเปลี่ยนแปลงใน [CHANGELOG.md](./CHANGELOG.md)
 
+## สำหรับ IT / รันแบบ batch
+รันขั้นตอนเดียวกับหน้าเว็บ (ด่านตรวจ QA + ตรวจไฟล์ส่งออก) ผ่านคำสั่ง `npm run consolidate -- --input ./input --template ./template.xlsx`
+ดู exit code, รูปแบบ JSON และตัวอย่าง n8n ใน [docs/cli.md](./docs/cli.md)
+
 ## Deploy บน Vercel
 Framework Preset: **Vite** • Build Command: `npm run build` • Output Directory: `dist`
 

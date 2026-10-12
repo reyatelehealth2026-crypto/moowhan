@@ -71,7 +71,7 @@ export default function UploadTab({ state, actions }) {
             <span className="w-5 h-5 text-blue-600"><Icons.Chart /></span>ไฟล์ข้อมูลรายโรงงาน
           </h2>
           <FileDropZone
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.zip,.eml"
             multiple
             onFiles={actions.addSourceFiles}
             disabled={processing.active}
@@ -83,6 +83,7 @@ export default function UploadTab({ state, actions }) {
                 <span className="w-10 h-10 mx-auto text-blue-400 block mb-2"><Icons.Upload /></span>
                 <p className="text-slate-600 mb-1">{dragging ? 'ปล่อยไฟล์ได้เลย' : 'ลากไฟล์มาวางหรือคลิกเลือก (เลือกได้หลายไฟล์)'}</p>
                 <p className="text-sm text-slate-400">ชื่อไฟล์ขึ้นต้นด้วย BP, BPK, GW หรือ SR</p>
+                <p className="text-sm text-slate-400">ลากไฟล์ .xls/.xlsx หรือ .zip ที่มีไฟล์แนบมาวางได้เลย</p>
               </>
             )}
           </FileDropZone>
