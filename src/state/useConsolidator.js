@@ -2,10 +2,11 @@ import { useMemo, useRef, useState } from 'react';
 import { PLANTS, dailySheetName } from '../constants.js';
 import { buildSummary, computeTotals } from '../lib/excel/aggregate.js';
 import { categorizeFile } from '../lib/excel/categorize.js';
-import { DEFAULT_PROFILE } from '../features/visibility.js';
+import { defaultProfile, DEFAULT_FILE_NAME_PATTERN } from '../features/settings-profile/profile.js';
+import useProfileStore from '../features/settings-profile/useProfileStore.js';
 import { sha256Hex } from '../features/qa-file-guards/hash.js';
 import { findDuplicateFiles, resolveNewer } from '../features/qa-file-guards/logic.js';
-import { monthLabels, parseProductionMonth } from '../utils/format.js';
+import { monthLabels, parseProductionMonth, renderFileName } from '../utils/format.js';
 import { sha256 } from '../utils/hash.js';
 import { stampSubset } from '../features/provenance-manifest/stamp.js';
 import { buildExportNotice, toUserError, userErrorText } from '../lib/errors.js';
@@ -40,11 +41,11 @@ export default function useConsolidator() {
   const [notice, setNoticeState] = useState(null); // { tone: 'warning' | 'success', message }
   const [exportReport, setExportReport] = useState(null);
   const [features, setFeatures] = useState({}); // per-feature data: state.features[id]
-  const [profile, setProfileState] = useState(DEFAULT_PROFILE); // standalone default until settings-profile persists it
+  const [profile, setProfileState] = useState(defaultProfile); // loaded/saved by settings-profile (useProfileStore)
 
   // refs so async actions always see the latest values
   const refs = useRef({});
-  refs.current = { template, sourceFiles, processedData, summaryData, productionMonth, features };
+  refs.current = { template, sourceFiles, processedData, summaryData, profile, productionMonth, features };
   const processingRef = useRef(false);
   const inspectCache = useRef(new Map()); // qa-file-guards: file id -> parsed source (processAll reuses it)
 
@@ -72,6 +73,9 @@ export default function useConsolidator() {
       const patch = typeof patchOrFn === 'function' ? patchOrFn(prev) : patchOrFn;
       return { ...prev, ...patch, ui: { ...prev.ui, ...patch?.ui }, features: { ...prev.features, ...patch?.features } };
     });
+  const replaceProfile = (next) => setProfileState(next); // whole-profile swap (import / hydrate); callers validate first
+  const resetProfile = () => setProfileState(defaultProfile());
+  useProfileStore(profile, replaceProfile);
   const setUiMode = (mode) => setProfile({ ui: { mode } });
   const setNotice = (message, tone = 'warning') => setNoticeState(message ? { tone, message } : null);
 
@@ -217,7 +221,7 @@ export default function useConsolidator() {
             logs.push({ fileName: f.name, plant: f.category, action: 'warning', details: 'ไม่พบแถวข้อมูล (ตรวจสอบแถวหัวตาราง "PART NUMBER")' });
           }
           if (meta.productionMonthRaw) months.set(meta.productionMonthRaw, [...(months.get(meta.productionMonthRaw) || []), f.name]);
-          outcomes.set(f.id, { status: 'done', rowCount: rows.length, meta, error: null });
+          outcomes.set(f.id, { status: rows.length ? 'done' : 'warning', rowCount: rows.length, meta, error: null });
           setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: rows.length ? 'done' : 'warning', rowCount: rows.length, meta, sha256: digest } : x)));
         } catch (err) {
           outcomes.set(f.id, { status: 'error', rowCount: 0, meta: null, error: err.message });
@@ -308,7 +312,7 @@ export default function useConsolidator() {
         template: tpl,
         processedData: data,
         summaryData: summary,
-        highlight: options.highlight ?? true,
+        highlight: options.highlight ?? refs.current.profile?.export?.highlight ?? true,
         extraSheets: options.extraSheets || [],
         cellWrites: options.cellWrites || [],
         protectedSheets: options.protectedSheets || [],
@@ -317,6 +321,11 @@ export default function useConsolidator() {
         addAutoFilter: options.addAutoFilter,
         stamp: options.stamp ?? await optionalStamp(options.now),
       });
+      const pattern = refs.current.profile?.export?.fileNamePattern;
+      if (pattern) {
+        const named = renderFileName(pattern, { productionMonth: refs.current.productionMonth, fallback: result.fileName });
+        result.fileName = result.report.mode === 'fallback' && pattern === DEFAULT_FILE_NAME_PATTERN ? named.replace('Production_Updated', 'Production_Summary') : named;
+      }
       result.report.fileName = result.fileName;
       result.report.sha256 = await sha256(result.blob); // identifies the bytes this app produced
       if (options.download !== false) excel.downloadBlob(result.blob, result.fileName);
@@ -364,7 +373,7 @@ export default function useConsolidator() {
     setTemplateFile, removeTemplate,
     addSourceFiles, removeSourceFile, clearSourceFiles, useNewerFile, replaceSourceFile,
     processAll, updateRowValues, updateRowsBatch, commitProcessedData, exportExcel, reset,
-    setError, setNotice, log, setFeatureData, setProfile, setUiMode,
+    setError, setNotice, log, setFeatureData, setProfile, replaceProfile, resetProfile, setUiMode,
     dismissError: () => setError(null),
     dismissNotice: () => setNoticeState(null),
   };

@@ -81,6 +81,8 @@ export const MONTH_META = [
 // ---------- QA engine (src/features/qa-engine) ----------
 // PLANT CODE in a TMT forecast file is a single letter; this is the one map from it to our plant ids.
 export const PLANT_CODE = { P: 'BP', B: 'BPK', G: 'GW', S: 'SR' };
+// Alias kept for older importers (help-center glossary): same map, one definition.
+export const PLANT_CODE_MAP = PLANT_CODE;
 // Part Number such as 86790-0K051-00 (5 + 5 characters, optional 2-3 character suffix).
 export const PART_NUMBER_PATTERN = /^[0-9A-Z]{5}-[0-9A-Z]{5}(-[0-9A-Z]{2,3})?$/;
 // SUPP CODE every row is expected to carry.
@@ -93,5 +95,3 @@ export const HORIZON_META = [
   { key: 'n2', kind: 'forecast', badge: 'FC' },
   { key: 'n3', kind: 'forecast', badge: 'FC' },
 ];
-// Value of "PLANT CODE" in a source file header -> plant (inferred from the fixtures in input/*.xls).
-export const PLANT_CODE_MAP = { P: 'BP', B: 'BPK', G: 'GW', S: 'SR' };

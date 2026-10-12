@@ -352,6 +352,43 @@ try {
   if (csvHead !== '\uFEFFplant,plant_code,file_name,revision,part_number,base_part,part_code,part_desc,supp_code,shipping_dock,dock_code,car_family,packing_size,month_offset,month,horizon,day,qty,edited,carried_over,spilled') errors.push(`flat-export: wrong CSV header ${csvHead}`);
   await page.getByRole('button', { name: 'ปิด', exact: true }).click();
   step('flat-export modal opens, long CSV downloads with the header on line 1');
+  // ---- runout-alerts: filter, official Last Pack survives a reload, no overflow at 390px ----
+  const openRunout = async () => {
+    const tab = page.getByRole('tab', { name: 'Run-out' });
+    if (!(await tab.count())) {
+      const more = page.getByRole('button', { name: /เพิ่มเติม/ });
+      if (await more.count()) await more.click();
+    }
+    await (await tab.count() ? tab : page.getByRole('menuitem', { name: /Run-out/ })).first().click();
+    await page.getByTestId('runout-view').waitFor();
+  };
+  await openRunout();
+  if ((await page.getByTestId('runout-count').innerText()).trim() !== '8') errors.push('runout-alerts: expected 8 signals');
+  await page.getByLabel('โรงงาน', { exact: true }).selectOption('SR');
+  if ((await page.getByTestId('runout-row').count()) !== 3) errors.push('runout-alerts: SR filter should show 3 signal rows');
+  await page.getByTestId('runout-official').first().fill('2026-03-20');
+  await page.waitForTimeout(800); // profile autosave is debounced (300 ms)
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('runout-alerts: page overflows horizontally at 390px');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  // a fresh page of the same browser context = a reload: the profile (prefs) comes back from storage
+  const pr = await context.newPage();
+  await pr.goto(url, { waitUntil: 'networkidle' });
+  await pr.locator('input[type=file]').nth(0).setInputFiles(path.join(ROOT, 'template.xlsx'));
+  await pr.locator('input[type=file]').nth(1).setInputFiles(SOURCES);
+  await pr.getByText('SR veh 481D.xls').waitFor();
+  await pr.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
+  await pr.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
+  const prTab = pr.getByRole('tab', { name: 'Run-out' });
+  if (!(await prTab.count())) await pr.getByRole('button', { name: /เพิ่มเติม/ }).click();
+  await (await prTab.count() ? prTab : pr.getByRole('menuitem', { name: /Run-out/ })).first().click();
+  await pr.getByTestId('runout-view').waitFor();
+  await pr.getByLabel('โรงงาน', { exact: true }).selectOption('SR');
+  const kept = await pr.getByTestId('runout-official').evaluateAll((els) => els.map((e) => e.value));
+  if (!kept.includes('2026-03-20')) errors.push(`runout-alerts: official Last Pack lost after reload (${kept.join(',')})`);
+  await pr.close();
+  step('runout-alerts: 8 signals, plant filter, official date kept after reload, no overflow at 390px');
+
 
   // Ctrl+Enter on the upload tab processes the files again
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
@@ -376,6 +413,35 @@ try {
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).waitFor();
   await page.getByRole('button', { name: /โหมด/ }).click();
   step('simple/advanced toggle ok');
+
+  // ---- settings-profile: file name pattern drives the download, calendar strip, 375px, reset ----
+  {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    if (!(await page.getByRole('tab', { name: 'ตั้งค่า', exact: true }).count())) await page.getByRole('button', { name: /เพิ่มเติม/ }).click();
+    await (await page.getByRole('tab', { name: 'ตั้งค่า', exact: true }).count() ? page.getByRole('tab', { name: 'ตั้งค่า', exact: true }) : page.getByRole('menuitem', { name: /ตั้งค่า/ })).first().click();
+    await page.getByTestId('settings-panel').waitFor();
+    await page.getByTestId('pattern-input').fill('Production_Custom_{month}.xlsx');
+    if ((await page.getByTestId('pattern-sample').innerText()) !== 'Production_Custom_202602.xlsx') errors.push('settings: pattern sample wrong');
+    await page.getByRole('tab', { name: 'ปฏิทินวันทำงาน' }).click();
+    await page.getByTestId('month-strip').waitFor();
+    await page.getByText('20').first().waitFor();
+    await page.setViewportSize({ width: 375, height: 800 });
+    for (const name of ['ทั่วไป', 'ปฏิทินวันทำงาน', 'ขั้นสูง']) {
+      await page.getByRole('tab', { name, exact: true }).click();
+      if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push(`settings: horizontal overflow at 375px (${name})`);
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.keyboard.press('Control+s')]);
+    if (dl.suggestedFilename() !== 'Production_Custom_202602.xlsx') errors.push(`settings: download name ${dl.suggestedFilename()}`);
+    await page.getByText(/ดาวน์โหลด Production_/).first().waitFor();
+    await page.getByRole('tab', { name: 'ทั่วไป', exact: true }).click();
+    await page.getByRole('button', { name: 'คืนค่าเริ่มต้น' }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'คืนค่าเริ่มต้น' }).click();
+    if (!(await page.getByTestId('pattern-input').inputValue()).startsWith('Production_Updated_')) errors.push('settings: reset did not restore the pattern');
+    if (!(await page.getByRole('tab', { name: 'ตรวจสอบข้อมูล' }).isEnabled())) errors.push('settings: reset must keep processed data');
+    await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
+    step('settings: pattern drives download name, 375px ok, reset keeps session');
+  }
 
   // ---- storage-session: opt-in save, reload, restore, forget, wipe (fresh browser context = empty storage) ----
   {

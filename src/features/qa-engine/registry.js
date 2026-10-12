@@ -7,7 +7,7 @@ export const registerRule = (rule) => {
   if (!rule || typeof rule !== 'object') problems.push('rule ต้องเป็นออบเจ็กต์');
   else {
     if (!/^[A-Z]{1,3}\d{2,3}$/.test(rule.id || '')) problems.push(`id "${rule.id}" ต้องเป็นรูป R01 / K03 / C01`);
-    if (!['row', 'file', 'month', 'layout', 'consistency', 'template'].includes(rule.group)) problems.push(`group "${rule.group}" ไม่ถูกต้อง`);
+    if (!['row', 'file', 'month', 'layout', 'consistency', 'template', 'business'].includes(rule.group)) problems.push(`group "${rule.group}" ไม่ถูกต้อง`);
     if (!['error', 'warning', 'info'].includes(rule.level)) problems.push(`level "${rule.level}" ไม่ถูกต้อง`);
     if (typeof rule.run !== 'function') problems.push('run ต้องเป็นฟังก์ชัน');
   }
