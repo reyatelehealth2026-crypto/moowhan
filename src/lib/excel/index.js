@@ -4,3 +4,5 @@ export * from './readSource.js';
 export * from './exportWorkbook.js';
 export * from './templateInfo.js';
 export { patchTemplate, listSheetNames, forceRecalcOnOpen } from './templatePatcher.js';
+// import-cli: lazy JSZip handle for archive intake (src/features/import-cli/zip.js)
+export const loadJSZip = async () => (await import('jszip')).default;
