@@ -400,7 +400,10 @@ try {
     if (await page.getByText('มีการแก้ไขหลังส่ง').count()) errors.push('provenance: stale warning shown without changes');
     await page.getByRole('button', { name: 'ลบ SR veh 481D.xls' }).click();
     await page.getByText('(มีการแก้ไขหลังส่ง)').first().waitFor({ timeout: 5000 });
-    await page.getByRole('button', { name: /ส่งแล้ว/ }).first().click();
+    // the sent badge may sit in the header overflow menu when other features fill the inline slots
+    const sentBtn = page.getByRole('button', { name: /ส่งแล้ว/ });
+    if (!(await sentBtn.count())) await page.getByTestId('options').click();
+    await (await sentBtn.count() ? sentBtn : page.getByRole('menuitem', { name: /ส่งแล้ว/ })).first().click();
     await page.getByRole('dialog', { name: 'รอบการประมวลผล' }).waitFor();
     await page.setViewportSize({ width: 390, height: 844 });
     if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('provenance: horizontal overflow at 390px');
