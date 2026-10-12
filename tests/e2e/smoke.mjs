@@ -172,6 +172,24 @@ try {
   await page.setViewportSize({ width: 1280, height: 900 });
   step('dock-analysis tab shows 6 dock groups, no overflow at 390px');
 
+  // ---- flat-export: modal, long CSV first line equals the header ----
+  const flatBtn = page.getByRole('button', { name: 'ส่งออกข้อมูล (CSV/JSON)' });
+  if (!(await flatBtn.count())) await page.getByTestId('options').click();
+  await (await flatBtn.count() ? flatBtn : page.getByRole('menuitem', { name: 'ส่งออกข้อมูล (CSV/JSON)' })).first().click();
+  const flatDialog = page.getByRole('dialog', { name: 'ส่งออกข้อมูลสำหรับระบบอื่น' });
+  await flatDialog.waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('flat-export: page overflows horizontally at 390px');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const [csvDl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), flatDialog.getByRole('button', { name: 'ดาวน์โหลด CSV รายวัน (long)' }).click()]);
+  const csvFile = path.join(OUT, csvDl.suggestedFilename());
+  await csvDl.saveAs(csvFile);
+  const csvHead = fs.readFileSync(csvFile, 'utf8').split('\r\n')[0];
+  if (csvDl.suggestedFilename() !== 'forecast_long_202602.csv') errors.push(`flat-export: unexpected file name ${csvDl.suggestedFilename()}`);
+  if (csvHead !== '\uFEFFplant,plant_code,file_name,revision,part_number,base_part,part_code,part_desc,supp_code,shipping_dock,dock_code,car_family,packing_size,month_offset,month,horizon,day,qty,edited,carried_over,spilled') errors.push(`flat-export: wrong CSV header ${csvHead}`);
+  await page.getByRole('button', { name: 'ปิด', exact: true }).click();
+  step('flat-export modal opens, long CSV downloads with the header on line 1');
+
   // Ctrl+Enter on the upload tab processes the files again
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
   await page.getByTestId('process').focus();
