@@ -40,6 +40,10 @@ try {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
 
   await page.goto(url, { waitUntil: 'networkidle' });
+
+  // ---- help-center: disabled-tab hint (before any processing) ----
+  await page.locator('#tab-preview').locator('..').click();
+  await page.getByText('ต้องประมวลผลไฟล์ก่อน').first().waitFor({ timeout: 3000 });
   step(`loaded ${url} — ${await page.title()}`);
   await shot(page, '01-upload');
 
@@ -191,6 +195,23 @@ try {
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).waitFor();
   await page.getByRole('button', { name: /โหมด/ }).click();
   step('simple/advanced toggle ok');
+
+  // ---- help-center ----
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole('button', { name: 'วิธีใช้' }).click();
+  const help = page.getByRole('dialog', { name: 'ศูนย์ช่วยเหลือ' });
+  await help.waitFor();
+  await page.keyboard.press('Escape');
+  await help.waitFor({ state: 'detached' });
+  await page.locator('body').click({ position: { x: 5, y: 300 } });
+  await page.keyboard.press('Shift+?');
+  await help.waitFor();
+  if ((await help.getByRole('button', { name: 'คีย์ลัด' }).getAttribute('aria-expanded')) !== 'true') errors.push('help-center: "?" did not open the shortcuts section');
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('help-center: page overflows at 390px');
+  await page.keyboard.press('Escape');
+  await help.waitFor({ state: 'detached' });
+  step('help-center dialog, Escape, "?" and 390px ok');
 } finally {
   await browser.close();
   if (server) server.kill();
