@@ -4,7 +4,7 @@
 // "ต้องแก้" (error) issues. Waived issues leave badges/gates but stay in the QA Report with their reason.
 //
 // Storage: an adapter { read(): object|null, write(obj) } injected with setWaiverAdapter(). The storage-session
-// feature can supply one for namespace 'waivers'; until then localStorage (guarded) or plain memory is used.
+// feature can supply one for namespace 'waivers'; until then plain memory is used (browser storage is only allowed inside src/lib/storage).
 
 export const MIN_REASON = 3;
 
@@ -36,10 +36,6 @@ export const memoryAdapter = (initial = {}) => {
   let data = { ...initial };
   return { read: () => data, write: (next) => { data = { ...next }; } };
 };
-export const localStorageAdapter = (key = 'moowhan:waivers') => ({
-  read: () => { try { return JSON.parse(globalThis.localStorage.getItem(key) || 'null'); } catch { return null; } },
-  write: (obj) => { try { globalThis.localStorage.setItem(key, JSON.stringify(obj)); } catch { /* storage unavailable: keep working in memory */ } },
-});
 
 /** Store over an adapter; every storage call is wrapped, with a memory copy as the fallback. */
 export const createWaiverStore = (adapter = memoryAdapter()) => {
@@ -93,8 +89,8 @@ let injected = null;
 export const setWaiverAdapter = (adapter) => { injected = adapter; defaultStore = null; };
 export const getWaiverStore = () => {
   if (!defaultStore) {
-    const browser = typeof window !== 'undefined' && !!globalThis.localStorage;
-    defaultStore = createWaiverStore(injected || (browser ? localStorageAdapter() : memoryAdapter()));
+    // browser storage is only reachable through src/lib/storage (policy test): wire it with setWaiverAdapter()
+    defaultStore = createWaiverStore(injected || memoryAdapter());
   }
   return defaultStore;
 };
