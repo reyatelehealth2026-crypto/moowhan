@@ -4,6 +4,7 @@ import Icons from '../../components/Icons.jsx';
 import { Button } from '../ui-kit/index.js';
 import { expectedTotals } from '../../lib/excel/expectedTotals.js';
 import { exportDialog } from './dialogStore.js';
+import { canSaveToFolder, deliveryOptions, saveTarget } from './saveTarget.js';
 import { buildChecklist } from './checklist.js';
 import { fileNameFor, patternFor, performExport } from './flow.js';
 import { planExport } from './plan.js';
@@ -14,6 +15,7 @@ export default function ExportGateHost({ ctx }) {
   const { state, actions } = ctx;
   const dlg = useSyncExternalStore(exportDialog.subscribe, exportDialog.get);
   const [options, setOptions] = useState({ highlight: true, fileNamePattern: null, excludeSheets: [] });
+  const target = useSyncExternalStore(saveTarget.subscribe, saveTarget.get);
   const [override, setOverride] = useState(false);
   const [preview, setPreview] = useState({ extraSheets: [], cellWrites: [] });
   const [dismissedAt, setDismissedAt] = useState(null);
@@ -55,11 +57,15 @@ export default function ExportGateHost({ ctx }) {
   };
   const downloadAgain = async () => {
     exportDialog.patch({ busy: true });
-    try { await actions.downloadLastExport(); } finally { exportDialog.patch({ busy: false, held: false }); }
+    try { await actions.downloadLastExport(exportDialog.get().held ? deliveryOptions() : undefined); } finally { exportDialog.patch({ busy: false, held: false }); }
   };
   const onAction = async (action) => {
     if (action.id === 'reprocess') await actions.processAll();
   };
+  const pickFolder = async () => {
+    try { await saveTarget.pickFolder(); } catch (err) { actions.setError?.(`เปิดโฟลเดอร์ไม่ได้: ${err?.message || 'ไม่ทราบสาเหตุ'} — ใช้การดาวน์โหลดตามปกติแทน`); saveTarget.reset(); }
+  };
+  const destination = { supported: canSaveToFolder(), kind: target.kind, folderName: target.name, onDownload: saveTarget.useDownload, onPickFolder: pickFolder };
   const verification = last?.verification;
   const failed = verification?.ok === false;
 
@@ -92,6 +98,7 @@ export default function ExportGateHost({ ctx }) {
           onClose={() => exportDialog.close()}
           onDownload={download}
           onAction={onAction}
+          destination={destination}
           resultSlot={<Panel items={items} verification={verification} held={dlg.held} busy={dlg.busy} onDownload={downloadAgain} />}
         />
       )}

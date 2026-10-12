@@ -366,8 +366,10 @@ try {
   const csvHead = fs.readFileSync(csvFile, 'utf8').split('\r\n')[0];
   if (csvDl.suggestedFilename() !== 'forecast_long_202602.csv') errors.push(`flat-export: unexpected file name ${csvDl.suggestedFilename()}`);
   if (csvHead !== '\uFEFFplant,plant_code,file_name,revision,part_number,base_part,part_code,part_desc,supp_code,shipping_dock,dock_code,car_family,packing_size,month_offset,month,horizon,day,qty,edited,carried_over,spilled') errors.push(`flat-export: wrong CSV header ${csvHead}`);
+  const [zipDl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), flatDialog.getByRole('button', { name: 'ดาวน์โหลดเป็นชุด (.zip)' }).click()]);
+  if (zipDl.suggestedFilename() !== 'forecast_202602.zip') errors.push(`flat-export: unexpected zip name ${zipDl.suggestedFilename()}`);
   await page.getByRole('button', { name: 'ปิด', exact: true }).click();
-  step('flat-export modal opens, long CSV downloads with the header on line 1');
+  step('flat-export modal opens, long CSV downloads with the header on line 1, separate zip button');
 
   // ---- qa-engine ----
   const openQa = async () => {

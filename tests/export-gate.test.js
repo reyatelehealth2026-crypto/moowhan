@@ -310,3 +310,38 @@ describe('module boundaries', () => {
     }
   });
 });
+
+describe('save target (บันทึกลงโฟลเดอร์)', () => {
+  const fakeDir = (files = new Map(), perm = 'granted') => ({
+    name: 'ส่งออก',
+    async queryPermission() { return perm; },
+    async *entries() { for (const k of files.keys()) yield [k, { kind: 'file' }]; },
+    async getFileHandle(name) { return { async createWritable() { return { async write(b) { files.set(name, b); }, async close() {} }; } }; },
+  });
+
+  it('defaults to the browser download; a chosen folder switches delivery', async () => {
+    const { saveTarget, deliveryOptions, canSaveToFolder } = await import('../src/features/export-gate/saveTarget.js');
+    saveTarget.reset();
+    expect(deliveryOptions()).toEqual({});
+    expect(canSaveToFolder()).toBe(false); // node: no showDirectoryPicker, so the dialog hides the option
+    expect(await saveTarget.pickFolder(async () => fakeDir())).toBe(true);
+    expect(saveTarget.get()).toMatchObject({ kind: 'folder', name: 'ส่งออก' });
+    expect(deliveryOptions().folderName).toBe('ส่งออก');
+    saveTarget.useDownload();
+    expect(deliveryOptions()).toEqual({});
+    // closing the picker keeps the previous target
+    expect(await saveTarget.pickFolder(async () => { throw Object.assign(new Error('x'), { name: 'AbortError' }); })).toBe(false);
+    saveTarget.reset();
+  });
+
+  it('writes without overwriting (_v2) and reports a Thai error when permission is refused', async () => {
+    const { saveBlobToFolder } = await import('../src/features/export-gate/saveTarget.js');
+    const files = new Map([['Production_Updated.xlsx', 'old']]);
+    const ok = await saveBlobToFolder(fakeDir(files), 'Production_Updated.xlsx', new Blob(['new']));
+    expect(ok).toEqual({ ok: true, name: 'Production_Updated_v2.xlsx' });
+    expect(files.get('Production_Updated.xlsx')).toBe('old');
+    expect(files.has('Production_Updated_v2.xlsx')).toBe(true);
+    const denied = await saveBlobToFolder({ ...fakeDir(files, 'denied'), requestPermission: async () => 'denied' }, 'x.xlsx', new Blob(['x']));
+    expect(denied).toEqual({ ok: false, error: 'ไม่ได้รับอนุญาตให้เขียนลงโฟลเดอร์' });
+  });
+});

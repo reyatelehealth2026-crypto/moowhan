@@ -70,7 +70,7 @@ function PlanTable({ plan }) {
   );
 }
 
-function OptionsSection({ options, onOptions, extraSheets, fileNamePreview }) {
+function OptionsSection({ options, onOptions, extraSheets, fileNamePreview, destination }) {
   const id = useId();
   const toggle = (name) => {
     const set = new Set(options.excludeSheets);
@@ -90,6 +90,21 @@ function OptionsSection({ options, onOptions, extraSheets, fileNamePreview }) {
           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm min-h-[44px]" data-testid="export-filename" />
         <p className="text-xs text-slate-500 mt-1 break-all">จะบันทึกเป็น: <span className="font-mono">{fileNamePreview}</span></p>
       </div>
+      {destination?.supported && (
+        <fieldset data-testid="export-destination">
+          <legend className="text-sm text-slate-600 mb-1">บันทึกไฟล์ไปที่</legend>
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer min-h-[44px]">
+            <input type="radio" name={`${id}-dest`} checked={destination.kind === 'download'} onChange={destination.onDownload} className="w-4 h-4" />
+            ดาวน์โหลดผ่านเบราว์เซอร์ (ค่าเริ่มต้น)
+          </label>
+          <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700 cursor-pointer min-h-[44px]">
+            <input type="radio" name={`${id}-dest`} checked={destination.kind === 'folder'} onChange={destination.onPickFolder} className="w-4 h-4" data-testid="export-dest-folder" />
+            บันทึกลงโฟลเดอร์{destination.kind === 'folder' && destination.folderName ? <span className="font-mono break-all">“{destination.folderName}”</span> : null}
+            <button type="button" onClick={destination.onPickFolder} className="text-blue-600 hover:underline min-h-[44px] px-1">{destination.kind === 'folder' ? 'เปลี่ยนโฟลเดอร์' : 'เลือกโฟลเดอร์…'}</button>
+          </label>
+          <p className="text-xs text-slate-500">ถ้ามีไฟล์ชื่อเดียวกันอยู่แล้วจะไม่เขียนทับ แต่ต่อท้ายเป็น _v2, _v3 · ถ้าบันทึกไม่ได้จะดาวน์โหลดตามปกติแทน</p>
+        </fieldset>
+      )}
       {extraSheets.length > 0 && (
         <fieldset>
           <legend className="text-sm text-slate-600 mb-1">ชีตเสริมที่จะแนบ</legend>
@@ -114,10 +129,11 @@ function OptionsSection({ options, onOptions, extraSheets, fileNamePreview }) {
  * @param {{name:string,rows:number}[]} p.extraSheets
  * @param {boolean} p.override  override checkbox state
  * @param {string} p.title  accessible dialog name
+ * @param {{supported:boolean,kind:'download'|'folder',folderName:string,onDownload:Function,onPickFolder:Function}} [p.destination]  save target (folder only where showDirectoryPicker exists)
  */
 export default function ExportDialog({
   view, title, issues = [], plan, options, onOptions, extraSheets = [], fileNamePreview,
-  override, onOverride, busy, onClose, onDownload, onAction, resultSlot,
+  override, onOverride, busy, onClose, onDownload, onAction, resultSlot, destination,
 }) {
   const blocks = issues.filter((i) => i.level === 'block');
   const confirms = issues.filter((i) => i.level === 'confirm');
@@ -141,7 +157,7 @@ export default function ExportDialog({
               </label>
             )}
             <PlanTable plan={plan} />
-            <OptionsSection options={options} onOptions={onOptions} extraSheets={extraSheets} fileNamePreview={fileNamePreview} />
+            <OptionsSection options={options} onOptions={onOptions} extraSheets={extraSheets} fileNamePreview={fileNamePreview} destination={destination} />
           </>
         )}
       </div>

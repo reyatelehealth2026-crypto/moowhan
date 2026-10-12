@@ -395,20 +395,25 @@ export default function useConsolidator({ expandFiles = null } = {}) {
     setLastExportState(next);
   };
   // download the remembered file again: the template is NOT patched a second time
-  const downloadLastExport = async () => {
+  // options.saveTo(last) -> { ok, name } | { ok: false, error } saves somewhere else (a chosen folder); on failure the
+  // normal browser download runs instead, with a warning
+  const downloadLastExport = async ({ saveTo, folderName } = {}) => {
     const last = lastExportRef.current;
     if (!last) return null;
     const excel = await loadExcel();
-    redownload(last, excel.downloadBlob);
+    const saved = saveTo ? await saveTo(last) : null;
+    if (!saved?.ok) redownload(last, excel.downloadBlob);
     setLastExport({ signature: refs.current.processedSignature }); // onboarding: this data has now been downloaded
     const report = last.report;
     const parts = report.mode === 'template'
       ? `เขียนลงเทมเพลต: ${report.patched.map((p) => `${p.sheet} ${p.rows} แถว`).join(', ')}`
       : 'สร้างไฟล์ใหม่ (ไม่มีเทมเพลต .xlsx)';
     const warn = report.warnings?.length ? `\n${report.warnings.join('\n')}` : '';
-    setNotice(`ดาวน์โหลด ${last.fileName} แล้ว • ${parts}${warn}`, report.warnings?.length ? 'warning' : 'success');
-    log({ fileName: last.fileName, action: 'export', details: parts });
-    return last;
+    const where = saved?.ok ? `บันทึก ${saved.name} ลงโฟลเดอร์ “${folderName || ''}” แล้ว` : `ดาวน์โหลด ${last.fileName} แล้ว`;
+    const folderWarn = saved && !saved.ok ? `\nบันทึกลงโฟลเดอร์ไม่สำเร็จ (${saved.error}) จึงดาวน์โหลดผ่านเบราว์เซอร์แทน` : '';
+    setNotice(`${where} • ${parts}${warn}${folderWarn}`, report.warnings?.length || folderWarn ? 'warning' : 'success');
+    log({ fileName: saved?.ok ? saved.name : last.fileName, action: 'export', details: `${parts}${saved?.ok ? ` • โฟลเดอร์ ${folderName || ''}` : ''}` });
+    return saved?.ok ? { ...last, savedAs: saved.name } : last;
   };
 
   // ---------- reset ----------

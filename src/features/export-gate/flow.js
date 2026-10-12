@@ -9,6 +9,7 @@ import { DEFAULT_FILE_NAME_PATTERN } from '../settings-profile/profile.js';
 import { defaultFilePattern } from './plan.js';
 import { overrideLogEntry, shouldVerifyFirst } from './lastExport.js';
 import { exportDialog } from './dialogStore.js';
+import { deliveryOptions } from './saveTarget.js';
 
 const loadExcel = () => import('../../lib/excel/index.js');
 
@@ -72,7 +73,7 @@ export const performExport = async (ctx, options = {}) => {
     exportDialog.open('result', { held: true, busy: false });
     return result;
   }
-  await actions.downloadLastExport();
+  await actions.downloadLastExport(deliveryOptions());
   if (!shouldVerifyFirst(totalRows)) {
     verifyLast(ctx, last).then((verification) => actions.setLastExport({ verification })).catch(() => {});
   }

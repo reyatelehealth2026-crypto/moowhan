@@ -104,10 +104,10 @@ export default function App() {
       }
       return result;
     },
-    downloadLastExport: async () => {
-      const result = await core.downloadLastExport();
+    downloadLastExport: async (options) => {
+      const result = await core.downloadLastExport(options);
       if (result) {
-        announce(`ดาวน์โหลดไฟล์ ${result.fileName} แล้ว`);
+        announce(result.savedAs ? `บันทึกไฟล์ ${result.savedAs} ลงโฟลเดอร์แล้ว` : `ดาวน์โหลดไฟล์ ${result.fileName} แล้ว`);
         features.forEach((f) => runHook(f, 'onExported', [ctx, result], report));
       }
       return result;
