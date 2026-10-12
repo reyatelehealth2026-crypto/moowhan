@@ -68,7 +68,7 @@ if (cmd === 'synth') {
   const productionMonth = '202602';
   const expected = { rows: {}, partNumbers: [] };
   for (const [plant, name, rows] of plan) {
-    const { buffer, expected: e } = makeSource({ plantCode: plant, productionMonth, rows, format: 'xls', includeEof: true, seed: name.length * 13 });
+    const { buffer, expected: e } = makeSource({ plantCode: plant, productionMonth, rows, format: 'xls', includeEof: true, seed: name.length * 13, calendarDays: true });
     fs.writeFileSync(path.join(dir, name), Buffer.from(buffer));
     expected.rows[name] = rows;
     e.forEach((r) => expected.partNumbers.push(r.partNumber));

@@ -20,6 +20,20 @@ const SOURCES = ['BP veh 481D.xls', 'BPK packing 481D.xls', 'GW packing B-MPV.xl
 const step = (s) => console.log(`[e2e] ${s}`);
 const shot = (page, name, full = false) => page.screenshot({ path: path.join(OUT, `${name}.png`), fullPage: full });
 
+// The real fixtures carry qa-engine warnings (template AutoFilter, production month already past), so the export
+// gate asks for a confirmation before the first download. Click through it when it appears.
+const downloadGated = async (pg, trigger, timeout = 60000) => {
+  const dlP = pg.waitForEvent('download', { timeout });
+  dlP.catch(() => {});
+  await trigger();
+  const dialog = pg.getByRole('dialog', { name: 'ตรวจสอบก่อนดาวน์โหลด' });
+  const first = await Promise.race([dlP.then(() => 'download'), dialog.waitFor({ timeout }).then(() => 'dialog')]);
+  if (first === 'dialog') await pg.getByTestId('export-dialog-download').click();
+  const dl = await dlP;
+  if (await pg.getByRole('dialog').count()) await pg.keyboard.press('Escape');
+  return dl;
+};
+
 // ---------- server ----------
 let server = null;
 let url = process.env.APP_URL;
@@ -80,7 +94,7 @@ try {
   const inspectOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (inspectOverflow > 0) errors.push(`template-inspector: horizontal page overflow ${inspectOverflow}px at 390px`);
   await page.setViewportSize({ width: 1280, height: 900 });
-  if (await page.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).isDisabled()) errors.push('template-inspector: process button disabled by the inspection');
+  if (await page.getByRole('button', { name: 'รวมข้อมูลและคำนวณ', exact: true }).isDisabled()) errors.push('template-inspector: process button disabled by the inspection');
   step('template inspection card: 11 rows, no overflow at 390px');
   await shot(page, '02-files');
 
@@ -165,10 +179,7 @@ try {
   if (!/^Report_2026-02_/.test(png.suggestedFilename()) || fs.statSync(pngFile).size < 1000) errors.push('dashboard: PNG name/size wrong');
   step('dashboard tab, 390px, print and PNG ok');
 
-  const [download] = await Promise.all([
-    page.waitForEvent('download', { timeout: 60000 }),
-    page.keyboard.press('Control+s'),
-  ]);
+  const download = await downloadGated(page, () => page.keyboard.press('Control+s'));
   const outFile = path.join(OUT, download.suggestedFilename());
   await download.saveAs(outFile);
   await page.getByText(`ดาวน์โหลด ${download.suggestedFilename()}`).first().waitFor();
@@ -376,7 +387,7 @@ try {
       if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push(`settings: horizontal overflow at 375px (${name})`);
     }
     await page.setViewportSize({ width: 1280, height: 900 });
-    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.keyboard.press('Control+s')]);
+    const dl = await downloadGated(page, () => page.keyboard.press('Control+s'));
     if (dl.suggestedFilename() !== 'Production_Custom_202602.xlsx') errors.push(`settings: download name ${dl.suggestedFilename()}`);
     await page.getByText(/ดาวน์โหลด Production_/).first().waitFor();
     await page.getByRole('tab', { name: 'ทั่วไป', exact: true }).click();
@@ -405,7 +416,7 @@ try {
     await p2.getByTestId('save-session-toggle').click();
     await files2.nth(1).setInputFiles(SOURCES);
     await p2.getByText('SR veh 481D.xls').waitFor();
-    await p2.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
+    await p2.getByRole('button', { name: 'รวมข้อมูลและคำนวณ', exact: true }).click();
     await p2.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
     await p2.getByTestId('autosave-chip').waitFor({ timeout: 15000 });
     step('storage: opted in, autosave chip shown');
@@ -439,7 +450,7 @@ try {
   {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
-    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.keyboard.press('Control+s')]);
+    const dl = await downloadGated(page, () => page.keyboard.press('Control+s'));
     const f = path.join(OUT, `prov-${dl.suggestedFilename()}`);
     await dl.saveAs(f);
     const zip = await JSZip.loadAsync(fs.readFileSync(f));
@@ -480,13 +491,20 @@ try {
   await page.keyboard.press('Escape');
   await help.waitFor({ state: 'detached' });
   step('help-center dialog, Escape, "?" and 390px ok');
+  // provenance removed SR above: add it back and reprocess so the export-gate block starts from fresh, complete data
+  await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
+  await page.locator('input[type=file]').nth(1).setInputFiles(SOURCES.filter((f) => /SR veh/.test(f)));
+  await page.getByText('SR veh 481D.xls').waitFor();
+  await page.getByTestId('process').click();
+  await page.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
   // ---- export-gate: one click when clean, dialog only for block/confirm, override, re-download ----
   const gateDialog = page.getByRole('dialog', { name: 'ตรวจสอบก่อนดาวน์โหลด' });
   await page.getByRole('tab', { name: 'สรุปรวม' }).click();
-  await page.getByTestId('export-ready').getByText('พร้อมดาวน์โหลด').waitFor();
-  const [d1] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.getByTestId('download').click()]);
+  // fixtures: ready, or "needs confirmation" because of qa-engine warnings; never blocked
+  await page.getByTestId('export-ready').waitFor();
+  if ((await page.getByTestId('export-ready').getAttribute('data-state')) === 'blocked') errors.push('export-gate: fixtures must not be blocked');
+  const d1 = await downloadGated(page, () => page.getByTestId('download').click());
   if (!/^Production_Updated_Feb26_\d{4}-\d{2}-\d{2}\.xlsx$/.test(d1.suggestedFilename())) errors.push(`export-gate: unexpected file name ${d1.suggestedFilename()}`);
-  if (await gateDialog.count()) errors.push('export-gate: dialog opened for a clean export');
   await page.getByTestId('export-banner').waitFor();
   await page.getByTestId('export-open-result').click();
   await page.getByRole('dialog', { name: /^ผลการส่งออก \(Production_Updated_/ }).waitFor();
@@ -494,7 +512,7 @@ try {
   const [d2] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByTestId('export-redownload').click()]);
   if (d2.suggestedFilename() !== d1.suggestedFilename()) errors.push('export-gate: re-download changed the file name');
   await page.keyboard.press('Escape');
-  step('export-gate clean export, result panel and re-download ok');
+  step('export-gate export (confirm click-through when warnings), result panel and re-download ok');
 
   // remove SR -> stale (block) ; override unlocks the download
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
@@ -536,7 +554,7 @@ try {
   await demo.getByRole('button', { name: 'ลองข้อมูลตัวอย่าง' }).click();
   await demo.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
   if ((await demo.getByTestId('demo-chip').count()) !== 1) errors.push('onboarding: demo chip missing');
-  const [demoDl] = await Promise.all([demo.waitForEvent('download', { timeout: 60000 }), demo.keyboard.press('Control+s')]);
+  const demoDl = await downloadGated(demo, () => demo.keyboard.press('Control+s'));
   if (!demoDl.suggestedFilename().startsWith('DEMO_')) errors.push(`onboarding: demo file name ${demoDl.suggestedFilename()}`);
   if (foreign.length) errors.push(`onboarding: cross-origin requests ${foreign.join(', ')}`);
   await demo.close();
