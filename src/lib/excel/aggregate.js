@@ -4,6 +4,7 @@ import { MONTH_KEYS } from '../../constants.js';
 const plantOf = (sheetName) => sheetName.split(' ')[0];
 
 // processedData: { 'BP Daily': rows[], ... } -> { summary: [], matching: {} }
+/** @param {Record<string, import('../../features/test-infra/types.js').SourceRow[]>} processedData */
 export const buildSummary = (processedData) => {
   const matching = {};
 
@@ -45,6 +46,7 @@ export const computeTotals = (summary) =>
   );
 
 // Rows for the "Analyze" sheet: every plant row, sorted by plant then part number.
+/** @param {Record<string, import('../../features/test-infra/types.js').SourceRow[]>} processedData */
 export const buildAnalyzeRows = (processedData) => {
   const rows = [];
   Object.entries(processedData || {}).forEach(([sheet, list]) => {

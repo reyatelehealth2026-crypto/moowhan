@@ -1,9 +1,13 @@
 import { useMemo, useRef, useState } from 'react';
-import { MONTH_KEYS, PLANTS, dailySheetName } from '../constants.js';
+import { PLANTS, dailySheetName } from '../constants.js';
 import { buildSummary, computeTotals } from '../lib/excel/aggregate.js';
 import { categorizeFile } from '../lib/excel/categorize.js';
 import { DEFAULT_PROFILE } from '../features/visibility.js';
 import { monthLabels, parseProductionMonth } from '../utils/format.js';
+import { sha256 } from '../utils/hash.js';
+import { stampSubset } from '../features/provenance-manifest/stamp.js';
+import { buildExportNotice, toUserError, userErrorText } from '../lib/errors.js';
+import { planBatchCommit } from '../features/manual-edit/edits.js';
 
 // xlsx + jszip are only downloaded the first time a file is read/exported.
 const loadExcel = () => import('../lib/excel/index.js');
@@ -38,7 +42,7 @@ export default function useConsolidator() {
 
   // refs so async actions always see the latest values
   const refs = useRef({});
-  refs.current = { template, sourceFiles, processedData, summaryData };
+  refs.current = { template, sourceFiles, processedData, summaryData, productionMonth, features };
   const processingRef = useRef(false);
 
   const fileCounts = useMemo(
@@ -75,7 +79,7 @@ export default function useConsolidator() {
       const excel = await loadExcel();
       const buffer = await file.arrayBuffer();
       const info = await excel.readTemplateBuffer(buffer);
-      setTemplate({ name: file.name, size: file.size, ...info });
+      setTemplate({ name: file.name, size: file.size, sha256: await sha256(buffer), ...info });
       setError(null);
       if (info.kind === 'xls') {
         setNotice('ไฟล์หลักเป็น .xls จึงไม่สามารถเขียนลงไฟล์เดิมได้ ระบบจะสร้างไฟล์ใหม่โดยคัดลอกเฉพาะค่า (pivot/สูตรจะไม่ถูกรักษาไว้) แนะนำให้บันทึกเทมเพลตเป็น .xlsx');
@@ -84,7 +88,7 @@ export default function useConsolidator() {
       }
       log({ fileName: file.name, action: 'file', details: `โหลดไฟล์หลัก (${info.kind}, ${info.sheets.length} sheets)` });
     } catch (err) {
-      setError(`ไม่สามารถอ่านไฟล์หลักได้: ${err.message}`);
+      setError(`ไม่สามารถอ่านไฟล์หลักได้: ${userErrorText(toUserError(err))}`);
     }
   };
 
@@ -141,6 +145,7 @@ export default function useConsolidator() {
         await yieldToBrowser();
         try {
           const buffer = await f.file.arrayBuffer();
+          const digest = f.sha256 || await sha256(buffer); // hashed once per file, reused by the manifest
           const { rows, meta } = excel.readSourceBuffer(buffer);
           rows.forEach((row, idx) => {
             row.id = `${f.id}-${idx}`;
@@ -154,9 +159,9 @@ export default function useConsolidator() {
             logs.push({ fileName: f.name, plant: f.category, action: 'warning', details: 'ไม่พบแถวข้อมูล (ตรวจสอบแถวหัวตาราง "PART NUMBER")' });
           }
           if (meta.productionMonthRaw) months.set(meta.productionMonthRaw, [...(months.get(meta.productionMonthRaw) || []), f.name]);
-          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'done', rowCount: rows.length, meta } : x)));
+          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: rows.length ? 'done' : 'warning', rowCount: rows.length, meta, sha256: digest } : x)));
         } catch (err) {
-          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'error', error: err.message } : x)));
+          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'error', error: toUserError(err).code === 'generic' ? err.message : toUserError(err).title } : x)));
           logs.push({ fileName: f.name, plant: f.category, action: 'error', details: err.message });
         }
       }
@@ -197,36 +202,42 @@ export default function useConsolidator() {
     }
   };
 
-  // ---------- manual edits (N..N+3 of one row) ----------
-  const updateRowValues = (sheetName, rowId, patch, reason = '') => {
-    const current = refs.current.processedData;
-    if (!current?.[sheetName]) return false;
-    const idx = current[sheetName].findIndex((r) => r.id === rowId);
-    if (idx === -1) return false;
-    const before = current[sheetName][idx];
-    const row = { ...before, rawRow: [...(before.rawRow || [])] };
-    const changes = [];
-    MONTH_KEYS.forEach((k) => {
-      if (patch[k] === undefined || patch[k] === null || patch[k] === '') return;
-      const value = Number(patch[k]);
-      if (!Number.isFinite(value) || value === before[k]) return;
-      row[k] = value;
-      const col = before.colPositions?.[`${k}Col`];
-      if (col !== undefined) row.rawRow[col] = value;
-      changes.push(`${k.toUpperCase().replace('N1', 'N+1').replace('N2', 'N+2').replace('N3', 'N+3')}: ${before[k]} → ${value}`);
-    });
-    if (!changes.length) return false;
-    row.edited = true;
-    const next = { ...current, [sheetName]: current[sheetName].map((r, i) => (i === idx ? row : r)) };
+  // ---------- manual edits (pure core: features/manual-edit/edits.js) ----------
+  // Replaces processedData as a whole: one buildSummary call, refs updated so a following action in the same tick sees it.
+  const commitProcessedData = (next, logEntries = []) => {
     const { summary, matching } = buildSummary(next);
+    refs.current = { ...refs.current, processedData: next, summaryData: summary };
     setProcessedData(next);
     setSummaryData(summary);
     setMatchingDetails(matching);
-    log({ fileName: before.fileName, plant: before.plant, partNumber: before.partNumber, action: 'edit', details: `${changes.join(', ')}${reason ? ` (${reason})` : ''}` });
-    return true;
+    log(logEntries);
   };
 
+  // items: see applyBatch in edits.js. One buildSummary call and one log entry per applied item.
+  const updateRowsBatch = (items, opts = {}) => {
+    const current = refs.current.processedData;
+    if (!current) return { results: [], applied: 0, processedData: current };
+    const plan = { ...planBatchCommit(current, items, { buildSummary, calendar: opts.calendar }), previous: current };
+    if (!plan.applied) return plan;
+    refs.current = { ...refs.current, processedData: plan.processedData, summaryData: plan.summary };
+    setProcessedData(plan.processedData);
+    setSummaryData(plan.summary);
+    setMatchingDetails(plan.matching);
+    log(plan.logs);
+    return plan;
+  };
+
+  // N..N+3 of one row; the day cells are reconciled (default strategy) so Daily sheets still sum to N.
+  const updateRowValues = (sheetName, rowId, patch, reason = '', strategy) =>
+    updateRowsBatch([{ sheet: sheetName, rowId, patch, reason, strategy }]).applied > 0;
+
   // ---------- export ----------
+  // provenance-manifest: the stamp is opt-in (feature data), exportedAt only when a clock is supplied
+  const optionalStamp = async (now) => {
+    const cur = refs.current;
+    if (!cur.features?.['provenance-manifest']?.stampEnabled) return null;
+    return stampSubset({ template: cur.template, sourceFiles: cur.sourceFiles, productionMonth: cur.productionMonth }, { now });
+  };
   const exportExcel = async (options = {}) => {
     const { processedData: data, summaryData: summary, template: tpl } = refs.current;
     if (!data) return null;
@@ -244,14 +255,17 @@ export default function useConsolidator() {
         overflow: options.overflow,
         clearBeyondTable: options.clearBeyondTable,
         addAutoFilter: options.addAutoFilter,
+        stamp: options.stamp ?? await optionalStamp(options.now),
       });
+      result.report.fileName = result.fileName;
+      result.report.sha256 = await sha256(result.blob); // identifies the bytes this app produced
       if (options.download !== false) excel.downloadBlob(result.blob, result.fileName);
       setExportReport(result.report);
       const parts = result.report.mode === 'template'
         ? `เขียนลงเทมเพลต: ${result.report.patched.map((p) => `${p.sheet} ${p.rows} แถว`).join(', ')}`
         : 'สร้างไฟล์ใหม่ (ไม่มีเทมเพลต .xlsx)';
-      const warn = result.report.warnings?.length ? `\n${result.report.warnings.join('\n')}` : '';
-      setNotice(`ดาวน์โหลด ${result.fileName} แล้ว • ${parts}${warn}`, result.report.warnings?.length ? 'warning' : 'success');
+      const exportNotice = buildExportNotice(result.report, result.fileName);
+      setNotice(exportNotice.message, exportNotice.tone);
       log({ fileName: result.fileName, action: 'export', details: parts });
       return result;
     } catch (err) {
@@ -288,7 +302,7 @@ export default function useConsolidator() {
   const actions = {
     setTemplateFile, removeTemplate,
     addSourceFiles, removeSourceFile, clearSourceFiles,
-    processAll, updateRowValues, exportExcel, reset,
+    processAll, updateRowValues, updateRowsBatch, commitProcessedData, exportExcel, reset,
     setError, setNotice, log, setFeatureData, setProfile, setUiMode,
     dismissError: () => setError(null),
     dismissNotice: () => setNoticeState(null),

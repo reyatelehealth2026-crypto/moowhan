@@ -4,7 +4,7 @@ import Icons from './Icons.jsx';
 export default function ProgressBar({ current, total, status }) {
   const pct = total > 0 ? Math.round((current / total) * 100) : 0;
   return (
-    <div className="bg-white border border-blue-200 rounded-2xl p-4 shadow-sm" aria-live="polite">
+    <div className="bg-white border border-blue-200 rounded-2xl p-4 shadow-sm" aria-live="polite" data-testid="progress">
       <div className="flex items-center gap-3 mb-2">
         <span className="w-5 h-5 text-blue-600"><Icons.Refresh /></span>
         <span className="text-sm text-slate-700 flex-1 truncate">{status}</span>

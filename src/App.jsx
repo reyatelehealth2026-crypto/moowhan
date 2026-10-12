@@ -17,6 +17,7 @@ import { collectCellWrites, collectExportSheets, collectIssues, featureName, nor
 import { DAILY_SHEETS, ANALYZE_SHEET, SUMMARY_SHEET } from './constants.js';
 import { ToastRegion, LiveRegion, pushToast, announce, STRINGS } from './features/ui-kit/index.js';
 import useHotkeys from './hooks/useHotkeys.js';
+import { openDiagnostics } from './features/help-center/helpStore.js';
 import { formatMonth, monthLabels as buildMonthLabels, todayStamp } from './utils/format.js';
 
 const MAX_INLINE_ACTIONS = 3;
@@ -195,7 +196,7 @@ export default function App() {
           </p>
         )}
 
-        <Banner tone="error" message={state.error} onDismiss={actions.dismissError} />
+        <Banner tone="error" message={state.error} onDismiss={actions.dismissError} actions={[{ label: 'รายงานปัญหา', onClick: openDiagnostics }]} />
         <Banner tone={state.notice?.tone || 'warning'} message={state.notice?.tone === 'success' ? null : state.notice?.message} onDismiss={actions.dismissNotice} />
         {state.isStale && (
           <Banner tone="warning" message="รายการไฟล์เปลี่ยนไปหลังจากประมวลผลครั้งล่าสุด กด “รวมข้อมูลและคำนวณ” อีกครั้งเพื่ออัปเดตผลลัพธ์" />
@@ -223,6 +224,7 @@ export default function App() {
           <ExcelPreview
             data={state.processedData}
             summaryData={state.summaryData}
+            template={state.template}
             fileName={previewFileName}
             onClose={() => setShowPreview(false)}
             onDownload={() => actions.exportExcel()}

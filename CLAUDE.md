@@ -47,3 +47,10 @@
 - `Analyze`: หัวตารางแถว 2, ข้อมูลเริ่มแถว 3, คอลัมน์ B.. = คอลัมน์ A.. ของต้นทาง, คอลัมน์ EH = Plant, คอลัมน์ A/EI/EL/EM เป็นสูตร key สำหรับ pivot
 - `Summary`, `By Plant`, `Total`, `Sheet2` มี pivot/สูตรอ้างถึง sheet ข้างบน — ห้ามแตะ ยกเว้น value cell ผ่าน `cellWrites` เท่านั้น (`writeCells` ข้ามเซลล์สูตรเสมอ)
 - patcher: เขียนเฉพาะคอลัมน์ 1..N+3 และเหนือแถวสูตรแรกของตาราง (แถวที่เกินไปอยู่ใน `report.overflow`, ตัวเลือก `overflow:'spill'`); sheet ของเทมเพลตเป็น protected (ดู `sheetNames.js`) — extraSheets ทับไม่ได้
+
+## โครงสร้างทดสอบ (test-infra)
+- `tests/fixtures/makeSource.js` / `makeTemplate.js` สร้างไฟล์ต้นทาง/เทมเพลตสังเคราะห์ในหน่วยความจำ; ตัวเลขที่ได้จากฟิกซ์เจอร์จริงอยู่ที่ `tests/fixtures/expected.json` เท่านั้น (สร้างใหม่ด้วย `npm run fixtures:expected`) อ่านผ่าน `loadExpected()` ใน `tests/helpers.js`
+- Golden: `tests/golden.test.js` เทียบทีละ cell กับ `tests/golden/export-cells.json` + sha256 (ส่ง `now` ให้ `buildExport`/`patchTemplate` เพื่อให้ zip ซ้ำได้); เปลี่ยนจงใจแล้ว `UPDATE_GOLDEN=1 npm test`
+- `tests/ooxmlValidator.js` ตรวจโครงสร้าง OOXML; `tests/ui/*.test.jsx` เปิด jsdom รายไฟล์ด้วย `// @vitest-environment jsdom` (ใช้ `makeCtx`/`seriousViolations` จาก `tests/ui/`)
+- `npm run typecheck` (JSDoc + checkJs, ขอบเขตอยู่ใน `jsconfig.json` `include`; typedef อยู่ `src/features/test-infra/types.js`) และ `npm run check:bundle` (หลัง build) รันใน CI (`.github/workflows/ci.yml`, actions pin SHA) ร่วมกับ e2e
+- `CI_PERF=0` ข้าม `tests/perf.test.js`

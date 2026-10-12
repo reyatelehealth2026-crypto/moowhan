@@ -39,6 +39,7 @@ export default function FileDropZone({ accept, multiple = false, onFiles, disabl
         accept={accept}
         multiple={multiple}
         disabled={disabled}
+        hidden
         className="hidden"
         onChange={(e) => { emit(e.target.files); e.target.value = ''; }}
       />

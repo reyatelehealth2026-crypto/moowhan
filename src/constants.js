@@ -77,3 +77,6 @@ export const MONTH_META = [
   { key: 'n2', bar: 'bg-amber-500',   text: 'text-amber-600',   gradient: 'from-amber-500 to-amber-600' },
   { key: 'n3', bar: 'bg-purple-500',  text: 'text-purple-600',  gradient: 'from-purple-500 to-purple-600' },
 ];
+
+// Value of "PLANT CODE" in a source file header -> plant (inferred from the fixtures in input/*.xls).
+export const PLANT_CODE_MAP = { P: 'BP', B: 'BPK', G: 'GW', S: 'SR' };
