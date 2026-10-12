@@ -122,3 +122,12 @@ export const formatDelta = (n, pct) => {
   const p = Number(pct) * 100;
   return `${base} (${sign(p)}${Math.abs(p).toFixed(1)}%)`;
 };
+
+/** monthKey({ year: 2026, month: 2 }, 1) -> "2026-03"; null production month -> "". */
+export const monthKey = (pm, offset = 0) => {
+  if (!pm) return '';
+  const idx = pm.month - 1 + offset;
+  const year = pm.year + Math.floor(idx / 12);
+  const month = ((idx % 12) + 12) % 12;
+  return `${year}-${String(month + 1).padStart(2, '0')}`;
+};
