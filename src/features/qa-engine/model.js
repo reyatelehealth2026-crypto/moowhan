@@ -10,7 +10,7 @@ export const LEVELS = ['error', 'warning', 'info'];
 export const LEVEL_LABEL = { error: 'ต้องแก้', warning: 'ควรดู', info: 'ข้อมูล' };
 export const LEVEL_RANK = { error: 0, warning: 1, info: 2 };
 
-export const GROUPS = ['row', 'file', 'month', 'layout', 'consistency', 'template'];
+export const GROUPS = ['row', 'file', 'month', 'layout', 'consistency', 'template', 'business'];
 export const GROUP_LABEL = {
   row: 'ข้อมูลรายแถว',
   file: 'ไฟล์ต้นทาง',
@@ -18,6 +18,7 @@ export const GROUP_LABEL = {
   layout: 'โครงสร้างไฟล์',
   consistency: 'ความสอดคล้อง',
   template: 'เทมเพลต',
+  business: 'สัญญาณธุรกิจ',
 };
 
 // feature-contract levels (src/features/runtime.js) <-> QA levels

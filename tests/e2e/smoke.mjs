@@ -334,6 +334,44 @@ try {
   await page.setViewportSize({ width: 1280, height: 900 });
   step('qa-engine tab shows 0 ต้องแก้, ไปดูแถว pre-fills search, no overflow at 390px');
 
+  // ---- runout-alerts: filter, official Last Pack survives a reload, no overflow at 390px ----
+  const openRunout = async () => {
+    const tab = page.getByRole('tab', { name: 'Run-out' });
+    if (!(await tab.count())) {
+      const more = page.getByRole('button', { name: /เพิ่มเติม/ });
+      if (await more.count()) await more.click();
+    }
+    await (await tab.count() ? tab : page.getByRole('menuitem', { name: /Run-out/ })).first().click();
+    await page.getByTestId('runout-view').waitFor();
+  };
+  await openRunout();
+  if ((await page.getByTestId('runout-count').innerText()).trim() !== '8') errors.push('runout-alerts: expected 8 signals');
+  await page.getByLabel('โรงงาน', { exact: true }).selectOption('SR');
+  if ((await page.getByTestId('runout-row').count()) !== 3) errors.push('runout-alerts: SR filter should show 3 signal rows');
+  await page.getByTestId('runout-official').first().fill('2026-03-20');
+  await page.waitForTimeout(800); // profile autosave is debounced (300 ms)
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('runout-alerts: page overflows horizontally at 390px');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  // a fresh page of the same browser context = a reload: the profile (prefs) comes back from storage
+  const pr = await context.newPage();
+  await pr.goto(url, { waitUntil: 'networkidle' });
+  await pr.locator('input[type=file]').nth(0).setInputFiles(path.join(ROOT, 'template.xlsx'));
+  await pr.locator('input[type=file]').nth(1).setInputFiles(SOURCES);
+  await pr.getByText('SR veh 481D.xls').waitFor();
+  await pr.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
+  await pr.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
+  const prTab = pr.getByRole('tab', { name: 'Run-out' });
+  if (!(await prTab.count())) await pr.getByRole('button', { name: /เพิ่มเติม/ }).click();
+  await (await prTab.count() ? prTab : pr.getByRole('menuitem', { name: /Run-out/ })).first().click();
+  await pr.getByTestId('runout-view').waitFor();
+  await pr.getByLabel('โรงงาน', { exact: true }).selectOption('SR');
+  const kept = await pr.getByTestId('runout-official').evaluateAll((els) => els.map((e) => e.value));
+  if (!kept.includes('2026-03-20')) errors.push(`runout-alerts: official Last Pack lost after reload (${kept.join(',')})`);
+  await pr.close();
+  step('runout-alerts: 8 signals, plant filter, official date kept after reload, no overflow at 390px');
+
+
   // Ctrl+Enter on the upload tab processes the files again
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
   await page.getByTestId('process').focus();
