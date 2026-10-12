@@ -6,7 +6,7 @@ import { fixture, SOURCE_FILES } from './helpers.js';
 import { readSourceBuffer, categorizeFile } from '../src/lib/excel/index.js';
 import { inspectTemplate } from '../src/features/template-inspector/templateInspect.js';
 import { runRules, listRules, registerRule } from '../src/features/qa-engine/engine.js';
-import { countByLevel, toCsvRows, toContractIssue, filterIssues } from '../src/features/qa-engine/model.js';
+import { countByLevel, toCsvRows, toContractIssue, fromContractIssue, filterIssues } from '../src/features/qa-engine/model.js';
 import { createWaiverStore, memoryAdapter, applyWaivers, waiverKey } from '../src/features/qa-engine/waivers.js';
 import feature from '../src/features/qa-engine/index.jsx';
 import { collectIssues } from '../src/features/runtime.js';
@@ -306,14 +306,18 @@ describe('feature contract', () => {
     expect(feature.tab.badge(ctx())).toEqual({ count: 0, severity: 'error' });
   });
 
-  it('validate returns contract issues the runtime accepts (error -> block)', () => {
+  it('validate returns contract issues the runtime accepts (error -> confirm, warning -> info)', () => {
     const b = clone();
     const row = b.data['BP Daily'][0];
     row.rawRow[row.colPositions.nCol] += 3;
     const out = collectIssues([feature], ctx({ processedData: b.data, sourceFiles: b.files }));
-    expect(out.filter((i) => i.level === 'block')).toHaveLength(1);
+    expect(out.filter((i) => i.level === 'confirm')).toHaveLength(1);
+    expect(out.filter((i) => i.level === 'block')).toHaveLength(0);
     expect(out[0]).toMatchObject({ code: 'R01', featureId: 'qa-engine', qaLevel: 'error' });
-    expect(toContractIssue({ rule: 'M03', level: 'warning' }).level).toBe('confirm');
+    expect(toContractIssue({ rule: 'M03', level: 'warning' })).toMatchObject({ level: 'info', qaLevel: 'warning' });
+    expect(toContractIssue({ rule: 'R01', level: 'error' })).toMatchObject({ level: 'confirm', qaLevel: 'error' });
+    // the round trip is exact through qaLevel
+    ['error', 'warning', 'info'].forEach((level) => expect(fromContractIssue(toContractIssue({ rule: 'X1', level })).level).toBe(level));
   });
 
   it('QA Report sheet: findings + 1 rows, follows the export option, keeps waived rows', () => {

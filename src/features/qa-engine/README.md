@@ -11,7 +11,7 @@ runRules({ processedData, sourceFiles, productionMonth, template, inspection, se
 ## Issue (ดู `model.js`)
 `{ rule, group, level: 'error'|'warning'|'info', scope: 'row'|'file'|'plant'|'template'|'run', plant, fileName, partNumber, dockCode, sheet, rowNumber, month, message, fix, expected, actual, helpKey, action?, waived?, reason? }`
 ป้ายไทย: error = ต้องแก้ · warning = ควรดู · info = ข้อมูล
-ผ่าน feature contract (`validate`) จะถูกแปลงด้วย `toContractIssue`: error→`block`, warning→`confirm`, info→`info`, `code` = id กฎ, `qaLevel` = ระดับเดิม (export-gate อ่านจากตรงนี้)
+ผ่าน feature contract (`validate`) จะถูกแปลงด้วย `toContractIssue`: error→`confirm` (ถามยืนยันก่อนส่งออก), warning→`info`, info→`info`, `code` = id กฎ, `qaLevel` = ระดับเดิม (export-gate อ่านจากตรงนี้)
 
 ## เพิ่มกฎใหม่ (ใช้เวลาไม่ถึงนาที)
 1. สร้างไฟล์ `rules/<ชื่อ>.js` (หรือเพิ่มในไฟล์กลุ่มที่มีอยู่) ที่ export **array ของกฎ**

@@ -115,5 +115,14 @@ export const summarizeGate = (issues = []) => {
   return { block, confirm, info: count('info'), state: block ? 'blocked' : confirm ? 'confirm' : 'ready' };
 };
 
+/**
+ * What the review surfaces (onboarding step 4, preview KPI) say about the data, derived from the same gate issues the
+ * download button uses: `errors` = items that need a fix or a confirmation, `warnings` = QA warnings (information only).
+ */
+export const reviewCounts = (issues = []) => ({
+  errors: issues.filter((i) => i.level === 'block' || i.level === 'confirm').length,
+  warnings: issues.filter((i) => i.level === 'info' && i.qaLevel === 'warning').length,
+});
+
 /** the dialog is only needed when something has to be fixed or confirmed */
 export const needsDialog = (issues = []) => issues.some((i) => i.level === 'block' || i.level === 'confirm');

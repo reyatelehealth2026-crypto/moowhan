@@ -4,6 +4,7 @@ import { PLANTS, PLANT_META } from '../constants.js';
 import HorizonBadge from '../features/qa-file-guards/HorizonBadge.jsx';
 import { PART_TYPE_LABEL } from '../features/qa-file-guards/logic.js';
 import { DataGrid, STRINGS, GLOSSARY, Button } from '../features/ui-kit/index.js';
+import { reviewCounts } from '../features/export-gate/gate.js';
 import GlossaryTip from '../features/help-center/GlossaryTip.jsx';
 import { COLUMN_TIPS } from '../features/help-center/columns.js';
 
@@ -44,6 +45,7 @@ export default function PreviewTab({ state, actions, monthLabels }) {
 
   const missingPlants = PLANTS.filter((p) => fileCounts[p] === 0);
   const filesWithError = sourceFiles.filter((f) => f.status === 'error').length;
+  const review = reviewCounts(actions.gate?.issues); // same issues the download gate uses
   const filesProcessed = sourceFiles.filter((f) => f.status === 'done').length;
 
   const segment = (
@@ -85,7 +87,12 @@ export default function PreviewTab({ state, actions, monthLabels }) {
           <div className="bg-white/70 rounded-xl p-3"><p className="text-sm text-emerald-600">ไฟล์หลัก</p><p className="font-semibold">{template ? `✓ ${STRINGS.status.ready}` : STRINGS.status.missing}</p></div>
           <div className="bg-white/70 rounded-xl p-3"><p className="text-sm text-emerald-600">ประมวลผลสำเร็จ</p><p className="font-semibold num">{filesProcessed} / {sourceFiles.length}</p></div>
           <div className="bg-white/70 rounded-xl p-3"><p className="text-sm text-emerald-600">โรงงานขาด</p><p className={`font-semibold ${missingPlants.length ? 'text-amber-600' : ''}`}>{missingPlants.length > 0 ? missingPlants.join(', ') : STRINGS.status.complete}</p></div>
-          <div className="bg-white/70 rounded-xl p-3"><p className="text-sm text-emerald-600">ข้อผิดพลาด</p><p className={`font-semibold ${filesWithError ? 'text-red-600' : ''}`}>{filesWithError > 0 ? `${filesWithError} ไฟล์` : 'ไม่มี'}</p></div>
+          <div className="bg-white/70 rounded-xl p-3" data-testid="review-kpi">
+            <p className="text-sm text-emerald-600">ข้อผิดพลาด</p>
+            <p className={`font-semibold ${filesWithError || review.errors ? 'text-red-600' : review.warnings ? 'text-amber-600' : ''}`}>
+              {filesWithError > 0 ? `${filesWithError} ไฟล์` : review.errors > 0 ? `${review.errors} รายการ` : review.warnings > 0 ? `ไม่มี · คำเตือน ${review.warnings}` : 'ไม่มี'}
+            </p>
+          </div>
         </div>
       </div>
 

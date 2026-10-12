@@ -12,7 +12,7 @@ const tone = {
 
 /** Reflects app state as 5 steps (not a second navigation). Scrolls horizontally inside itself on phones. */
 export default function StepStrip({ state, actions }) {
-  const steps = computeSteps(state);
+  const steps = computeSteps(state, undefined, actions.gate);
   const fd = state.features?.onboarding;
 
   // demo: runs once the freshly added sample files are in state, then restores the demo notice
@@ -50,7 +50,7 @@ export default function StepStrip({ state, actions }) {
                   <span className="w-4 h-4 flex-shrink-0">{s.status === 'done' ? <Icons.Check /> : <span className="block text-center text-xs leading-4">{i + 1}</span>}</span>
                   <span className="truncate">{s.label}</span>
                 </span>
-                <span className="block text-xs mt-0.5 truncate" title={s.hint}>{s.hint}</span>
+                <span className={`block text-xs mt-0.5 truncate ${s.note === 'warning' ? 'text-amber-700 font-medium' : ''}`} title={s.hint}>{s.hint}</span>
               </button>
             </li>
           );

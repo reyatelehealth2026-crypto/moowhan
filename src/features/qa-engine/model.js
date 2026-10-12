@@ -23,9 +23,11 @@ export const GROUP_LABEL = {
   business: 'สัญญาณธุรกิจ',
 };
 
-// feature-contract levels (src/features/runtime.js) <-> QA levels
-const TO_CONTRACT = { error: 'block', warning: 'confirm', info: 'info' };
-const FROM_CONTRACT = { block: 'error', confirm: 'warning', info: 'info' };
+// feature-contract levels (src/features/runtime.js) <-> QA levels.
+// Only QA errors ask for confirmation at export time (export-gate G03); warnings and info are information.
+// `qaLevel` travels with the contract issue, so the round trip is exact even though the mapping is many-to-one.
+const TO_CONTRACT = { error: 'confirm', warning: 'info', info: 'info' };
+const FROM_CONTRACT = { block: 'error', confirm: 'error', info: 'info' };
 
 const FIELDS = ['rule', 'group', 'level', 'scope', 'plant', 'fileName', 'partNumber', 'dockCode', 'sheet', 'rowNumber', 'month', 'message', 'fix', 'expected', 'actual', 'helpKey', 'action', 'waived', 'reason'];
 
@@ -47,7 +49,7 @@ export const toContractIssue = (issue) => ({ ...issue, level: TO_CONTRACT[issue.
 export const fromContractIssue = (raw, featureId = '') => makeIssue({
   rule: raw.code || featureId || 'EXT',
   group: raw.group && GROUPS.includes(raw.group) ? raw.group : 'file',
-  level: FROM_CONTRACT[raw.level] || raw.level,
+  level: LEVELS.includes(raw.qaLevel) ? raw.qaLevel : FROM_CONTRACT[raw.level] || raw.level,
   scope: raw.scope || 'run',
   sheet: raw.sheet || '',
   message: raw.message || '',

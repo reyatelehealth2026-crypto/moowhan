@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import JSZip from 'jszip';
+import * as XLSX from 'xlsx';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -21,17 +22,18 @@ const SOURCES = ['BP veh 481D.xls', 'BPK packing 481D.xls', 'GW packing B-MPV.xl
 const step = (s) => console.log(`[e2e] ${s}`);
 const shot = (page, name, full = false) => page.screenshot({ path: path.join(OUT, `${name}.png`), fullPage: full });
 
-// The real fixtures carry qa-engine warnings (template AutoFilter, production month already past), so the export
-// gate asks for a confirmation before the first download. Click through it when it appears.
-const downloadGated = async (pg, trigger, timeout = 60000) => {
+// The real fixtures carry qa-engine warnings only (template AutoFilter, production month already past). Warnings are
+// information, not a gate: the download starts at once and the confirmation dialog must NOT open.
+const GATE_DIALOG = 'ตรวจสอบก่อนดาวน์โหลด';
+const downloadDirect = async (pg, trigger, timeout = 60000) => {
   const dlP = pg.waitForEvent('download', { timeout });
   dlP.catch(() => {});
   await trigger();
-  const dialog = pg.getByRole('dialog', { name: 'ตรวจสอบก่อนดาวน์โหลด' });
-  const first = await Promise.race([dlP.then(() => 'download'), dialog.waitFor({ timeout }).then(() => 'dialog')]);
-  if (first === 'dialog') await pg.getByTestId('export-dialog-download').click();
   const dl = await dlP;
-  if (await pg.getByRole('dialog').count()) await pg.keyboard.press('Escape');
+  if (await pg.getByRole('dialog', { name: GATE_DIALOG }).count()) {
+    errors.push('export-gate: confirm dialog opened although there are no QA errors');
+    await pg.keyboard.press('Escape');
+  }
   return dl;
 };
 
@@ -102,6 +104,7 @@ try {
     await zp.getByTestId('process').click();
     await zp.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
     await zp.getByRole('tab', { name: 'สรุปรวม' }).click().catch(() => {});
+    await zp.getByText('48,934').first().waitFor({ timeout: 10000 }).catch(() => {}); // the summary tab is a lazy chunk
     if (!(await zp.locator('body').innerText()).includes('48,934')) errors.push('import-cli: zip totals differ from the 5 loose files (expected N = 48,934)');
     await zp.setViewportSize({ width: 390, height: 844 });
     if (await zp.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('import-cli: page overflows horizontally at 390px');
@@ -223,7 +226,7 @@ try {
   if (!/^Report_2026-02_/.test(png.suggestedFilename()) || fs.statSync(pngFile).size < 1000) errors.push('dashboard: PNG name/size wrong');
   step('dashboard tab, 390px, print and PNG ok');
 
-  const download = await downloadGated(page, () => page.keyboard.press('Control+s'));
+  const download = await downloadDirect(page, () => page.keyboard.press('Control+s'));
   const outFile = path.join(OUT, download.suggestedFilename());
   await download.saveAs(outFile);
   await page.getByText(`ดาวน์โหลด ${download.suggestedFilename()}`).first().waitFor();
@@ -468,7 +471,7 @@ try {
       if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push(`settings: horizontal overflow at 375px (${name})`);
     }
     await page.setViewportSize({ width: 1280, height: 900 });
-    const dl = await downloadGated(page, () => page.keyboard.press('Control+s'));
+    const dl = await downloadDirect(page, () => page.keyboard.press('Control+s'));
     if (dl.suggestedFilename() !== 'Production_Custom_202602.xlsx') errors.push(`settings: download name ${dl.suggestedFilename()}`);
     await page.getByText(/ดาวน์โหลด Production_/).first().waitFor();
     await page.getByRole('tab', { name: 'ทั่วไป', exact: true }).click();
@@ -531,7 +534,7 @@ try {
   {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
-    const dl = await downloadGated(page, () => page.keyboard.press('Control+s'));
+    const dl = await downloadDirect(page, () => page.keyboard.press('Control+s'));
     const f = path.join(OUT, `prov-${dl.suggestedFilename()}`);
     await dl.saveAs(f);
     const zip = await JSZip.loadAsync(fs.readFileSync(f));
@@ -581,10 +584,9 @@ try {
   // ---- export-gate: one click when clean, dialog only for block/confirm, override, re-download ----
   const gateDialog = page.getByRole('dialog', { name: 'ตรวจสอบก่อนดาวน์โหลด' });
   await page.getByRole('tab', { name: 'สรุปรวม' }).click();
-  // fixtures: ready, or "needs confirmation" because of qa-engine warnings; never blocked
-  await page.getByTestId('export-ready').waitFor();
-  if ((await page.getByTestId('export-ready').getAttribute('data-state')) === 'blocked') errors.push('export-gate: fixtures must not be blocked');
-  const d1 = await downloadGated(page, () => page.getByTestId('download').click());
+  // fixtures have QA warnings but no QA errors: ready, one click, no dialog
+  await page.getByTestId('export-ready').getByText('พร้อมดาวน์โหลด').waitFor();
+  const d1 = await downloadDirect(page, () => page.getByTestId('download').click());
   if (!/^Production_Updated_Feb26_\d{4}-\d{2}-\d{2}\.xlsx$/.test(d1.suggestedFilename())) errors.push(`export-gate: unexpected file name ${d1.suggestedFilename()}`);
   await page.getByTestId('export-banner').waitFor();
   await page.getByTestId('export-open-result').click();
@@ -593,7 +595,7 @@ try {
   const [d2] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByTestId('export-redownload').click()]);
   if (d2.suggestedFilename() !== d1.suggestedFilename()) errors.push('export-gate: re-download changed the file name');
   await page.keyboard.press('Escape');
-  step('export-gate export (confirm click-through when warnings), result panel and re-download ok');
+  step('export-gate: one-click download without a dialog, result panel and re-download ok');
 
   // remove SR -> stale (block) ; override unlocks the download
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
@@ -625,6 +627,39 @@ try {
   if (!d4.suggestedFilename().endsWith('.xlsx')) errors.push('export-gate: confirm download failed');
   await page.keyboard.press('Escape');
   step('export-gate confirm (missing SR) via Ctrl+S ok');
+
+  // a real QA error (R01: the N total no longer equals the sum of its days in the source file) asks for a confirmation
+  {
+    const wb = XLSX.read(fs.readFileSync(path.join(ROOT, 'input', 'SR veh 481D.xls')));
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    aoa[13][39] = Number(aoa[13][39]) + 3; // first data row, N total
+    const bad = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(bad, XLSX.utils.aoa_to_sheet(aoa), 'Sheet1');
+    const badDir = path.join(OUT, 'qa-error');
+    fs.mkdirSync(badDir, { recursive: true });
+    const badFile = path.join(badDir, 'SR veh 481D.xls');
+    fs.writeFileSync(badFile, XLSX.write(bad, { bookType: 'biff8', type: 'buffer' }));
+    // a fresh page: nothing waived, nothing hidden by earlier steps
+    const qctx = await browser.newContext({ acceptDownloads: true, viewport: { width: 1280, height: 900 } });
+    const qp = await qctx.newPage();
+    await qp.goto(url, { waitUntil: 'networkidle' });
+    await qp.locator('input[type=file]').nth(0).setInputFiles(path.join(ROOT, 'template.xlsx'));
+    await qp.locator('input[type=file]').nth(1).setInputFiles([...SOURCES.slice(0, 4), badFile]);
+    await qp.getByText('SR veh 481D.xls').waitFor();
+    await qp.getByTestId('process').click();
+    await qp.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
+    await qp.keyboard.press('Control+s');
+    const qDialog = qp.getByRole('dialog', { name: GATE_DIALOG });
+    await qDialog.waitFor({ timeout: 15000 });
+    if (await qp.getByTestId('export-override').count()) errors.push('export-gate: a QA error is a confirmation, not a block (no override tick expected)');
+    const qBtn = qp.getByTestId('export-dialog-download');
+    if (await qBtn.isDisabled()) errors.push('export-gate: a QA error asks for confirmation, it must not block the download');
+    const [dQa] = await Promise.all([qp.waitForEvent('download', { timeout: 60000 }), qBtn.click()]);
+    if (!dQa.suggestedFilename().endsWith('.xlsx')) errors.push('export-gate: QA-error confirm download failed');
+    await qctx.close();
+    step('export-gate: a QA error (R01) opens the confirm dialog, download allowed');
+  }
   // ---- onboarding: step strip, demo mode (no cross-origin requests), boot-check ----
   if ((await page.getByTestId('step-strip').count()) !== 1) errors.push('onboarding: expected exactly one step-strip');
 
@@ -635,7 +670,7 @@ try {
   await demo.getByRole('button', { name: 'ลองข้อมูลตัวอย่าง' }).click();
   await demo.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
   if ((await demo.getByTestId('demo-chip').count()) !== 1) errors.push('onboarding: demo chip missing');
-  const demoDl = await downloadGated(demo, () => demo.keyboard.press('Control+s'));
+  const demoDl = await downloadDirect(demo, () => demo.keyboard.press('Control+s'));
   if (!demoDl.suggestedFilename().startsWith('DEMO_')) errors.push(`onboarding: demo file name ${demoDl.suggestedFilename()}`);
   if (foreign.length) errors.push(`onboarding: cross-origin requests ${foreign.join(', ')}`);
   await demo.close();

@@ -48,6 +48,16 @@ describe('computeSteps', () => {
     expect(st(ack, 'review').status).toBe('done');
     expect(cur(ack)).toBe('export');
   });
+  it('review step follows the export gate: confirm items stay open, warnings are amber information', () => {
+    const state = base({ sourceFiles: files, processedData: {} });
+    const needs = computeSteps(state, undefined, { issues: [{ level: 'confirm', qaLevel: 'error' }, { level: 'info', qaLevel: 'warning' }] });
+    expect(cur(needs)).toBe('review');
+    expect(st(needs, 'review').hint).toBe('ต้องยืนยัน 1 รายการก่อนดาวน์โหลด');
+    const warned = computeSteps(state, undefined, { issues: [{ level: 'info', qaLevel: 'warning' }, { level: 'info', qaLevel: 'warning' }, { level: 'info' }] });
+    expect(st(warned, 'review')).toMatchObject({ status: 'done', hint: 'ไม่มีข้อผิดพลาด · มีคำเตือน 2 รายการ', note: 'warning' });
+    const clean = computeSteps(state, undefined, { issues: [{ level: 'info' }] });
+    expect(st(clean, 'review')).toMatchObject({ status: 'done', hint: 'ไม่พบสิ่งที่ต้องแก้' });
+  });
   it('no findings store counts as reviewed', () => {
     expect(st(computeSteps(base({ sourceFiles: files, processedData: {} })), 'review').status).toBe('done');
   });

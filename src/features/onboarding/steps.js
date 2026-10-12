@@ -1,5 +1,6 @@
 // Pure: derives the 5-step progress strip from app state (no React/DOM).
 import { PLANTS } from '../../constants.js';
+import { reviewCounts } from '../export-gate/gate.js';
 
 const countsOf = (state) => {
   const files = state?.sourceFiles || [];
@@ -20,7 +21,7 @@ const unresolvedErrors = (findings) =>
 /**
  * @returns {{ id: string, label: string, status: 'todo'|'current'|'done', hint: string }[]}
  */
-export function computeSteps(state = {}, findings = readFindings(state)) {
+export function computeSteps(state = {}, findings = readFindings(state), gate = null) {
   const files = state.sourceFiles || [];
   const usable = files.filter((f) => f.status === 'done' || f.status === 'ready');
   const hasFiles = usable.length > 0;
@@ -35,7 +36,9 @@ export function computeSteps(state = {}, findings = readFindings(state)) {
   const done1 = !!state.template;
   const done2 = hasFiles;
   const done3 = fresh;
-  const open = fresh && findings ? unresolvedErrors(findings) : [];
+  // the export gate is the source of truth when it is running (so this step never disagrees with the download dialog)
+  const review = fresh && gate?.issues ? reviewCounts(gate.issues) : null;
+  const open = review ? { length: review.errors } : fresh && findings ? unresolvedErrors(findings) : [];
   const done4 = fresh && open.length === 0;
   const done5 = fresh && !!state.lastExport && state.lastExport.signature === state.processedSignature;
 
@@ -43,7 +46,10 @@ export function computeSteps(state = {}, findings = readFindings(state)) {
     done1 ? 'พร้อมแล้ว' : hasFiles ? 'ข้าม - จะสร้างไฟล์ใหม่' : 'ไม่บังคับ แต่แนะนำเพื่อรักษา pivot/สูตร',
     hasFiles ? `${countHint}${missing.length ? ` · ขาด: ${missing.join(', ')}` : ''}` : 'ลากไฟล์ BP / BPK / GW / SR มาวาง',
     stale ? 'ไฟล์เปลี่ยนไปแล้ว - กดประมวลผลใหม่' : done3 ? 'ประมวลผลแล้ว' : hasFiles ? 'กด “รวมข้อมูลและคำนวณ”' : 'รอไฟล์โรงงาน',
-    !fresh ? 'รอประมวลผล' : open.length ? `มีข้อผิดพลาดที่ต้องตรวจ ${open.length} รายการ` : 'ไม่พบสิ่งที่ต้องแก้',
+    !fresh ? 'รอประมวลผล'
+      : open.length ? (review ? `ต้องยืนยัน ${open.length} รายการก่อนดาวน์โหลด` : `มีข้อผิดพลาดที่ต้องตรวจ ${open.length} รายการ`)
+      : review?.warnings ? `ไม่มีข้อผิดพลาด · มีคำเตือน ${review.warnings} รายการ`
+      : 'ไม่พบสิ่งที่ต้องแก้',
     done5 ? 'ดาวน์โหลดแล้ว' : fresh ? 'พร้อมดาวน์โหลด' : 'รอประมวลผล',
   ];
 
@@ -59,5 +65,6 @@ export function computeSteps(state = {}, findings = readFindings(state)) {
   return defs.map(([id, label, done], i) => ({
     id, label, hint: hints[i],
     status: done ? 'done' : i === currentIdx ? 'current' : 'todo',
+    ...(id === 'review' && done && review?.warnings ? { note: 'warning' } : {}),
   }));
 }

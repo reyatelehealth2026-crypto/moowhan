@@ -24,7 +24,7 @@ node scripts/consolidate.mjs --input ./input --template ./template.xlsx --out ./
 | `--profile <json>` | โปรไฟล์ตั้งค่า (เช่น `export.fileNamePattern`, `features["qa-engine"].settings`) |
 | `--name <pattern>` | รูปแบบชื่อไฟล์ เช่น `Production_Updated_{month}_{date}.xlsx` |
 | `--csv` / `--json` / `--bundle` | ส่งออกข้อมูลแบบ flat (CSV long + summary / JSON / zip รวม) |
-| `--allow-warnings` | ยอมให้รายการระดับ "ควรดู" (confirm) ผ่านด่าน — รายการ "ต้องแก้" (block) ยังบล็อกเสมอ |
+| `--allow-warnings` | ยอมให้รายการที่ "ต้องยืนยัน" (confirm เช่น QA error หรือโรงงานไม่มีไฟล์) ผ่านด่าน — รายการ "ต้องแก้" (block) ยังบล็อกเสมอ; คำเตือน QA (warning) เป็นข้อมูลและไม่ขวางการสร้างไฟล์ จึงไม่ต้องใช้ตัวเลือกนี้กับไฟล์ตัวอย่างใน input/ |
 | `--now <ISO>` | กำหนดเวลาปัจจุบัน ทำให้ไฟล์ผลลัพธ์เหมือนเดิมทุกครั้ง (sha256 เท่ากัน) |
 | `--quiet` | ไม่พิมพ์รายละเอียดทาง stderr |
 

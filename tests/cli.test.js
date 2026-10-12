@@ -44,14 +44,26 @@ describe('consolidate CLI', () => {
     expect(r.json.outputs.some((o) => /run_202602\.json$/.test(o.path))).toBe(true);
   });
 
-  it('fixtures: confirm-level findings give exit 2 and no workbook without --allow-warnings', () => {
+  it('fixtures: QA warnings do not gate the export, so the CLI writes a workbook without --allow-warnings', () => {
+    const out = path.join(tmp, 'nowarn');
+    const r = run(['--input', 'input', '--template', 'template.xlsx', '--out', out, '--now', NOW, '--quiet']);
+    expect(r.status).toBe(0);
+    expect(r.json.exitCode).toBe(0);
+    expect(r.json.findings.some((f) => f.level === 'confirm' || f.level === 'block')).toBe(false);
+    expect(r.json.outputs.some((o) => o.path.endsWith('.xlsx'))).toBe(true);
+  });
+
+  it('a confirm-level finding (a plant has no file) gives exit 2 and no workbook without --allow-warnings, exit 0 with it', () => {
+    const dir = copyInput(path.join(tmp, 'noSR'), (f) => !/^SR /.test(f));
     const out = path.join(tmp, 'gate');
-    const r = run(['--input', 'input', '--template', 'template.xlsx', '--out', out, '--now', NOW]);
+    const r = run(['--input', dir, '--template', 'template.xlsx', '--out', out, '--now', NOW]);
     expect(r.status).toBe(2);
-    expect(r.json.exitCode).toBe(2);
     expect(r.json.outputs).toEqual([]);
+    expect(r.json.findings.some((f) => f.level === 'confirm' && f.code === 'G02')).toBe(true);
     expect(r.stderr).toMatch(/--allow-warnings/);
     expect(fs.existsSync(out)).toBe(false);
+    const ok = run(['--input', dir, '--template', 'template.xlsx', '--out', path.join(tmp, 'gate-ok'), '--now', NOW, '--allow-warnings', '--quiet']);
+    expect(ok.status).toBe(0);
   });
 
   it('a block-level finding (month differs between files) gives exit 2 even with --allow-warnings', () => {
