@@ -93,3 +93,5 @@ export const HORIZON_META = [
   { key: 'n2', kind: 'forecast', badge: 'FC' },
   { key: 'n3', kind: 'forecast', badge: 'FC' },
 ];
+// Value of "PLANT CODE" in a source file header -> plant (inferred from the fixtures in input/*.xls).
+export const PLANT_CODE_MAP = { P: 'BP', B: 'BPK', G: 'GW', S: 'SR' };

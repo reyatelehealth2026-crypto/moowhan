@@ -1,4 +1,6 @@
 // ==================== FORMATTING HELPERS ====================
+import { today as clockToday } from './clock.js';
+
 export const formatNumber = (num) => (Number(num) || 0).toLocaleString('en-US');
 
 export const formatSize = (bytes) => {
@@ -50,7 +52,7 @@ export const formatMonth = (pm, offset = 0) => {
 export const monthLabels = (pm) =>
   ['N', 'N+1', 'N+2', 'N+3'].map((h, i) => (pm ? `${h} (${formatMonth(pm, i)})` : h));
 
-export const todayStamp = () => new Date().toISOString().slice(0, 10);
+export const todayStamp = () => clockToday();
 
 // Excel sheet names: max 31 chars, none of []*?/\: and no leading/trailing apostrophe.
 export const safeSheetName = (name) =>
@@ -91,7 +93,11 @@ export const formatDate = (value, style = 'long', { tz = 'Asia/Bangkok' } = {}) 
   return `${date} ${time}`;
 };
 
-/** "2 นาทีที่แล้ว" / "อีก 3 ชั่วโมง". `now` defaults to the injectable clock. */
+/**
+ * "2 นาทีที่แล้ว" / "อีก 3 ชั่วโมง". `now` defaults to the injectable clock.
+ * @param {string|number|Date} iso
+ * @param {Date|number} [now]
+ */
 export const relativeTime = (iso, now = format.now()) => {
   const t = new Date(iso).getTime();
   const n = now instanceof Date ? now.getTime() : Number(now);
@@ -99,6 +105,7 @@ export const relativeTime = (iso, now = format.now()) => {
   const diff = Math.round((n - t) / 1000);
   const abs = Math.abs(diff);
   if (abs < 45) return 'เมื่อสักครู่';
+  /** @type {[number, string][]} */
   const steps = [[60, 'นาที'], [3600, 'ชั่วโมง'], [86400, 'วัน'], [2592000, 'เดือน'], [31104000, 'ปี']];
   let i = 0;
   while (i < steps.length - 1 && abs >= steps[i + 1][0]) i++;
@@ -114,4 +121,13 @@ export const formatDelta = (n, pct) => {
   if (pct === null || pct === undefined || Number.isNaN(Number(pct))) return base;
   const p = Number(pct) * 100;
   return `${base} (${sign(p)}${Math.abs(p).toFixed(1)}%)`;
+};
+
+/** monthKey({ year: 2026, month: 2 }, 1) -> "2026-03"; null production month -> "". */
+export const monthKey = (pm, offset = 0) => {
+  if (!pm) return '';
+  const idx = pm.month - 1 + offset;
+  const year = pm.year + Math.floor(idx / 12);
+  const month = ((idx % 12) + 12) % 12;
+  return `${year}-${String(month + 1).padStart(2, '0')}`;
 };

@@ -41,6 +41,7 @@ export default function FileCard({ file, files = [], actions, disabled = false }
               type="file"
               accept=".xlsx,.xls"
               className="hidden"
+              aria-label={`เลือกไฟล์ใหม่แทน ${file.name}`}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) actions.replaceSourceFile(file.id, f); e.target.value = ''; }}
             />
           </>

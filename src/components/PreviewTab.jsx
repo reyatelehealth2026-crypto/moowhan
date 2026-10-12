@@ -4,6 +4,8 @@ import { PLANTS, PLANT_META } from '../constants.js';
 import HorizonBadge from '../features/qa-file-guards/HorizonBadge.jsx';
 import { PART_TYPE_LABEL } from '../features/qa-file-guards/logic.js';
 import { DataGrid, STRINGS, GLOSSARY, Button } from '../features/ui-kit/index.js';
+import GlossaryTip from '../features/help-center/GlossaryTip.jsx';
+import { COLUMN_TIPS } from '../features/help-center/columns.js';
 
 // ==================== PREVIEW TAB ("ตรวจสอบข้อมูล") ====================
 export default function PreviewTab({ state, actions, monthLabels }) {
@@ -35,9 +37,9 @@ export default function PreviewTab({ state, actions, monthLabels }) {
     { key: 'partNumber', label: GLOSSARY.partNumber, className: 'font-mono text-blue-600' },
     { key: 'plant', label: 'Plant', render: (r) => <span className={`px-2 py-0.5 rounded text-xs ${PLANT_META[r.plant]?.badge || ''}`}>{r.plant}</span>, value: (r) => r.plant },
     { key: 'partCode', label: GLOSSARY.partCode, className: 'font-mono text-xs text-slate-600' },
-    { key: 'dockCode', label: GLOSSARY.dockCode, className: 'text-xs text-slate-500' },
-    { key: 'packingSize', label: GLOSSARY.packingSize, num: true, className: 'text-slate-500' },
-    ...['n', 'n1', 'n2', 'n3'].map((k, i) => ({ key: k, label: <>{monthLabels?.[i] || GLOSSARY[k]}<HorizonBadge k={k} sourceFiles={sourceFiles} /></>, num: true })),
+    { key: 'dockCode', label: GLOSSARY.dockCode, className: 'text-xs text-slate-500', tip: <GlossaryTip glossaryKey={COLUMN_TIPS.dockCode} label="อธิบาย Dock" /> },
+    { key: 'packingSize', label: GLOSSARY.packingSize, num: true, className: 'text-slate-500', tip: <GlossaryTip glossaryKey={COLUMN_TIPS.packingSize} label="อธิบาย Pack" /> },
+    ...['n', 'n1', 'n2', 'n3'].map((k, i) => ({ key: k, label: <>{monthLabels?.[i] || GLOSSARY[k]}<HorizonBadge k={k} sourceFiles={sourceFiles} /></>, num: true, tip: k === 'n1' ? <GlossaryTip glossaryKey={COLUMN_TIPS.n1} monthLabels={monthLabels} label="อธิบาย N+1" /> : undefined })),
   ], [monthLabels, sourceFiles]);
 
   const missingPlants = PLANTS.filter((p) => fileCounts[p] === 0);

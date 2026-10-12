@@ -4,6 +4,7 @@ import { defineFeature } from '../defineFeature.js';
 import { PLANTS, PLANT_META } from '../../constants.js';
 import { WEEKDAY_LABELS } from '../../utils/calendar.js';
 import { formatNumber } from '../../utils/format.js';
+import { copyText } from '../../utils/clipboard.js';
 import { buildDailyTotalAoa } from '../../lib/excel/daily.js';
 import {
   PRESETS, VIEW_MODES, buildColumns, buildGridItems, cellValue, gridToAoa, isOver, loadSettings,
@@ -136,11 +137,10 @@ function DailyGridTab({ state, actions, monthLabels }) {
 
   const copy = async () => {
     const text = toTsv(gridToAoa(items, columns, monthLabels));
-    try {
-      await navigator.clipboard.writeText(text);
+    if ((await copyText(text)).ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } else {
       actions.setNotice('คัดลอกไม่สำเร็จ เบราว์เซอร์ไม่อนุญาตให้เข้าถึงคลิปบอร์ด ลองกดใหม่อีกครั้งหรืออนุญาตสิทธิ์คลิปบอร์ด');
     }
   };

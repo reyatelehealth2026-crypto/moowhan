@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import JSZip from 'jszip';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -41,8 +42,26 @@ try {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
 
   await page.goto(url, { waitUntil: 'networkidle' });
+
+  // ---- help-center: disabled-tab hint (before any processing) ----
+  await page.locator('#tab-preview').locator('..').click();
+  await page.getByText('ต้องประมวลผลไฟล์ก่อน').first().waitFor({ timeout: 3000 });
   step(`loaded ${url} — ${await page.title()}`);
   await shot(page, '01-upload');
+
+  // ---- compare: tab is disabled until files are processed ----
+  {
+    const t = page.getByRole('tab', { name: 'เทียบรอบก่อน' });
+    let disabled;
+    if (await t.count()) disabled = await t.first().isDisabled();
+    else {
+      await page.getByRole('button', { name: /เพิ่มเติม/ }).click();
+      const mi = page.getByRole('menuitem', { name: /เทียบรอบก่อน/ }).first();
+      disabled = (await mi.isDisabled()) || (await mi.getAttribute('aria-disabled')) === 'true';
+      await page.keyboard.press('Escape');
+    }
+    if (!disabled) errors.push('compare: tab is not disabled before processing');
+  }
 
   const inputs = page.locator('input[type=file]');
   await inputs.nth(0).setInputFiles(path.join(ROOT, 'template.xlsx'));
@@ -83,7 +102,7 @@ try {
   fs.rmSync(dupCopy, { force: true });
   step('qa-file-guards: meta chips, duplicate chip and remove ok');
 
-  await page.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
+  await page.getByRole('button', { name: 'รวมข้อมูลและคำนวณ', exact: true }).click();
   await page.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
   step('processed; header: ' + (await page.locator('header').innerText()).replace(/\s*\n\s*/g, ' | '));
   await shot(page, '03-preview', true);
@@ -117,7 +136,7 @@ try {
   if (!(await page.evaluate(() => document.activeElement?.getAttribute('data-testid') === 'preview-excel'))) errors.push('ui-kit: focus was not restored to the opener');
   step('ui-kit grid search/sort/hotkeys/focus trap ok');
 
-  await page.getByRole('tab', { name: 'สรุปรวม' }).click();
+  await page.getByRole('tab', { name: 'สรุปรวม', exact: true }).click();
   await page.getByText('สรุปยอดรวม').waitFor();
   await page.locator('[data-search-input]').first().fill('BN');
   await page.getByText(/พบ [\d,]+ จาก [\d,]+/).first().waitFor();
@@ -125,7 +144,28 @@ try {
   if (!/Firm/.test(await page.getByTestId('horizon-n').first().innerText())) errors.push('qa-file-guards: Firm badge missing on N');
   await shot(page, '04-summary', true);
 
-  await page.getByRole('button', { name: 'ดูกราฟวิเคราะห์' }).click();
+  // share-clipboard: copy button, share modal, modes, 390px layout
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
+  await page.getByTestId('summary-copy').click();
+  await page.getByRole('button', { name: 'คัดลอกแล้ว' }).first().waitFor();
+  await page.getByTestId('share-summary').click();
+  const shareDlg = page.getByRole('dialog');
+  await shareDlg.waitFor();
+  const shortText = await shareDlg.getByTestId('share-text').inputValue();
+  await shareDlg.getByText('ตาราง TSV').click();
+  const tsvText = await shareDlg.getByTestId('share-text').inputValue();
+  if (shortText === tsvText || !tsvText.includes('\t') || !shortText.includes('48,934')) errors.push('share: modal text did not change per mode');
+  await shareDlg.getByText('เต็ม (อีเมล)').click();
+  await shareDlg.getByTestId('share-copy').click();
+  await shareDlg.getByRole('button', { name: 'คัดลอกแล้ว' }).waitFor();
+  await page.setViewportSize({ width: 390, height: 800 });
+  if ((await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) > 0) errors.push('share: horizontal overflow at 390px');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.keyboard.press('Escape');
+  await shareDlg.waitFor({ state: 'detached' });
+  step('share-clipboard copy + modal ok');
+
+  await page.getByRole('button', { name: 'ดูกราฟวิเคราะห์', exact: true }).click();
   await page.getByText('ยอดรวมรายเดือน').waitFor();
   if ((await page.getByRole('tab', { name: 'แดชบอร์ด' }).getAttribute('aria-selected')) !== 'true') errors.push('dashboard: tab not selected after ดูกราฟวิเคราะห์');
   await page.getByTestId('dashboard-kpis').getByText('48,934').waitFor();
@@ -150,7 +190,7 @@ try {
   ]);
   const outFile = path.join(OUT, download.suggestedFilename());
   await download.saveAs(outFile);
-  await page.getByText(/ดาวน์โหลด Production_/).waitFor();
+  await page.getByText(`ดาวน์โหลด ${download.suggestedFilename()}`).first().waitFor();
   step(`downloaded ${download.suggestedFilename()} (${fs.statSync(outFile).size} bytes)`);
 
   await page.getByRole('tab', { name: 'รายละเอียด Matching' }).click();
@@ -163,7 +203,7 @@ try {
   // ---- daily-grid ----
   await page.getByRole('tab', { name: 'ตารางรายวัน', exact: true }).first().click();
   await page.getByRole('heading', { name: 'ตารางรายวัน' }).waitFor();
-  await page.getByRole('button', { name: 'รายวันทั้ง 4 เดือน' }).click();
+  await page.getByRole('button', { name: 'รายวันทั้ง 4 เดือน', exact: true }).click();
   const numCols = await page.locator('th[data-col=num]').count();
   if (numCols !== 128) errors.push(`daily-grid: expected 128 numeric columns, got ${numCols}`);
   const scroller = page.getByTestId('daily-scroll');
@@ -177,7 +217,7 @@ try {
   if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('daily-grid: page overflows horizontally at 390px');
   if (!(await scroller.evaluate((el) => el.scrollWidth > el.clientWidth))) errors.push('daily-grid: grid frame should scroll horizontally');
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.getByRole('button', { name: 'พิมพ์แผนรายวัน' }).first().click();
+  await page.getByRole('button', { name: 'พิมพ์แผนรายวัน', exact: true }).first().click();
   await page.getByRole('dialog', { name: 'พิมพ์แผนรายวัน' }).waitFor();
   await page.emulateMedia({ media: 'print' });
   const printState = await page.evaluate(() => ({
@@ -228,6 +268,90 @@ try {
   if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('qa-engine: page overflows horizontally at 390px');
   await page.setViewportSize({ width: 1280, height: 900 });
   step('qa-engine tab shows 0 ต้องแก้, ไปดูแถว pre-fills search, no overflow at 390px');
+  // ---- manual-edit ----
+  const editTab = page.getByRole('tab', { name: /แก้ไขตัวเลข/ });
+  if (!(await editTab.count())) {
+    const more = page.getByRole('button', { name: /เพิ่มเติม/ });
+    if (await more.count()) await more.click();
+  }
+  await (await editTab.count() ? editTab : page.getByRole('menuitem', { name: /แก้ไขตัวเลข/ })).first().click();
+  await page.getByTestId('manual-edit-tab').waitFor();
+  const srN = page.getByTestId('cell-SR-86790-0K051-00-S1-n');
+  const editSrN = async (text) => {
+    await srN.dblclick();
+    await page.getByTestId('cell-SR-86790-0K051-00-S1-n-input').fill(text);
+    await page.keyboard.press('Enter');
+  };
+  await editSrN('-5');
+  await page.getByText('ต้องเป็นจำนวนเต็ม 0 ขึ้นไป').first().waitFor();
+  await page.getByTestId('cell-SR-86790-0K051-00-S1-n-input').fill('1300');
+  await page.keyboard.press('Enter');
+  await page.getByTestId('edit-bar').waitFor();
+  if (!(await page.getByTestId('edit-save').isDisabled())) errors.push('manual-edit: save should be disabled until a reason is chosen');
+  await page.getByText('N: 1352 → 1300').waitFor();
+  await page.getByTestId('reason-chip-TMT แจ้งแก้').click();
+  await page.getByTestId('edit-save').click();
+  await page.getByTestId('edited-chip').waitFor();
+  await page.getByText('แก้ไขด้วยมือ 1 รายการ').waitFor();
+  await page.getByRole('button', { name: 'เลิกทำ' }).click();
+  await page.getByTestId('edited-chip').waitFor({ state: 'detached' });
+  await editSrN('1300');
+  await page.getByTestId('reason-chip-ปรับตามสต็อก').click();
+  await page.getByTestId('edit-save').click();
+  await page.getByTestId('edited-chip').waitFor();
+  await page.getByTestId('revert-row').click();
+  await page.getByTestId('edited-chip').waitFor({ state: 'detached' });
+  await editSrN('1300');
+  await page.getByTestId('reason-chip-อื่นๆ').click();
+  if (!(await page.getByTestId('edit-save').isDisabled())) errors.push('manual-edit: "อื่นๆ" without text should keep save disabled');
+  await page.getByTestId('reason-text').fill('TMT โทรแจ้ง');
+  await page.getByTestId('edit-save').click();
+  await page.getByTestId('edited-chip').waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('manual-edit: page overflows horizontally at 390px');
+  await shot(page, '06-manual-edit-mobile', true);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  step('manual-edit: validation, reason chips, save, undo, revert, header counter, 390px ok');
+
+  // ---- compare ----
+  {
+    const t = page.getByRole('tab', { name: 'เทียบรอบก่อน' });
+    if (await t.count()) await t.first().click();
+    else { await page.getByRole('button', { name: /เพิ่มเติม/ }).click(); await page.getByRole('menuitem', { name: /เทียบรอบก่อน/ }).first().click(); }
+    await page.getByTestId('compare').waitFor();
+    if (!(await page.getByTestId('compare-empty').innerText()).includes('ยังไม่มีข้อมูลรอบก่อน')) errors.push('compare: missing "ยังไม่มีข้อมูลรอบก่อน" before a baseline');
+    await page.getByTestId('compare-drop').locator('xpath=ancestor::div[@role="button"]').locator('input[type=file]').setInputFiles(path.join(ROOT, 'input', 'download.xlsx'));
+    await page.getByTestId('compare-month').waitFor();
+    if (await page.getByTestId('compare-table').count()) errors.push('compare: table shown before the month was confirmed');
+    if (!(await page.getByTestId('compare-empty').innerText()).includes('ยืนยันเดือน')) errors.push('compare: no prompt to confirm the month');
+    await page.getByTestId('compare-month').selectOption('202602');
+    await page.getByTestId('compare-table').waitFor();
+    if (!(await page.getByTestId('compare-sentence').innerText()).includes('รอบเดียวกัน')) errors.push('compare: alignment sentence missing');
+    const kpis = await page.getByTestId('compare-kpis').innerText();
+    if (!/หายไป\s*13/.test(kpis)) errors.push(`compare: expected 13 missing, got ${kpis.replace(/\s+/g, ' ')}`);
+    await page.setViewportSize({ width: 390, height: 844 });
+    if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('compare: page overflows horizontally at 390px');
+    await page.setViewportSize({ width: 1280, height: 900 });
+    step('compare tab: disabled before processing, month confirmation, 13 missing, no overflow at 390px');
+  }
+
+  // ---- flat-export: modal, long CSV first line equals the header ----
+  const flatBtn = page.getByRole('button', { name: 'ส่งออกข้อมูล (CSV/JSON)' });
+  if (!(await flatBtn.count())) await page.getByTestId('options').click();
+  await (await flatBtn.count() ? flatBtn : page.getByRole('menuitem', { name: 'ส่งออกข้อมูล (CSV/JSON)' })).first().click();
+  const flatDialog = page.getByRole('dialog', { name: 'ส่งออกข้อมูลสำหรับระบบอื่น' });
+  await flatDialog.waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('flat-export: page overflows horizontally at 390px');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const [csvDl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), flatDialog.getByRole('button', { name: 'ดาวน์โหลด CSV รายวัน (long)' }).click()]);
+  const csvFile = path.join(OUT, csvDl.suggestedFilename());
+  await csvDl.saveAs(csvFile);
+  const csvHead = fs.readFileSync(csvFile, 'utf8').split('\r\n')[0];
+  if (csvDl.suggestedFilename() !== 'forecast_long_202602.csv') errors.push(`flat-export: unexpected file name ${csvDl.suggestedFilename()}`);
+  if (csvHead !== '\uFEFFplant,plant_code,file_name,revision,part_number,base_part,part_code,part_desc,supp_code,shipping_dock,dock_code,car_family,packing_size,month_offset,month,horizon,day,qty,edited,carried_over,spilled') errors.push(`flat-export: wrong CSV header ${csvHead}`);
+  await page.getByRole('button', { name: 'ปิด', exact: true }).click();
+  step('flat-export modal opens, long CSV downloads with the header on line 1');
 
   // Ctrl+Enter on the upload tab processes the files again
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
@@ -235,6 +359,10 @@ try {
   await page.keyboard.press('Control+Enter');
   await page.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
   step('Ctrl+Enter processes');
+
+  // the edit made above is replayed on the new processing
+  await page.getByText('แก้ไขด้วยมือ 1 รายการ').waitFor();
+  step('manual-edit: edit replayed after processing again');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
@@ -248,6 +376,99 @@ try {
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).waitFor();
   await page.getByRole('button', { name: /โหมด/ }).click();
   step('simple/advanced toggle ok');
+
+  // ---- storage-session: opt-in save, reload, restore, forget, wipe (fresh browser context = empty storage) ----
+  {
+    const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const p2 = await ctx2.newPage();
+    p2.on('pageerror', (e) => errors.push(`storage pageerror: ${e.message}`));
+    await p2.goto(url, { waitUntil: 'networkidle' });
+    const files2 = p2.locator('input[type=file]');
+    await files2.nth(0).setInputFiles(path.join(ROOT, 'template.xlsx'));
+    await p2.getByText('template.xlsx').first().waitFor();
+    // default off: nothing is written until the user opts in
+    await p2.getByTestId('storage-panel').waitFor();
+    if (await p2.getByTestId('storage-inventory').count()) errors.push('storage: inventory should start empty');
+    await p2.getByTestId('remember-template').click();
+    await p2.getByTestId('template-card').waitFor();
+    await p2.getByTestId('save-session-toggle').click();
+    await files2.nth(1).setInputFiles(SOURCES);
+    await p2.getByText('SR veh 481D.xls').waitFor();
+    await p2.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
+    await p2.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
+    await p2.getByTestId('autosave-chip').waitFor({ timeout: 15000 });
+    step('storage: opted in, autosave chip shown');
+
+    await p2.reload({ waitUntil: 'networkidle' });
+    await p2.getByTestId('restore-banner').waitFor({ timeout: 15000 });
+    step('storage: restore banner after reload: ' + (await p2.getByTestId('restore-banner').innerText()).replace(/\s*\n\s*/g, ' | '));
+    await p2.getByTestId('restore-session').click();
+    await p2.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
+    if (!(await p2.locator('table, [role=grid]').first().isVisible())) errors.push('storage: restored data not visible in preview');
+    step('storage: restored without uploading again');
+
+    await p2.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
+    await p2.setViewportSize({ width: 390, height: 844 });
+    if (await p2.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('storage: panel overflows horizontally at 390px');
+    await p2.setViewportSize({ width: 1280, height: 900 });
+    await p2.getByTestId('forget-template').click();
+    await p2.getByTestId('template-card').waitFor({ state: 'detached' });
+    await p2.getByTestId('wipe-all').click();
+    await p2.getByRole('button', { name: 'ล้างทั้งหมด' }).click();
+    await p2.getByText('ล้างข้อมูลที่เก็บในเครื่องแล้ว').first().waitFor();
+    if (await p2.getByTestId('save-session-toggle').isChecked()) errors.push('storage: wipe should reset the save toggle');
+    await p2.reload({ waitUntil: 'networkidle' });
+    await p2.getByTestId('storage-panel').waitFor();
+    if (await p2.getByTestId('restore-banner').count()) errors.push('storage: restore banner should be gone after wipe');
+    step('storage: forget template + wipe all ok');
+    await ctx2.close();
+  }
+
+  // ---- provenance-manifest: Run Info sheet, mark as sent, chip, stale warning ----
+  {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.keyboard.press('Control+s')]);
+    const f = path.join(OUT, `prov-${dl.suggestedFilename()}`);
+    await dl.saveAs(f);
+    const zip = await JSZip.loadAsync(fs.readFileSync(f));
+    const wbXml = await zip.file('xl/workbook.xml').async('string');
+    if (!wbXml.includes('name="Run Info"')) errors.push('provenance: Run Info sheet missing from the download');
+    await page.getByTestId('mark-sent').click();
+    await page.getByTestId('sent-note').fill('ส่งให้ฝ่ายผลิต');
+    await page.getByTestId('sent-confirm').click();
+    const chip = await page.getByTestId('sent-chip').innerText();
+    if (!/^ส่งแล้ว \d\d:\d\d · [0-9a-f]{8}$/.test(chip.trim())) errors.push(`provenance: unexpected chip "${chip}"`);
+    if (await page.getByText('มีการแก้ไขหลังส่ง').count()) errors.push('provenance: stale warning shown without changes');
+    await page.getByRole('button', { name: 'ลบ SR veh 481D.xls' }).click();
+    await page.getByText('(มีการแก้ไขหลังส่ง)').first().waitFor({ timeout: 5000 });
+    // the sent badge may sit in the header overflow menu when other features fill the inline slots
+    const sentBtn = page.getByRole('button', { name: /ส่งแล้ว/ });
+    if (!(await sentBtn.count())) await page.getByTestId('options').click();
+    await (await sentBtn.count() ? sentBtn : page.getByRole('menuitem', { name: /ส่งแล้ว/ })).first().click();
+    await page.getByRole('dialog', { name: 'รอบการประมวลผล' }).waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('provenance: horizontal overflow at 390px');
+    await page.keyboard.press('Escape');
+    step('provenance: Run Info sheet, sent chip, stale warning ok');
+  }
+
+  // ---- help-center ----
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole('button', { name: 'วิธีใช้' }).click();
+  const help = page.getByRole('dialog', { name: 'ศูนย์ช่วยเหลือ' });
+  await help.waitFor();
+  await page.keyboard.press('Escape');
+  await help.waitFor({ state: 'detached' });
+  await page.locator('body').click({ position: { x: 5, y: 300 } });
+  await page.keyboard.press('Shift+?');
+  await help.waitFor();
+  if ((await help.getByRole('button', { name: 'คีย์ลัด' }).getAttribute('aria-expanded')) !== 'true') errors.push('help-center: "?" did not open the shortcuts section');
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('help-center: page overflows at 390px');
+  await page.keyboard.press('Escape');
+  await help.waitFor({ state: 'detached' });
+  step('help-center dialog, Escape, "?" and 390px ok');
 } finally {
   await browser.close();
   if (server) server.kill();

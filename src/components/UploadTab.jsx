@@ -11,6 +11,7 @@ const STATUS_ICON = {
   error: 'text-red-500',
   processing: 'text-blue-500',
   ready: 'text-slate-400',
+  warning: 'text-amber-500',
 };
 
 // ==================== UPLOAD TAB ====================
@@ -103,12 +104,13 @@ export default function UploadTab({ state, actions }) {
                 <div key={file.id} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-lg px-3 sm:px-4 py-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className={`w-5 h-5 flex-shrink-0 ${STATUS_ICON[file.status] || STATUS_ICON.ready}`}>
-                      {file.status === 'done' ? <Icons.Check /> : file.status === 'processing' ? <Icons.Refresh /> : file.status === 'error' ? <Icons.Alert /> : <Icons.File />}
+                      {file.status === 'done' ? <Icons.Check /> : file.status === 'processing' ? <Icons.Refresh /> : file.status === 'error' || file.status === 'warning' ? <Icons.Alert /> : <Icons.File />}
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate" title={file.name}>{file.name}</p>
                       <p className="text-xs text-slate-400 truncate">
                         {formatSize(file.size)}
+                        {file.status === 'warning' && file.rowCount === 0 && <span className="text-amber-600"> • ไม่พบแถวข้อมูล</span>}
                         {file.error && <span className="text-red-500"> • {file.error}</span>}
                       </p>
                       <FileCard file={file} files={sourceFiles} actions={actions} disabled={processing.active} />

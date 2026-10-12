@@ -100,6 +100,7 @@ export default function DataGrid({
                         </span>
                       </button>
                     ) : col.label}
+                    {col.tip && <span className="ml-1 align-middle">{col.tip}</span>}
                   </th>
                 );
               })}

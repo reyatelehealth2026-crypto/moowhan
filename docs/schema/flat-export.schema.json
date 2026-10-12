@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://moowhan.local/schema/flat-export.schema.json",
+  "title": "moowhan flat export",
+  "type": "object",
+  "required": ["schemaVersion", "appVersion", "generatedAt", "productionMonth", "monthLabels", "files", "rows", "summary"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "appVersion": { "type": "string" },
+    "generatedAt": { "type": "string" },
+    "productionMonth": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["raw", "year", "month"],
+          "properties": { "raw": { "type": "string" }, "year": { "type": "integer" }, "month": { "type": "integer", "minimum": 1, "maximum": 12 } }
+        }
+      ]
+    },
+    "monthLabels": { "type": "array", "items": { "type": "string" } },
+    "files": { "type": "array", "items": { "$ref": "#/$defs/file" } },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/row" } },
+    "summary": { "type": "array", "items": { "$ref": "#/$defs/summaryRow" } },
+    "qa": {},
+    "manifestSha256": { "type": "string" }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "required": ["name", "plant", "plantCode", "revision", "forecastType", "issueDate", "size", "sha256", "rows"],
+      "properties": {
+        "name": { "type": "string" }, "plant": { "type": "string" }, "plantCode": { "type": "string" },
+        "revision": { "type": "string" }, "forecastType": { "type": "string" }, "issueDate": { "type": "string" },
+        "size": { "type": "number", "minimum": 0 },
+        "sha256": { "oneOf": [{ "type": "null" }, { "type": "string" }] },
+        "rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "dayList": { "type": "array", "minItems": 31, "maxItems": 31, "items": { "oneOf": [{ "type": "null" }, { "type": "number" }] } },
+    "row": {
+      "type": "object",
+      "required": ["plant", "fileName", "partNumber", "basePart", "partCode", "dockCode", "packingSize", "n", "n1", "n2", "n3", "daily", "edited", "carriedOver", "spilled"],
+      "properties": {
+        "plant": { "type": "string" }, "fileName": { "type": "string" }, "partNumber": { "type": "string" },
+        "basePart": { "type": "string" }, "partCode": { "type": "string" }, "dockCode": { "type": "string" },
+        "packingSize": { "oneOf": [{ "type": "null" }, { "type": "number" }, { "type": "string" }] },
+        "n": { "type": "number" }, "n1": { "type": "number" }, "n2": { "type": "number" }, "n3": { "type": "number" },
+        "daily": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "#/$defs/dayList" } },
+        "edited": { "type": "boolean" }, "carriedOver": { "type": "boolean" }, "spilled": { "type": "boolean" }
+      }
+    },
+    "summaryRow": {
+      "type": "object",
+      "required": ["partNumber", "plants", "n", "n1", "n2", "n3", "total"],
+      "properties": {
+        "partNumber": { "type": "string" }, "plants": { "type": "array", "items": { "type": "string" } },
+        "n": { "type": "number" }, "n1": { "type": "number" }, "n2": { "type": "number" }, "n3": { "type": "number" }, "total": { "type": "number" }
+      }
+    }
+  }
+}
