@@ -4,6 +4,7 @@ import ProgressBar from './ProgressBar.jsx';
 import { PLANTS, PLANT_META } from '../constants.js';
 import { STRINGS } from '../features/ui-kit/strings.js';
 import { formatSize } from '../utils/format.js';
+import FileCard from '../features/qa-file-guards/FileCard.jsx';
 
 const STATUS_ICON = {
   done: 'text-emerald-500',
@@ -110,11 +111,10 @@ export default function UploadTab({ state, actions }) {
                       <p className="text-sm font-medium truncate" title={file.name}>{file.name}</p>
                       <p className="text-xs text-slate-400 truncate">
                         {formatSize(file.size)}
-                        {file.rowCount > 0 && ` • ${file.rowCount} แถว`}
-                        {file.meta?.productionMonthRaw && ` • เดือน ${file.meta.productionMonthRaw}`}
                         {file.status === 'warning' && file.rowCount === 0 && <span className="text-amber-600"> • ไม่พบแถวข้อมูล</span>}
                         {file.error && <span className="text-red-500"> • {file.error}</span>}
                       </p>
+                      <FileCard file={file} files={sourceFiles} actions={actions} disabled={processing.active} />
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">

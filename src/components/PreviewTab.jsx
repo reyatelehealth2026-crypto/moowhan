@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Icons from './Icons.jsx';
 import { PLANTS, PLANT_META } from '../constants.js';
+import HorizonBadge from '../features/qa-file-guards/HorizonBadge.jsx';
+import { PART_TYPE_LABEL } from '../features/qa-file-guards/logic.js';
 import { DataGrid, STRINGS, GLOSSARY, Button } from '../features/ui-kit/index.js';
 import GlossaryTip from '../features/help-center/GlossaryTip.jsx';
 import { COLUMN_TIPS } from '../features/help-center/columns.js';
@@ -24,7 +26,12 @@ export default function PreviewTab({ state, actions, monthLabels }) {
     });
     return out;
   }, [processedData]);
-  const rows = useMemo(() => (plant === 'all' ? allRows : allRows.filter((r) => r.plant === plant)), [allRows, plant]);
+  const [partType, setPartType] = useState('all'); // qa-file-guards: Vehicle / Packing filter
+  const hasPartTypes = useMemo(() => allRows.some((r) => r.partType), [allRows]);
+  const rows = useMemo(
+    () => allRows.filter((r) => (plant === 'all' || r.plant === plant) && (partType === 'all' || r.partType === partType)),
+    [allRows, plant, partType],
+  );
 
   const columns = useMemo(() => [
     { key: 'partNumber', label: GLOSSARY.partNumber, className: 'font-mono text-blue-600' },
@@ -32,8 +39,8 @@ export default function PreviewTab({ state, actions, monthLabels }) {
     { key: 'partCode', label: GLOSSARY.partCode, className: 'font-mono text-xs text-slate-600' },
     { key: 'dockCode', label: GLOSSARY.dockCode, className: 'text-xs text-slate-500', tip: <GlossaryTip glossaryKey={COLUMN_TIPS.dockCode} label="อธิบาย Dock" /> },
     { key: 'packingSize', label: GLOSSARY.packingSize, num: true, className: 'text-slate-500', tip: <GlossaryTip glossaryKey={COLUMN_TIPS.packingSize} label="อธิบาย Pack" /> },
-    ...['n', 'n1', 'n2', 'n3'].map((k, i) => ({ key: k, label: monthLabels?.[i] || GLOSSARY[k], num: true, tip: k === 'n1' ? <GlossaryTip glossaryKey={COLUMN_TIPS.n1} monthLabels={monthLabels} label="อธิบาย N+1" /> : undefined })),
-  ], [monthLabels]);
+    ...['n', 'n1', 'n2', 'n3'].map((k, i) => ({ key: k, label: <>{monthLabels?.[i] || GLOSSARY[k]}<HorizonBadge k={k} sourceFiles={sourceFiles} /></>, num: true, tip: k === 'n1' ? <GlossaryTip glossaryKey={COLUMN_TIPS.n1} monthLabels={monthLabels} label="อธิบาย N+1" /> : undefined })),
+  ], [monthLabels, sourceFiles]);
 
   const missingPlants = PLANTS.filter((p) => fileCounts[p] === 0);
   const filesWithError = sourceFiles.filter((f) => f.status === 'error').length;
@@ -52,6 +59,18 @@ export default function PreviewTab({ state, actions, monthLabels }) {
           {p === 'all' ? STRINGS.plants.all : p}
         </button>
       ))}
+      {hasPartTypes && (
+        <select
+          aria-label="ชนิดชิ้นส่วน"
+          data-testid="part-type-filter"
+          value={partType}
+          onChange={(e) => setPartType(e.target.value)}
+          className="px-3 py-2 min-h-[44px] rounded-lg text-sm border border-slate-200 bg-white text-slate-600"
+        >
+          <option value="all">Vehicle + Packing</option>
+          {Object.entries(PART_TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      )}
     </div>
   );
 

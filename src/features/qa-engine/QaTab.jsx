@@ -1,3 +1,4 @@
+import { copyText } from '../../utils/clipboard.js';
 import { useMemo, useState } from 'react';
 import Icons from '../../components/Icons.jsx';
 import { PLANTS } from '../../constants.js';
@@ -49,7 +50,8 @@ export default function QaTab({ state, actions }) {
   };
   const copySummary = async () => {
     try {
-      await navigator.clipboard.writeText(summaryText(issues, { productionLabel: pmLabel }));
+      const res = await copyText(summaryText(issues, { productionLabel: pmLabel }));
+      if (!res.ok) throw new Error('copy failed');
       pushToast({ message: 'คัดลอกสรุปผลตรวจแล้ว', tone: 'success' });
     } catch {
       actions.setNotice?.('คัดลอกไม่ได้ในเบราว์เซอร์นี้ ใช้ปุ่ม “ดาวน์โหลด QA (.csv)” แทน');

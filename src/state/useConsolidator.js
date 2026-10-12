@@ -4,6 +4,8 @@ import { describeIntake, expandIncoming } from '../features/import-cli/intake.js
 import { buildSummary, computeTotals } from '../lib/excel/aggregate.js';
 import { categorizeFile } from '../lib/excel/categorize.js';
 import { DEFAULT_PROFILE } from '../features/visibility.js';
+import { sha256Hex } from '../features/qa-file-guards/hash.js';
+import { findDuplicateFiles, resolveNewer } from '../features/qa-file-guards/logic.js';
 import { monthLabels, parseProductionMonth } from '../utils/format.js';
 import { sha256 } from '../utils/hash.js';
 import { stampSubset } from '../features/provenance-manifest/stamp.js';
@@ -48,6 +50,7 @@ export default function useConsolidator({ expandFiles = null } = {}) {
   const refs = useRef({});
   refs.current = { template, sourceFiles, processedData, summaryData, productionMonth, features };
   const processingRef = useRef(false);
+  const inspectCache = useRef(new Map()); // qa-file-guards: file id -> parsed source (processAll reuses it)
 
   const fileCounts = useMemo(
     () => PLANTS.reduce((acc, p) => ({ ...acc, [p]: sourceFiles.filter((f) => f.category === p).length }), {}),
@@ -115,10 +118,10 @@ export default function useConsolidator({ expandFiles = null } = {}) {
       else if (existing.has(file.name)) duplicates.push(file);
       else {
         existing.add(file.name);
-        accepted.push({ id: nextId(), name: file.name, size: file.size, category, file, status: 'ready', rowCount: 0, error: null, meta: null });
+        accepted.push({ id: nextId(), name: file.name, size: file.size, category, file, status: 'inspecting', rowCount: 0, error: null, meta: null });
       }
     });
-    if (accepted.length) setSourceFiles((prev) => [...prev, ...accepted]);
+    if (accepted.length) { setSourceFiles((prev) => [...prev, ...accepted]); inspectFiles(accepted); }
 
     const problems = [];
     if (rejected.length) problems.push(`ไม่สามารถจัดประเภทไฟล์ได้ ${rejected.length} ไฟล์: ${rejected.map((f) => f.name).join(', ')}\nชื่อไฟล์ต้องขึ้นต้นด้วย BP, BPK, GW หรือ SR`);
@@ -142,8 +145,60 @@ export default function useConsolidator({ expandFiles = null } = {}) {
     }
   };
 
-  const removeSourceFile = (id) => setSourceFiles((prev) => prev.filter((f) => f.id !== id));
-  const clearSourceFiles = () => setSourceFiles([]);
+  const removeSourceFile = (id) => { inspectCache.current.delete(id); setSourceFiles((prev) => prev.filter((f) => f.id !== id)); };
+  const clearSourceFiles = () => { inspectCache.current.clear(); setSourceFiles([]); };
+
+  // ---------- qa-file-guards: fingerprint + metadata as soon as a file arrives ----------
+  const markDuplicates = (list) => {
+    const dups = new Map(findDuplicateFiles(list).map((d) => [d.id, d.duplicateOf]));
+    return list.map((f) => ((f.duplicateOf || null) === (dups.get(f.id) || null) ? f : { ...f, duplicateOf: dups.get(f.id) || null }));
+  };
+  const inspectFiles = async (list) => {
+    let excel;
+    try { excel = await loadExcel(); } catch { excel = null; }
+    for (const f of list) {
+      let patch = { status: 'ready' };
+      try {
+        if (!excel) throw new Error('no excel');
+        const buffer = await f.file.arrayBuffer();
+        const info = excel.inspectSourceBuffer(buffer);
+        inspectCache.current.set(f.id, info.parsed);
+        patch = { status: 'ready', sha256: await sha256Hex(buffer), rowsHash: info.fingerprint, meta: info.meta, rowCount: info.rowCount };
+      } catch {
+        // unreadable files are reported by processAll with the real error message
+      }
+      setSourceFiles((prev) => markDuplicates(prev.map((x) => (x.id === f.id && x.status === 'inspecting' ? { ...x, ...patch } : x))));
+    }
+  };
+
+  // keep the newer of two files (revision > issue date > lastModified) and drop the other
+  const useNewerFile = (idA, idB) => {
+    const cur = refs.current.sourceFiles;
+    const a = cur.find((f) => f.id === idA);
+    const b = cur.find((f) => f.id === idB);
+    if (!a || !b) return false;
+    const newer = resolveNewer(a, b);
+    const older = newer === a ? b : a;
+    removeSourceFile(older.id);
+    log({ fileName: older.name, plant: older.category, action: 'file', details: `ใช้ ${newer.name} (ใหม่กว่า) แทน ${older.name}` });
+    return true;
+  };
+
+  // swap one file for another upload, keeping its place in the list
+  const replaceSourceFile = (id, file) => {
+    const cur = refs.current.sourceFiles;
+    const old = cur.find((f) => f.id === id);
+    const category = file && categorizeFile(file.name);
+    if (!old || !category) { setError(`ไม่สามารถจัดประเภทไฟล์ได้: ${file?.name || ''}\nชื่อไฟล์ต้องขึ้นต้นด้วย BP, BPK, GW หรือ SR`); return false; }
+    if (cur.some((f) => f.id !== id && f.name === file.name)) { setError(`ข้ามไฟล์ที่เพิ่มไว้แล้ว: ${file.name}`); return false; }
+    const entry = { id: nextId(), name: file.name, size: file.size, category, file, status: 'inspecting', rowCount: 0, error: null, meta: null };
+    inspectCache.current.delete(id);
+    setSourceFiles((prev) => prev.map((f) => (f.id === id ? entry : f)));
+    inspectFiles([entry]);
+    setError(null);
+    log({ fileName: file.name, plant: category, action: 'file', details: `แทนที่ ${old.name} ด้วย ${file.name}` });
+    return true;
+  };
 
   // ---------- processing ----------
   const processAll = async () => {
@@ -167,9 +222,11 @@ export default function useConsolidator({ expandFiles = null } = {}) {
         setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'processing', error: null } : x)));
         await yieldToBrowser();
         try {
-          const buffer = await f.file.arrayBuffer();
-          const digest = f.sha256 || await sha256(buffer); // hashed once per file, reused by the manifest
-          const { rows, meta } = excel.readSourceBuffer(buffer);
+          const cached = inspectCache.current.get(f.id);
+          const parsed = cached || excel.readSourceBuffer(await f.file.arrayBuffer());
+          const rows = parsed.rows.map((r) => ({ ...r })); // copies: row.id / plant below must not touch the cache
+          const meta = parsed.meta;
+          const digest = f.sha256 || await sha256(await f.file.arrayBuffer()); // hashed once per file, reused by the manifest
           rows.forEach((row, idx) => {
             row.id = `${f.id}-${idx}`;
             row.plant = f.category;
@@ -217,7 +274,7 @@ export default function useConsolidator({ expandFiles = null } = {}) {
         summary,
         matching,
         productionMonth: pm,
-        files: files.map((f) => ({ id: f.id, name: f.name, category: f.category, ...outcomes.get(f.id) })),
+        files: files.map((f) => ({ id: f.id, name: f.name, category: f.category, size: f.size, sha256: f.sha256 || null, ...outcomes.get(f.id) })),
       };
     } catch (err) {
       setError(`เกิดข้อผิดพลาดในการประมวลผล: ${err.message}`);
@@ -334,6 +391,7 @@ export default function useConsolidator({ expandFiles = null } = {}) {
   // ---------- reset ----------
   const reset = () => {
     setLastExport(null);
+    inspectCache.current.clear();
     setTemplate(null);
     setSourceFiles([]);
     setProcessing(emptyProcessing);
@@ -357,7 +415,7 @@ export default function useConsolidator({ expandFiles = null } = {}) {
   };
   const actions = {
     setTemplateFile, removeTemplate,
-    addSourceFiles, removeSourceFile, clearSourceFiles,
+    addSourceFiles, removeSourceFile, clearSourceFiles, useNewerFile, replaceSourceFile,
     processAll, updateRowValues, updateRowsBatch, commitProcessedData, exportExcel, reset,
     downloadLastExport, setLastExport, getLastExport: () => lastExportRef.current,
     setError, setNotice, log, setFeatureData, setProfile, setUiMode,

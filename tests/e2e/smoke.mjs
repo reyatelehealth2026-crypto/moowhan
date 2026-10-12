@@ -8,6 +8,7 @@
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import JSZip from 'jszip';
 import { fileURLToPath } from 'node:url';
@@ -109,6 +110,23 @@ try {
   step('template inspection card: 11 rows, no overflow at 390px');
   await shot(page, '02-files');
 
+  // ---- qa-file-guards: metadata chips, duplicate chip, remove duplicate ----
+  await page.getByTestId('file-meta').nth(4).waitFor();
+  const metaText = await page.getByTestId('file-meta').first().innerText();
+  if (!/เดือน 202602/.test(metaText) || !/ออก 23\/01\/2026/.test(metaText) || !/Rev 0/.test(metaText)) errors.push(`qa-file-guards: file meta chip incomplete (${metaText})`);
+  const dupCopy = path.join(os.tmpdir(), 'BPK packing 481D copy.xls');
+  fs.copyFileSync(path.join(ROOT, 'input', 'BPK packing 481D.xls'), dupCopy);
+  await inputs.nth(1).setInputFiles(dupCopy);
+  await page.getByTestId('chip-dup').waitFor();
+  if (!/ซ้ำกับ/.test(await page.getByTestId('chip-dup').innerText())) errors.push('qa-file-guards: duplicate chip text');
+  await page.setViewportSize({ width: 390, height: 800 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth) > 0) errors.push('qa-file-guards: page overflow at 390px with file cards');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole('button', { name: 'ลบไฟล์นี้' }).click();
+  await page.getByTestId('chip-dup').waitFor({ state: 'detached' });
+  fs.rmSync(dupCopy, { force: true });
+  step('qa-file-guards: meta chips, duplicate chip and remove ok');
+
   await page.getByRole('button', { name: 'รวมข้อมูลและคำนวณ', exact: true }).click();
   await page.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
   step('processed; header: ' + (await page.locator('header').innerText()).replace(/\s*\n\s*/g, ' | '));
@@ -148,6 +166,7 @@ try {
   await page.locator('[data-search-input]').first().fill('BN');
   await page.getByText(/พบ [\d,]+ จาก [\d,]+/).first().waitFor();
   await page.locator('[data-search-input]').first().fill('');
+  if (!/Firm/.test(await page.getByTestId('horizon-n').first().innerText())) errors.push('qa-file-guards: Firm badge missing on N');
   await shot(page, '04-summary', true);
 
   // share-clipboard: copy button, share modal, modes, 390px layout
@@ -251,6 +270,29 @@ try {
   await page.setViewportSize({ width: 1280, height: 900 });
   step('dock-analysis tab shows 6 dock groups, no overflow at 390px');
 
+  // ---- qa-engine ----
+  const openQa = async () => {
+    const qaTab = page.getByRole('tab', { name: 'ตรวจคุณภาพ' });
+    if (!(await qaTab.count())) {
+      const more = page.getByRole('button', { name: /เพิ่มเติม/ });
+      if (await more.count()) await more.click();
+    }
+    await (await qaTab.count() ? qaTab : page.getByRole('menuitem', { name: /ตรวจคุณภาพ/ })).first().click();
+    await page.getByTestId('qa-tab').waitFor();
+  };
+  await openQa();
+  await page.getByText(/0 ต้องแก้/).first().waitFor();
+  await page.getByLabel('ค้นหา', { exact: true }).fill('K05');
+  await page.getByRole('button', { name: 'ไปดูแถว' }).first().click();
+  await page.getByTestId('preview-grid').waitFor();
+  const prefilled = await page.locator('[data-search-input]').inputValue();
+  if (!/^\d{5}-/.test(prefilled)) errors.push(`qa-engine: ไปดูแถว did not pre-fill the search (got "${prefilled}")`);
+  if ((await page.getByRole('tab', { name: 'ตรวจสอบข้อมูล' }).getAttribute('aria-selected')) !== 'true') errors.push('qa-engine: preview tab not selected after ไปดูแถว');
+  await openQa();
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('qa-engine: page overflows horizontally at 390px');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  step('qa-engine tab shows 0 ต้องแก้, ไปดูแถว pre-fills search, no overflow at 390px');
   // ---- manual-edit ----
   const editTab = page.getByRole('tab', { name: /แก้ไขตัวเลข/ });
   if (!(await editTab.count())) {

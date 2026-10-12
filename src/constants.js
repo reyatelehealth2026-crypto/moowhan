@@ -87,3 +87,13 @@ export const PLANT_CODE = { P: 'BP', B: 'BPK', G: 'GW', S: 'SR' };
 export const PART_NUMBER_PATTERN = /^[0-9A-Z]{5}-[0-9A-Z]{5}(-[0-9A-Z]{2,3})?$/;
 // SUPP CODE every row is expected to carry.
 export const DEFAULT_SUPP_CODE = 'TTETA';
+
+// ---------- qa-file-guards: Firm / Forecast horizon (N is firm when the file's FORECAST TYPE is F) ----------
+export const HORIZON_META = [
+  { key: 'n', kind: 'firm', badge: 'Firm' },
+  { key: 'n1', kind: 'forecast', badge: 'FC' },
+  { key: 'n2', kind: 'forecast', badge: 'FC' },
+  { key: 'n3', kind: 'forecast', badge: 'FC' },
+];
+// Value of "PLANT CODE" in a source file header -> plant (inferred from the fixtures in input/*.xls).
+export const PLANT_CODE_MAP = { P: 'BP', B: 'BPK', G: 'GW', S: 'SR' };
