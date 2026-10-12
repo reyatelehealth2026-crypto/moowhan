@@ -10,6 +10,7 @@ const ACTION_META = {
   edit: { label: STRINGS.actions.edit, cls: 'bg-purple-100 text-purple-700' },
   export: { label: STRINGS.actions.export, cls: 'bg-blue-100 text-blue-700' },
   file: { label: STRINGS.actions.file, cls: 'bg-slate-100 text-slate-700' },
+  share: { label: 'แชร์', cls: 'bg-sky-100 text-sky-700' },
 };
 
 // ==================== CHANGELOG TAB ====================
