@@ -24,6 +24,7 @@
   - ทุก hook เรียกผ่าน `runtime.js` (`runHook`, `collectExportSheets` ฯลฯ) — error ถูกกลืนและรายงานเป็นภาษาไทย ไม่ทำให้แอป/การส่งออกล้ม; `exportSheets` เป็น async ได้; ชื่อ sheet ห้ามเกิน 31 ตัวอักษร/ซ้ำ/ซ้ำกับ sheet ในเทมเพลต
   - `visibility.js` `visibleFeatures` ถูกเรียกครั้งเดียวใน `App.jsx` (ซ่อนตาม `profile.features[id].enabled` และโหมดเริ่มต้น); เก็บข้อมูลฟีเจอร์ด้วย `actions.setFeatureData(id, patch)` → `state.features[id]`
   - `processAll` คืน `ProcessResult` `{ processedData, summary, matching, productionMonth, files }`; `onProcessed(ctx, result)` ได้ ctx ใหม่เสมอ
+- `src/features/settings-profile/` — โปรไฟล์เดียว (`state.profile`, `ctx.profile`; `actions.setProfile/replaceProfile/resetProfile`) เก็บใน `moowhan.prefs.profile.v1` ผ่าน `src/lib/storage`; `profile.js` (DEFAULT_PROFILE, validateProfile, import/export) และ `calendar.js` (isWorkingDay, workingDaysInMonth, addWorkingDays, suggestNonWorkingDays) เป็น pure ให้ฟีเจอร์อื่นเรียกใช้; ไม่ฝังวันหยุดราชการ; `renderFileName` อยู่ใน `utils/format.js`
 - `src/features/ui-kit/` — UI กลาง (Button, Chip, KpiCard, Toast, ConfirmDialog, EmptyState, InfoTip, DataGrid, hotkeys, strings); กติกา: error = Banner, success/info = Toast (ดู README ในโฟลเดอร์); วันที่ใช้ `formatDate` ใน `utils/format.js`
 - `src/constants.js` — รายชื่อโรงงาน, layout ของ template, สี; `src/utils/format.js` — formatNumber, month labels, column letters, safeSheetName
 

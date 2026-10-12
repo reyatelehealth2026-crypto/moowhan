@@ -93,7 +93,7 @@ export default function App() {
       setShowPreview(false);
     },
   };
-  const ctx = { state, actions, monthLabels: state.monthLabels };
+  const ctx = { state, actions, monthLabels: state.monthLabels, profile: state.profile };
 
   const resolveBadge = (f) => {
     const b = f.tab.badge;
