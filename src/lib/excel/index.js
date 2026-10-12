@@ -4,3 +4,4 @@ export * from './readSource.js';
 export * from './exportWorkbook.js';
 export * from './templateInfo.js';
 export { patchTemplate, listSheetNames, forceRecalcOnOpen } from './templatePatcher.js';
+export { inspectTemplate } from '../../features/template-inspector/templateInspect.js';
