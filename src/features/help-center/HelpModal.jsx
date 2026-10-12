@@ -8,7 +8,7 @@ import { downloadText } from '../../utils/download.js';
 import { GLOSSARY, GROUP_LABELS, renderWritePlanSummary, searchGlossary } from './glossary.js';
 import { getSnapshot, subscribe, closeHelp, openDiagnostics } from './helpStore.js';
 import { parseChangelog } from './changelog.js';
-import { buildDiagnostics, diagnosticsFileName, sha256Hex } from './diagnostics.js';
+import { buildDiagnostics, diagnosticsFileName, sha256Hex } from '../../lib/diagnostics.js';
 import changelogRaw from '../../../CHANGELOG.md?raw';
 
 const FAQ = [

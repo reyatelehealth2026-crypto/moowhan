@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { ANALYZE_SHEET, DAILY_SHEETS, PLANTS, SOURCE_HEADERS } from '../src/constants.js';
 import { GLOSSARY, getEntry, renderWritePlanSummary, searchGlossary, tipText } from '../src/features/help-center/glossary.js';
 import { buildExportNotice, toUserError, ERROR_CATALOG } from '../src/lib/errors.js';
-import { buildDiagnostics, diagnosticsFileName } from '../src/features/help-center/diagnostics.js';
+import { buildDiagnostics, diagnosticsFileName } from '../src/lib/diagnostics.js';
 import { parseChangelog } from '../src/features/help-center/changelog.js';
 import { readSourceBuffer } from '../src/lib/excel/readSource.js';
 import { listSheetNames } from '../src/lib/excel/templatePatcher.js';

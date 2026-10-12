@@ -44,4 +44,4 @@ export const buildDiagnostics = (state = {}, extras = {}) => {
 export const diagnosticsFileName = (d = new Date()) => `moowhan-diagnostics-${d.toISOString().slice(0, 10)}.json`;
 
 /** sha256 hex of an ArrayBuffer ('n/a' when crypto.subtle is unavailable). */
-export { sha256 as sha256Hex } from '../../utils/hash.js';
+export { sha256 as sha256Hex } from '../utils/hash.js';
