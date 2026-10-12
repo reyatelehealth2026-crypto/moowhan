@@ -114,13 +114,4 @@ export const buildExport = async ({ template, processedData, summaryData, highli
   };
 };
 
-export const downloadBlob = (blob, fileName) => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-};
+export { downloadBlob } from '../../utils/download.js';

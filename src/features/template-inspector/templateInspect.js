@@ -206,8 +206,8 @@ export const inspectTemplate = async (buffer, { deep = false } = {}) => {
   const out = emptyInspection();
   out.deep = !!deep;
   try {
-    const { default: JSZip } = await import('jszip'); // lazy, same module instance the patcher uses
-    const zip = await JSZip.loadAsync(buffer);
+    const { loadZip } = await import('../../lib/excel/zipLoad.js'); // lazy: jszip stays inside lib/excel
+    const zip = await loadZip(buffer);
     return await inspectZip(zip, out, deep);
   } catch (err) {
     out.issues.push(issue('error', 'INSPECT_FAILED', null, `ตรวจเทมเพลตไม่ได้: ${err?.message || err}`, 'ตรวจสอบว่าเป็นไฟล์ .xlsx ที่เปิดใน Excel ได้ แล้วอัปโหลดใหม่ (ยังประมวลผลและดาวน์โหลดได้ตามปกติ)'));

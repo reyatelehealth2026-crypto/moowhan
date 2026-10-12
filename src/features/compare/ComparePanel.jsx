@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { downloadText } from '../../utils/download.js';
 import Icons from '../../components/Icons.jsx';
 import FileDropZone from '../../components/FileDropZone.jsx';
 import Banner from '../../components/Banner.jsx';
@@ -75,10 +76,7 @@ export default function ComparePanel({ state, actions }) {
 
   const exportBaseline = () => {
     const b = { rows: currRows, month: currMonth, label: `รอบ ${currMonth ? formatMonth(currMonth) : 'ปัจจุบัน'}` };
-    const url = URL.createObjectURL(new Blob([baselineToJson(b)], { type: 'application/json' }));
-    const a = Object.assign(document.createElement('a'), { href: url, download: `baseline_${currMonth ? monthValue(currMonth) : 'current'}.json` });
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadText(baselineToJson(b), `baseline_${currMonth ? monthValue(currMonth) : 'current'}.json`, 'application/json');
     pushToast({ message: 'ส่งออก baseline ของรอบนี้แล้ว ใช้เป็นข้อมูลรอบก่อนในรอบหน้าได้', tone: 'success' });
   };
 

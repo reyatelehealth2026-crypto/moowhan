@@ -1,16 +1,11 @@
-// CSV serialisation (pure). UTF-8 BOM + CRLF so Excel opens Thai text correctly.
-export const BOM = '﻿';
-const FORMULA_START = /^[=+\-@]/;
+// CSV for the long export: the shared serializer (utils/serialize.js) plus this feature's conventions
+// (booleans as 1/0, non-finite numbers empty, trailing CRLF). UTF-8 BOM + CRLF so Excel opens Thai text correctly.
+import { toCsv as baseCsv } from '../../utils/serialize.js';
 
-/** Strings that start with = + - @ are prefixed with ' so spreadsheets never evaluate them. */
-export const csvCell = (value, delimiter = ',') => {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
-  if (typeof value === 'boolean') return value ? '1' : '0';
-  let s = String(value);
-  if (FORMULA_START.test(s)) s = `'${s}`;
-  return s.includes(delimiter) || /["\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+export const BOM = '\uFEFF';
+const norm = (v) => (typeof v === 'boolean' ? (v ? '1' : '0') : typeof v === 'number' && !Number.isFinite(v) ? '' : v);
+
+export const toCsv = (aoa, { delimiter = ',', bom = true } = {}) => {
+  const rows = aoa || [];
+  return baseCsv(rows.map((row) => row.map(norm)), { bom, delimiter }) + (rows.length ? '\r\n' : '');
 };
-
-export const toCsv = (aoa, { delimiter = ',', bom = true } = {}) =>
-  (bom ? BOM : '') + (aoa || []).map((row) => row.map((v) => csvCell(v, delimiter)).join(delimiter)).join('\r\n') + ((aoa || []).length ? '\r\n' : '');

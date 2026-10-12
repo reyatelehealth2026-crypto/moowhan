@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { downloadText } from '../../utils/download.js';
 import { PLANTS, MONTH_KEYS } from '../../constants.js';
 import { formatNumber } from '../../utils/format.js';
 import { Chip, DataGrid, KpiCard, pushToast } from '../ui-kit/index.js';
@@ -128,10 +129,7 @@ export default function DockPanel({ state, actions, monthLabels }) {
     pushToast({ message: 'นำเข้าการตั้งค่า Dock แล้ว', tone: 'success' });
   };
   const exportFile = () => {
-    const url = URL.createObjectURL(new Blob([exportMasterJson(master)], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url; a.download = 'dock-settings.json'; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadText(exportMasterJson(master), 'dock-settings.json', 'application/json');
   };
 
   const dockKeys = useMemo(() => groupRows(processedData, { by: 'dock' }).map((g) => ({ key: `${g.plant}|${g.dockCode}`, plant: g.plant, dock: g.dockCode })), [processedData]);

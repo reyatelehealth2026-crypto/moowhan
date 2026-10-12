@@ -2,6 +2,7 @@
 import { MONTH_KEYS } from '../../constants.js';
 import { REASON_MAX, MONTH_LABELS } from './edits.js';
 import { sanitizeCellText } from './notes.js';
+import { toCsv } from '../../utils/serialize.js';
 
 export const MAX_LINES = 500;
 
@@ -124,16 +125,11 @@ export const matchesToItems = (matches, { strategy, reason: fallback = '' } = {}
     sheet: m.sheet, rowId: m.rowId, kind: 'total', patch: m.after, strategy, reason: m.item.reason || fallback,
   }));
 
-const csvCell = (v) => {
-  const s = sanitizeCellText(v);
-  return /[",\r\n\t]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-
 /** Applied edits as CSV in the same format parseAdjustments reads (total edits only; day moves are skipped). */
 export const exportEditsCsv = (ledger) => {
   const lines = [['Plant', 'Part Number', 'Dock', 'N', 'N+1', 'N+2', 'N+3', 'เหตุผล']];
   (ledger || []).filter((e) => e.kind === 'total').forEach((e) => {
     lines.push([e.plant, e.partNumber, e.dockCode, ...MONTH_KEYS.map((k) => e.patch?.[k] ?? ''), e.reason]);
   });
-  return `﻿${lines.map((l) => l.map(csvCell).join(',')).join('\r\n')}`;
+  return toCsv(lines.map((l) => l.map((c) => sanitizeCellText(c))));
 };

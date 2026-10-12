@@ -4,6 +4,7 @@ import Icons from '../../components/Icons.jsx';
 import { listHotkeys } from '../ui-kit/hotkeys.js';
 import { pushToast } from '../ui-kit/index.js';
 import { copyText } from '../../utils/clipboard.js';
+import { downloadText } from '../../utils/download.js';
 import { GLOSSARY, GROUP_LABELS, renderWritePlanSummary, searchGlossary } from './glossary.js';
 import { getSnapshot, subscribe, closeHelp, openDiagnostics } from './helpStore.js';
 import { parseChangelog } from './changelog.js';
@@ -87,11 +88,7 @@ function Diagnostics({ ctx, onClose }) {
     else pushToast({ message: 'คัดลอกไม่สำเร็จ ลองดาวน์โหลดเป็นไฟล์แทน', tone: 'warning' });
   };
   const download = () => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-    a.download = diagnosticsFileName();
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    downloadText(json, diagnosticsFileName(), 'application/json');
   };
   return (
     <Modal onClose={onClose} label="รายงานปัญหา" className="max-w-2xl max-h-[90vh]">

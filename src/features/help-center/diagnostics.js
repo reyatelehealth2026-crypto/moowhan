@@ -43,10 +43,5 @@ export const buildDiagnostics = (state = {}, extras = {}) => {
 
 export const diagnosticsFileName = (d = new Date()) => `moowhan-diagnostics-${d.toISOString().slice(0, 10)}.json`;
 
-/** Optional sha256 hex of an ArrayBuffer ('n/a' when crypto.subtle is unavailable). */
-export const sha256Hex = async (buffer) => {
-  try {
-    const digest = await globalThis.crypto.subtle.digest('SHA-256', buffer);
-    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-  } catch { return 'n/a'; }
-};
+/** sha256 hex of an ArrayBuffer ('n/a' when crypto.subtle is unavailable). */
+export { sha256 as sha256Hex } from '../../utils/hash.js';

@@ -1,5 +1,6 @@
 // ==================== DAILY GRID VIEW LOGIC (pure) ====================
 import { PLANTS } from '../../constants.js';
+import { toTsv } from '../../utils/serialize.js';
 import { buildDayColumns } from '../../utils/calendar.js';
 import { plantItems, sumByPartDay, sumArray, totalsByDock } from '../../lib/excel/daily.js';
 
@@ -122,13 +123,9 @@ export const plantKpis = (processedData, monthIdx) =>
   });
 
 // ---------- clipboard (TSV) ----------
-/** Cells starting with = + - @ get a leading ' so a spreadsheet never evaluates them as formulas. */
-export const tsvCell = (v) => {
-  const s = v === null || v === undefined ? '' : String(v);
-  const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
-  return safe.replace(/[\t\r\n]+/g, ' ');
-};
-export const toTsv = (aoa) => aoa.map((r) => r.map(tsvCell).join('\t')).join('\n');
+/** One cell as TSV text (formula-safe). */
+export const tsvCell = (v) => toTsv([[v]]);
+export { toTsv };
 
 export const gridToAoa = (items, columns, labels = ['N', 'N+1', 'N+2', 'N+3']) => {
   const head = ['Part Number', 'Plant', 'Dock', ...columns.map((c) => `${labels[c.monthIdx]} ${c.kind === 'total' ? 'รวม' : c.day}`)];

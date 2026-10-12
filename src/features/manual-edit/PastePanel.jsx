@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import Banner from '../../components/Banner.jsx';
 import Icons from '../../components/Icons.jsx';
 import { Button } from '../ui-kit/index.js';
+import { downloadText } from '../../utils/download.js';
 import { MONTH_KEYS } from '../../constants.js';
 import { DEFAULT_STRATEGY } from './edits.js';
 import { ReasonPicker, StrategySelect, resolveReason } from './EditBar.jsx';
@@ -14,18 +15,6 @@ const BADGE = {
   'ไม่เปลี่ยน': 'bg-slate-100 text-slate-600',
 };
 const LABELS = ['N', 'N+1', 'N+2', 'N+3'];
-
-// no import of lib/excel here: xlsx must stay behind the lazy barrel
-const downloadText = (text, fileName) => {
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-};
 
 /** Collapsible "วางรายการ" panel: paste rows from Excel/CSV, preview the match, apply as one batch. */
 export default function PastePanel({ processedData, ledger, onApply }) {
@@ -70,7 +59,7 @@ export default function PastePanel({ processedData, ledger, onApply }) {
           />
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" disabled={!text.trim()} onClick={() => setParsed(parseAdjustments(text))} data-testid="paste-check">ตรวจสอบรายการ</Button>
-            <Button variant="ghost" Icon={Icons.Download} disabled={!ledger.some((e) => e.kind === 'total')} onClick={() => downloadText(exportEditsCsv(ledger), 'manual-edits.csv')}>ส่งออกเป็น CSV</Button>
+            <Button variant="ghost" Icon={Icons.Download} disabled={!ledger.some((e) => e.kind === 'total')} onClick={() => downloadText(exportEditsCsv(ledger), 'manual-edits.csv', 'text/csv;charset=utf-8')}>ส่งออกเป็น CSV</Button>
           </div>
 
           {parsed && (
