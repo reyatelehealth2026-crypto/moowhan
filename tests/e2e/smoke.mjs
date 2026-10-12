@@ -191,6 +191,53 @@ try {
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).waitFor();
   await page.getByRole('button', { name: /โหมด/ }).click();
   step('simple/advanced toggle ok');
+
+  // ---- storage-session: opt-in save, reload, restore, forget, wipe (fresh browser context = empty storage) ----
+  {
+    const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const p2 = await ctx2.newPage();
+    p2.on('pageerror', (e) => errors.push(`storage pageerror: ${e.message}`));
+    await p2.goto(url, { waitUntil: 'networkidle' });
+    const files2 = p2.locator('input[type=file]');
+    await files2.nth(0).setInputFiles(path.join(ROOT, 'template.xlsx'));
+    await p2.getByText('template.xlsx').first().waitFor();
+    // default off: nothing is written until the user opts in
+    await p2.getByTestId('storage-panel').waitFor();
+    if (await p2.getByTestId('storage-inventory').count()) errors.push('storage: inventory should start empty');
+    await p2.getByTestId('remember-template').click();
+    await p2.getByTestId('template-card').waitFor();
+    await p2.getByTestId('save-session-toggle').click();
+    await files2.nth(1).setInputFiles(SOURCES);
+    await p2.getByText('SR veh 481D.xls').waitFor();
+    await p2.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
+    await p2.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
+    await p2.getByTestId('autosave-chip').waitFor({ timeout: 15000 });
+    step('storage: opted in, autosave chip shown');
+
+    await p2.reload({ waitUntil: 'networkidle' });
+    await p2.getByTestId('restore-banner').waitFor({ timeout: 15000 });
+    step('storage: restore banner after reload: ' + (await p2.getByTestId('restore-banner').innerText()).replace(/\s*\n\s*/g, ' | '));
+    await p2.getByTestId('restore-session').click();
+    await p2.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
+    if (!(await p2.locator('table, [role=grid]').first().isVisible())) errors.push('storage: restored data not visible in preview');
+    step('storage: restored without uploading again');
+
+    await p2.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
+    await p2.setViewportSize({ width: 390, height: 844 });
+    if (await p2.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('storage: panel overflows horizontally at 390px');
+    await p2.setViewportSize({ width: 1280, height: 900 });
+    await p2.getByTestId('forget-template').click();
+    await p2.getByTestId('template-card').waitFor({ state: 'detached' });
+    await p2.getByTestId('wipe-all').click();
+    await p2.getByRole('button', { name: 'ล้างทั้งหมด' }).click();
+    await p2.getByText('ล้างข้อมูลที่เก็บในเครื่องแล้ว').first().waitFor();
+    if (await p2.getByTestId('save-session-toggle').isChecked()) errors.push('storage: wipe should reset the save toggle');
+    await p2.reload({ waitUntil: 'networkidle' });
+    await p2.getByTestId('storage-panel').waitFor();
+    if (await p2.getByTestId('restore-banner').count()) errors.push('storage: restore banner should be gone after wipe');
+    step('storage: forget template + wipe all ok');
+    await ctx2.close();
+  }
 } finally {
   await browser.close();
   if (server) server.kill();
