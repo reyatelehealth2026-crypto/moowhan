@@ -1,17 +1,13 @@
 // Adapter for data owned by other features, so the integrator has one place to swap.
-//  - previous-run files (for "ไฟล์ที่คาดว่าจะได้รับ"): run-history snapshots, read through its store when that
-//    feature exists in the build. Nothing is persisted here and no new storage key is created.
+//  - previous-run files (for "ไฟล์ที่คาดว่าจะได้รับ"): run-history snapshots, read through its store.
+//    Nothing is persisted here and no new storage key is created.
 import { partTypeFromName } from './logic.js';
-
-const optionalStore = import.meta.glob('../run-history/store.js');
+import { runStore } from '../run-history/store.js';
 
 const newestRun = (runs = []) =>
   [...runs].sort((a, b) => String(b?.createdAt || '').localeCompare(String(a?.createdAt || '')))[0] || null;
 
 const defaultProvider = async () => {
-  const load = optionalStore['../run-history/store.js'];
-  if (!load) return [];
-  const { runStore } = await load();
   await runStore.init();
   return newestRun(runStore.snapshot().runs)?.files || [];
 };
