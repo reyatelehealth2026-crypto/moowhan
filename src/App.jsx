@@ -6,7 +6,6 @@ import PreviewTab from './components/PreviewTab.jsx';
 import SummaryTab from './components/SummaryTab.jsx';
 import MatchingTab from './components/MatchingTab.jsx';
 import ChangelogTab from './components/ChangelogTab.jsx';
-import ChartDashboard from './components/ChartDashboard.jsx';
 import ExcelPreview from './components/ExcelPreview.jsx';
 import useConsolidator from './state/useConsolidator.js';
 import { FEATURES } from './features/index.js';
@@ -32,7 +31,6 @@ export default function App() {
   const { state, actions: core } = useConsolidator();
   const [tab, setTab] = useState('upload');
   const [showPreview, setShowPreview] = useState(false);
-  const [showChart, setShowChart] = useState(false);
 
   // features that must stay reachable: tabs with block-level issues are never hidden
   const allIssues = useMemo(
@@ -53,7 +51,6 @@ export default function App() {
     ...core,
     goTo: setTab,
     openPreview: () => setShowPreview(true),
-    openChart: () => setShowChart(true),
     processAll: async () => {
       const result = await core.processAll();
       if (result) {
@@ -93,7 +90,6 @@ export default function App() {
       core.reset();
       setTab('upload');
       setShowPreview(false);
-      setShowChart(false);
     },
   };
   const ctx = { state, actions, monthLabels: state.monthLabels };
@@ -152,7 +148,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 text-slate-900">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+      <header className="print:hidden bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-11 h-11 sm:w-12 sm:h-12 p-2.5 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl text-white shadow-lg flex-shrink-0"><Icons.File /></div>
@@ -190,7 +186,7 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <TabBar tabs={tabs} activeId={activeTab.id} onSelect={setTab} />
+        <div className="print:hidden"><TabBar tabs={tabs} activeId={activeTab.id} onSelect={setTab} /></div>
         {simple && simpleHiddenTabs > 0 && (
           <p className="-mt-3 mb-4 text-sm">
             <button type="button" onClick={() => actions.setUiMode('advanced')} className="text-blue-600 hover:underline">
@@ -223,7 +219,6 @@ export default function App() {
           </FeatureErrorBoundary>
         ))}
 
-        {showChart && <ChartDashboard data={state.processedData} summaryData={state.summaryData} monthLabels={state.monthLabels} onClose={() => setShowChart(false)} />}
         {showPreview && (
           <ExcelPreview
             data={state.processedData}
@@ -238,7 +233,7 @@ export default function App() {
       <ToastRegion />
       <LiveRegion />
 
-      <footer className="border-t border-slate-200 mt-12 py-6 bg-white text-center text-slate-400 text-sm">
+      <footer className="print:hidden border-t border-slate-200 mt-12 py-6 bg-white text-center text-slate-400 text-sm">
         moowhan v{__APP_VERSION__}
       </footer>
     </div>

@@ -94,9 +94,22 @@ try {
 
   await page.getByRole('button', { name: 'ดูกราฟวิเคราะห์' }).click();
   await page.getByText('ยอดรวมรายเดือน').waitFor();
-  await page.keyboard.press('Escape');
-  await page.getByText('ยอดรวมรายเดือน').waitFor({ state: 'detached' });
-  step('chart modal opens and closes with Escape');
+  if ((await page.getByRole('tab', { name: 'แดชบอร์ด' }).getAttribute('aria-selected')) !== 'true') errors.push('dashboard: tab not selected after ดูกราฟวิเคราะห์');
+  await page.getByTestId('dashboard-kpis').getByText('48,934').waitFor();
+  await page.setViewportSize({ width: 390, height: 800 });
+  const dashOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (dashOverflow > 0) errors.push(`dashboard: horizontal page overflow ${dashOverflow}px at 390px`);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.evaluate(() => { window.print = () => { window.__printed = document.documentElement.dataset.print; }; });
+  await page.getByTestId('dashboard-print').click();
+  await page.waitForFunction(() => window.__printed === 'report');
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  if (await page.evaluate(() => document.documentElement.dataset.print)) errors.push('dashboard: data-print not cleared on afterprint');
+  const [png] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByTestId('dashboard-png').click()]);
+  const pngFile = path.join(OUT, png.suggestedFilename());
+  await png.saveAs(pngFile);
+  if (!/^Report_2026-02_/.test(png.suggestedFilename()) || fs.statSync(pngFile).size < 1000) errors.push('dashboard: PNG name/size wrong');
+  step('dashboard tab, 390px, print and PNG ok');
 
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 60000 }),
@@ -146,10 +159,6 @@ try {
 
   // ---- dock-analysis ----
   const dockTab = page.getByRole('tab', { name: 'วิเคราะห์ Dock/รุ่น/บรรจุภัณฑ์' });
-  if (!(await dockTab.count())) {
-    const modeBtn = page.getByRole('button', { name: /โหมด/ });
-    if (await modeBtn.count()) await modeBtn.click();
-  }
   if (!(await dockTab.count())) {
     const more = page.getByRole('button', { name: /เพิ่มเติม/ });
     if (await more.count()) await more.click();

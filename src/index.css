@@ -50,7 +50,7 @@
 }
 
 @media print {
-  body > #root {
+  html:not([data-print="report"]) body > #root {
     display: none !important;
   }
 
@@ -81,5 +81,21 @@
 
   .print-overlay .print-break {
     break-before: page;
+  }
+}
+
+/* ---------- dashboard: print report (html[data-print=report]) ---------- */
+@media print {
+  html[data-print="report"] body {
+    background: #fff !important;
+  }
+
+  html[data-print="report"] main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  html[data-print="report"] section {
+    break-inside: avoid;
   }
 }

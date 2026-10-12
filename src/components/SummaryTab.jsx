@@ -2,13 +2,15 @@ import { useMemo } from 'react';
 import Icons from './Icons.jsx';
 import { MONTH_META, PLANT_META } from '../constants.js';
 import { formatNumber } from '../utils/format.js';
+import useAnalytics from '../hooks/useAnalytics.js';
 import { DataGrid, KpiCard, Button, STRINGS, GLOSSARY } from '../features/ui-kit/index.js';
 
 const total = (r) => r.n + r.n1 + r.n2 + r.n3;
 
 // ==================== SUMMARY TAB ("สรุปรวม") ====================
 export default function SummaryTab({ state, actions, monthLabels }) {
-  const { summaryData, totals, exporting } = state;
+  const { summaryData, exporting } = state;
+  const totals = useAnalytics(state.processedData, summaryData, state.sourceFiles)?.kpis.totals ?? state.totals;
 
   const columns = useMemo(() => [
     { key: 'partNumber', label: GLOSSARY.partNumber, className: 'font-mono text-blue-600' },
@@ -41,7 +43,7 @@ export default function SummaryTab({ state, actions, monthLabels }) {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-        <Button size="lg" onClick={actions.openChart} Icon={Icons.PieChart} className="flex-1 !bg-gradient-to-r from-purple-600 to-pink-600">ดูกราฟวิเคราะห์</Button>
+        <Button size="lg" onClick={() => actions.goTo('dashboard')} Icon={Icons.PieChart} className="flex-1 !bg-gradient-to-r from-purple-600 to-pink-600">ดูกราฟวิเคราะห์</Button>
         <Button size="lg" variant="secondary" onClick={actions.openPreview} Icon={Icons.Eye} className="flex-1 !border-2 !border-blue-600 !text-blue-600" data-testid="preview-excel-summary">{STRINGS.buttons.previewExcel}</Button>
         <Button size="lg" onClick={() => actions.exportExcel()} loading={exporting} Icon={Icons.Download} className="flex-1" data-testid="download">
           {exporting ? STRINGS.status.exporting : STRINGS.buttons.download}
