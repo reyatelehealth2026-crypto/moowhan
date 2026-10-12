@@ -1,8 +1,7 @@
 // QA-engine rules of qa-file-guards. Registered on import (index.jsx imports this file).
 // Pure: exported rule objects can also be called directly (import-cli reuses `guardRules` / the logic functions).
 import { registerRule } from '../qa-engine/registry.js';
-import { getPreviousFiles } from './deps.js';
-import { compareRevisions, expectedFilesChecklist, findDuplicateFiles, findDuplicateKeys } from './logic.js';
+import { compareRevisions, expectedFilesChecklist, findDuplicateFiles, findDuplicateKeys, getPreviousFiles } from './logic.js';
 
 const withMeta = (ctx) => ctx.sourceFiles.filter((f) => f.status !== 'error');
 

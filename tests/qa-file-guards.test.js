@@ -4,8 +4,8 @@ import { readSourceBuffer, inspectSourceBuffer, fingerprintRows, categorizeFile 
 import { sha256Hex } from '../src/features/qa-file-guards/hash.js';
 import {
   findDuplicateFiles, compareRevisions, resolveNewer, expectedFilesChecklist, horizonInfo, findDuplicateKeys, partTypeFromName,
+  setPreviousFilesProvider, refreshPreviousFiles, getPreviousFiles,
 } from '../src/features/qa-file-guards/logic.js';
-import { setPreviousFilesProvider, refreshPreviousFiles, getPreviousFiles } from '../src/features/qa-file-guards/deps.js';
 import feature from '../src/features/qa-file-guards/index.jsx';
 import { runRules } from '../src/features/qa-engine/engine.js';
 import { countByLevel } from '../src/features/qa-engine/model.js';

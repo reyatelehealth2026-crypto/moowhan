@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { refreshPreviousFiles } from './deps.js';
-import { expectedFilesChecklist } from './logic.js';
+import { expectedFilesChecklist, refreshPreviousFiles } from './logic.js';
 
 // "ไฟล์ที่คาดว่าจะได้รับ (อ้างอิงรอบก่อน)": one tick per plant + part type seen in the previous run.
 // Renders nothing when there is no previous run to compare with.

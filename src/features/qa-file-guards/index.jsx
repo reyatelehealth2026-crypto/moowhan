@@ -1,6 +1,8 @@
 import { defineFeature } from '../defineFeature.js';
-import ExpectedFilesCard from './ExpectedFilesCard.jsx';
+import { lazyComponent } from '../lazy.js';
 import './rules.js'; // registers D01-D04 / F01 into the qa-engine
+
+const ExpectedFilesCard = lazyComponent(() => import('./ExpectedFilesCard.jsx'));
 
 // qa-file-guards: duplicate files, old revisions and expected-file checks for the intake step.
 // All warnings go through the qa-engine (tab, badge, QA Report); this feature adds only the upload-tab panel.

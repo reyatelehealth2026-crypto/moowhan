@@ -154,3 +154,39 @@ export const fileMetaParts = (f) => {
     rows > 0 && `${rows} แถว`,
   ].filter(Boolean);
 };
+
+// ---------- previous run's files (for "ไฟล์ที่คาดว่าจะได้รับ") ----------
+// Read straight from the run-history store (newest snapshot). Nothing is persisted here and no storage key is
+// created; the store is loaded on first use so the storage layer stays out of the entry chunk.
+const newestRun = (runs = []) =>
+  [...runs].sort((a, b) => String(b?.createdAt || '').localeCompare(String(a?.createdAt || '')))[0] || null;
+
+const defaultProvider = async () => {
+  const { runStore } = await import('../run-history/store.js');
+  await runStore.init();
+  return newestRun(runStore.snapshot().runs)?.files || [];
+};
+
+let provider = defaultProvider;
+let cache = [];
+
+/** [{ name, plant, partType? }] -> same list with partType filled from the file name when missing ("GW veh DG7.xls" -> 'V') */
+export const normalizePreviousFiles = (list) =>
+  (Array.isArray(list) ? list : [])
+    .filter((f) => f && (f.plant || f.category))
+    .map((f) => ({ name: f.name || '', plant: f.plant || f.category, partType: f.partType || partTypeFromName(f.name) }));
+
+/** Swap the source of the previous run's files (tests). Resets the cache. */
+export const setPreviousFilesProvider = (fn) => { provider = fn || defaultProvider; cache = []; };
+
+/** Files of the previous run as last loaded by refreshPreviousFiles() (sync, used by the F01 rule). */
+export const getPreviousFiles = () => cache;
+
+export const refreshPreviousFiles = async () => {
+  try {
+    cache = normalizePreviousFiles(await provider());
+  } catch {
+    cache = [];
+  }
+  return cache;
+};
