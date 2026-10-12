@@ -135,6 +135,7 @@ export default function useConsolidator() {
     const data = Object.fromEntries(PLANTS.map((p) => [dailySheetName(p), []]));
     const logs = [];
     const months = new Map(); // "202602" -> [file names]
+    const outcomes = new Map(); // file id -> { status, rowCount, meta, error } (ProcessResult.files, used by qa-engine)
 
     try {
       const excel = await loadExcel();
@@ -159,9 +160,12 @@ export default function useConsolidator() {
             logs.push({ fileName: f.name, plant: f.category, action: 'warning', details: 'ไม่พบแถวข้อมูล (ตรวจสอบแถวหัวตาราง "PART NUMBER")' });
           }
           if (meta.productionMonthRaw) months.set(meta.productionMonthRaw, [...(months.get(meta.productionMonthRaw) || []), f.name]);
+          outcomes.set(f.id, { status: rows.length ? 'done' : 'warning', rowCount: rows.length, meta, error: null });
           setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: rows.length ? 'done' : 'warning', rowCount: rows.length, meta, sha256: digest } : x)));
         } catch (err) {
-          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'error', error: toUserError(err).code === 'generic' ? err.message : toUserError(err).title } : x)));
+          const userErr = toUserError(err).code === 'generic' ? err.message : toUserError(err).title;
+          outcomes.set(f.id, { status: 'error', rowCount: 0, meta: null, error: userErr });
+          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'error', error: userErr } : x)));
           logs.push({ fileName: f.name, plant: f.category, action: 'error', details: err.message });
         }
       }
@@ -191,7 +195,7 @@ export default function useConsolidator() {
         summary,
         matching,
         productionMonth: pm,
-        files: files.map((f) => ({ id: f.id, name: f.name, category: f.category })),
+        files: files.map((f) => ({ id: f.id, name: f.name, category: f.category, ...outcomes.get(f.id) })),
       };
     } catch (err) {
       setError(`เกิดข้อผิดพลาดในการประมวลผล: ${err.message}`);
