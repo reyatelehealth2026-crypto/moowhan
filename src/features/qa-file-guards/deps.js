@@ -3,7 +3,9 @@
 //    feature exists in the build. Nothing is persisted here and no new storage key is created.
 import { partTypeFromName } from './logic.js';
 
-const optionalStore = import.meta.glob('../run-history/store.js');
+// Vite rewrites import.meta.glob at build time; in plain Node (the import-cli CLI) it does not exist => no store
+let optionalStore = {};
+try { optionalStore = import.meta.glob('../run-history/store.js'); } catch { /* not running under Vite */ }
 
 const newestRun = (runs = []) =>
   [...runs].sort((a, b) => String(b?.createdAt || '').localeCompare(String(a?.createdAt || '')))[0] || null;

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { PLANTS, dailySheetName } from '../constants.js';
-import { describeIntake, expandIncoming } from '../features/import-cli/intake.js';
+import { describeIntake, expandIncoming, isArchive } from '../features/import-cli/intake.js';
 import { buildSummary, computeTotals } from '../lib/excel/aggregate.js';
 import { categorizeFile } from '../lib/excel/categorize.js';
 import { DEFAULT_PROFILE } from '../features/visibility.js';
@@ -106,8 +106,13 @@ export default function useConsolidator({ expandFiles = null } = {}) {
 
   // ---------- source files ----------
   // import-cli: `expandFiles(file)` (feature hook) turns .zip/.eml into File[]; everything then takes the normal path.
-  const addSourceFiles = async (incoming) => {
-    const { files, origin, reports } = await expandIncoming(incoming, expandFiles);
+  // Plain files take the synchronous path (callers such as restore/makeCtx rely on it); only archives await.
+  const addSourceFiles = (incoming) => {
+    const list = Array.from(incoming || []);
+    if (!expandFiles || !list.some((f) => isArchive(f.name))) return intake({ files: list, origin: new Map(), reports: [] });
+    return expandIncoming(list, expandFiles).then(intake);
+  };
+  const intake = ({ files, origin, reports }) => {
     const existing = new Set(refs.current.sourceFiles.map((f) => f.name));
     const accepted = [];
     const rejected = [];

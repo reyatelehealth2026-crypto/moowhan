@@ -27,6 +27,10 @@
 - `src/features/ui-kit/` — UI กลาง (Button, Chip, KpiCard, Toast, ConfirmDialog, EmptyState, InfoTip, DataGrid, hotkeys, strings); กติกา: error = Banner, success/info = Toast (ดู README ในโฟลเดอร์); วันที่ใช้ `formatDate` ใน `utils/format.js`
 - `src/constants.js` — รายชื่อโรงงาน, layout ของ template, สี; `src/utils/format.js` — formatNumber, month labels, column letters, safeSheetName
 
+## import-cli (นำเข้า .zip/.eml, โฟลเดอร์, CLI)
+- `src/features/import-cli/` — `zip.js`/`eml.js`/`intake.js` (pure) ให้ hook `expandFiles`; `addSourceFiles` รับ `.zip/.eml` (ไฟล์ปกติยังทำงานแบบ sync); `folder.js` (`planFolderImport`, `writeNoOverwrite`) + ปุ่มเปิดโฟลเดอร์ (เฉพาะเบราว์เซอร์ที่มี `showDirectoryPicker`)
+- `scripts/consolidate.mjs` → `cli.js`: QA gate + verifyExport ชุดเดียวกับ UI, exit code 0/1/2/3, stdout เป็น JSON บรรทัดเดียว — ดู `docs/cli.md`; CLI ห้าม import React/components/`features/index.js`/network (มี contract test ใน `tests/import-cli.test.js`) และ `.js` ที่ CLI ใช้ต้องรันใน Node ล้วน (ไม่ใช้ `import.meta.glob` นอก try/catch)
+
 ## กติกา
 - **ห้ามใช้ ExcelJS ตอน runtime** (เป็น devDependency สำหรับ test เท่านั้น) — มันทำ pivot table ในเทมเพลตหาย
 - ห้ามเขียนทับ cell ที่มีสูตรใน template; ทุกการเขียนลง template ต้องผ่าน `templatePatcher.js`

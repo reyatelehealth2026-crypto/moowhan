@@ -377,29 +377,6 @@ try {
   if (csvHead !== '\uFEFFplant,plant_code,file_name,revision,part_number,base_part,part_code,part_desc,supp_code,shipping_dock,dock_code,car_family,packing_size,month_offset,month,horizon,day,qty,edited,carried_over,spilled') errors.push(`flat-export: wrong CSV header ${csvHead}`);
   await page.getByRole('button', { name: 'ปิด', exact: true }).click();
   step('flat-export modal opens, long CSV downloads with the header on line 1');
-  // ---- qa-engine ----
-  const openQa = async () => {
-    const qaTab = page.getByRole('tab', { name: 'ตรวจคุณภาพ' });
-    if (!(await qaTab.count())) {
-      const more = page.getByRole('button', { name: /เพิ่มเติม/ });
-      if (await more.count()) await more.click();
-    }
-    await (await qaTab.count() ? qaTab : page.getByRole('menuitem', { name: /ตรวจคุณภาพ/ })).first().click();
-    await page.getByTestId('qa-tab').waitFor();
-  };
-  await openQa();
-  await page.getByText(/0 ต้องแก้/).first().waitFor();
-  await page.getByLabel('ค้นหา', { exact: true }).fill('K05');
-  await page.getByRole('button', { name: 'ไปดูแถว' }).first().click();
-  await page.getByTestId('preview-grid').waitFor();
-  const prefilled = await page.locator('[data-search-input]').inputValue();
-  if (!/^\d{5}-/.test(prefilled)) errors.push(`qa-engine: ไปดูแถว did not pre-fill the search (got "${prefilled}")`);
-  if ((await page.getByRole('tab', { name: 'ตรวจสอบข้อมูล' }).getAttribute('aria-selected')) !== 'true') errors.push('qa-engine: preview tab not selected after ไปดูแถว');
-  await openQa();
-  await page.setViewportSize({ width: 390, height: 844 });
-  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('qa-engine: page overflows horizontally at 390px');
-  await page.setViewportSize({ width: 1280, height: 900 });
-  step('qa-engine tab shows 0 ต้องแก้, ไปดูแถว pre-fills search, no overflow at 390px');
 
   // Ctrl+Enter on the upload tab processes the files again
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();

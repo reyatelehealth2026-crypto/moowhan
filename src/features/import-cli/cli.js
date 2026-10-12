@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { PLANTS, dailySheetName } from '../../constants.js';
 import { buildSummary, computeTotals } from '../../lib/excel/aggregate.js';
-import { readSourceBuffer, readTemplateBuffer, buildExport, verifyExport, zipFiles } from '../../lib/excel/index.js';
+import { inspectSourceBuffer, readTemplateBuffer, buildExport, verifyExport, zipFiles } from '../../lib/excel/index.js';
 import { monthLabels, parseProductionMonth, renderFileName } from '../../utils/format.js';
 import { sha256 } from '../../utils/hash.js';
 import { runRules } from '../qa-engine/engine.js';
@@ -17,7 +17,8 @@ import { stampSubset } from '../provenance-manifest/stamp.js';
 import { BUILTIN_PRESETS, applyPreset, presetById } from '../flat-export/presets.js';
 import { buildJsonExport, buildLongRows, buildSummaryRows, monthToken } from '../flat-export/logic.js';
 import { toCsv } from '../flat-export/serialize.js';
-import { categorizeFile, validateSourceFile } from './deps.js';
+import { categorizeFile } from '../../lib/excel/categorize.js';
+import '../qa-file-guards/rules.js'; // registers D01-D04 / F01 into the qa-engine (same gate as the UI)
 
 export const SCHEMA_VERSION = 1;
 export const EXIT = { ok: 0, fatal: 1, gate: 2, verification: 3 };
@@ -79,7 +80,8 @@ async function loadSources(dir, templatePath, warnings) {
     const ab = toArrayBuffer(buf);
     const entry = { id: `f${++seq}`, name, size: buf.length, category, status: 'ready', rowCount: 0, error: null, meta: null, sha256: await sha256(ab), buffer: ab };
     try {
-      const { rows, meta } = readSourceBuffer(ab);
+      const { rows, meta, fingerprint } = inspectSourceBuffer(ab);
+      entry.rowsHash = fingerprint;
       entry.rows = rows;
       entry.meta = meta;
       entry.rowCount = rows.length;
@@ -188,9 +190,6 @@ export async function runConsolidate(opts, { cwd = process.cwd() } = {}) {
 
     const sourceFiles = await loadSources(abs(opts.input), abs(opts.template), result.warnings);
     if (!sourceFiles.length) throw new CliError('ไม่พบไฟล์ต้นทาง .xls/.xlsx ที่ขึ้นต้นด้วย BP, BPK, GW หรือ SR ในโฟลเดอร์ --input');
-    for (const f of sourceFiles) {
-      for (const g of await validateSourceFile(f, { sourceFiles })) result.findings.push(normalise('file-guard', g));
-    }
 
     const processed = processFiles(sourceFiles);
     const state = makeState({ template, sourceFiles, processed, profile });
