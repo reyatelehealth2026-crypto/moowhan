@@ -26,20 +26,22 @@ export const applyPreset = (records, preset = BUILTIN_PRESETS[0]) => {
   return { header, delimiter: preset.delimiter || ',', aoa: [header, ...keep.map((r) => columns.map((c) => r[c] ?? ''))] };
 };
 
-// ---- last choice, kept locally until the profile store exists (settings-profile can replace load/save) ----
-const KEY = 'moowhan.flat-export.v1';
+// ---- last choice: persisted through src/lib/storage (prefs tier) by index.jsx; these helpers stay storage-agnostic ----
+export const SETTINGS_KEY = 'flat-export.settings';
 export const DEFAULT_SETTINGS = { preset: DEFAULT_PRESET_ID, zip: false, includeSheet: false };
-export const loadSettings = (storage = globalThis.localStorage) => {
-  try {
-    const v = JSON.parse(storage.getItem(KEY));
-    if (!v || typeof v !== 'object') return DEFAULT_SETTINGS;
-    return {
-      preset: BUILTIN_PRESETS.some((p) => p.id === v.preset) ? v.preset : DEFAULT_SETTINGS.preset,
-      zip: v.zip === true,
-      includeSheet: v.includeSheet === true,
-    };
-  } catch { return DEFAULT_SETTINGS; }
+/** unknown value -> a valid settings object (never throws). */
+export const normalizeSettings = (v) => {
+  if (!v || typeof v !== 'object') return DEFAULT_SETTINGS;
+  return {
+    preset: BUILTIN_PRESETS.some((p) => p.id === v.preset) ? v.preset : DEFAULT_SETTINGS.preset,
+    zip: v.zip === true,
+    includeSheet: v.includeSheet === true,
+  };
 };
-export const saveSettings = (s, storage = globalThis.localStorage) => {
-  try { storage.setItem(KEY, JSON.stringify(s)); return true; } catch { return false; }
+// sync key/value adapter (getItem/setItem) kept for tests and non-browser callers; no default storage on purpose
+export const loadSettings = (storage) => {
+  try { return normalizeSettings(JSON.parse(storage.getItem(`moowhan.${SETTINGS_KEY}`))); } catch { return DEFAULT_SETTINGS; }
+};
+export const saveSettings = (s, storage) => {
+  try { storage.setItem(`moowhan.${SETTINGS_KEY}`, JSON.stringify(s)); return true; } catch { return false; }
 };
