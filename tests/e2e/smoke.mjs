@@ -9,6 +9,7 @@ import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import JSZip from 'jszip';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -251,6 +252,32 @@ try {
     if (await p2.getByTestId('restore-banner').count()) errors.push('storage: restore banner should be gone after wipe');
     step('storage: forget template + wipe all ok');
     await ctx2.close();
+  }
+
+  // ---- provenance-manifest: Run Info sheet, mark as sent, chip, stale warning ----
+  {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.keyboard.press('Control+s')]);
+    const f = path.join(OUT, `prov-${dl.suggestedFilename()}`);
+    await dl.saveAs(f);
+    const zip = await JSZip.loadAsync(fs.readFileSync(f));
+    const wbXml = await zip.file('xl/workbook.xml').async('string');
+    if (!wbXml.includes('name="Run Info"')) errors.push('provenance: Run Info sheet missing from the download');
+    await page.getByTestId('mark-sent').click();
+    await page.getByTestId('sent-note').fill('ส่งให้ฝ่ายผลิต');
+    await page.getByTestId('sent-confirm').click();
+    const chip = await page.getByTestId('sent-chip').innerText();
+    if (!/^ส่งแล้ว \d\d:\d\d · [0-9a-f]{8}$/.test(chip.trim())) errors.push(`provenance: unexpected chip "${chip}"`);
+    if (await page.getByText('มีการแก้ไขหลังส่ง').count()) errors.push('provenance: stale warning shown without changes');
+    await page.getByRole('button', { name: 'ลบ SR veh 481D.xls' }).click();
+    await page.getByText('(มีการแก้ไขหลังส่ง)').first().waitFor({ timeout: 5000 });
+    await page.getByRole('button', { name: /ส่งแล้ว/ }).first().click();
+    await page.getByRole('dialog', { name: 'รอบการประมวลผล' }).waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('provenance: horizontal overflow at 390px');
+    await page.keyboard.press('Escape');
+    step('provenance: Run Info sheet, sent chip, stale warning ok');
   }
 } finally {
   await browser.close();
