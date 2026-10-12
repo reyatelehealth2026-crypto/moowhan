@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "moowhan-run-manifest",
+  "title": "moowhan run manifest",
+  "type": "object",
+  "required": ["schemaVersion", "appVersion", "generatedAt", "productionMonth", "template", "files", "totals", "edits", "output", "sent", "operator"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "appVersion": { "type": "string" },
+    "generatedAt": { "type": "string" },
+    "productionMonth": { "type": "string", "pattern": "^(\\d{6})?$" },
+    "template": {
+      "type": ["object", "null"],
+      "required": ["name", "size", "sha256"],
+      "properties": { "name": { "type": "string" }, "size": { "type": "number" }, "sha256": { "type": "string" } }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "plant", "plantCode", "revision", "forecastType", "issueDate", "size", "sha256", "rows"],
+        "properties": {
+          "name": { "type": "string" }, "plant": { "type": "string" }, "plantCode": { "type": "string" },
+          "revision": { "type": "string" }, "forecastType": { "type": "string" }, "issueDate": { "type": "string" },
+          "size": { "type": "number" }, "sha256": { "type": "string" }, "rows": { "type": "number" }
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "required": ["overall", "byPlant"],
+      "properties": {
+        "overall": { "type": "object", "required": ["n", "n1", "n2", "n3"], "properties": { "n": { "type": "number" }, "n1": { "type": "number" }, "n2": { "type": "number" }, "n3": { "type": "number" } } },
+        "byPlant": { "type": "object" }
+      }
+    },
+    "edits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "plant", "partNumber", "dockCode", "count"],
+        "properties": { "key": { "type": "string" }, "plant": { "type": "string" }, "partNumber": { "type": "string" }, "dockCode": { "type": "string" }, "count": { "type": "number" } }
+      }
+    },
+    "output": {
+      "type": ["object", "null"],
+      "required": ["fileName", "sha256"],
+      "properties": { "fileName": { "type": "string" }, "sha256": { "type": "string" } }
+    },
+    "sent": {
+      "type": ["object", "null"],
+      "required": ["fileName", "sha256", "at", "dataSignature"],
+      "properties": {
+        "fileName": { "type": "string" }, "sha256": { "type": "string" }, "month": { "type": "string" }, "totals": {}, "rowCounts": {},
+        "note": { "type": "string" }, "by": { "type": "string" }, "at": { "type": "string" }, "dataSignature": { "type": "string" }
+      }
+    },
+    "operator": { "type": "string" }
+  }
+}

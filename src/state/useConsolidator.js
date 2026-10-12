@@ -4,6 +4,8 @@ import { buildSummary, computeTotals } from '../lib/excel/aggregate.js';
 import { categorizeFile } from '../lib/excel/categorize.js';
 import { DEFAULT_PROFILE } from '../features/visibility.js';
 import { monthLabels, parseProductionMonth } from '../utils/format.js';
+import { sha256 } from '../utils/hash.js';
+import { stampSubset } from '../features/provenance-manifest/stamp.js';
 
 // xlsx + jszip are only downloaded the first time a file is read/exported.
 const loadExcel = () => import('../lib/excel/index.js');
@@ -38,7 +40,7 @@ export default function useConsolidator() {
 
   // refs so async actions always see the latest values
   const refs = useRef({});
-  refs.current = { template, sourceFiles, processedData, summaryData };
+  refs.current = { template, sourceFiles, processedData, summaryData, productionMonth, features };
   const processingRef = useRef(false);
 
   const fileCounts = useMemo(
@@ -75,7 +77,7 @@ export default function useConsolidator() {
       const excel = await loadExcel();
       const buffer = await file.arrayBuffer();
       const info = await excel.readTemplateBuffer(buffer);
-      setTemplate({ name: file.name, size: file.size, ...info });
+      setTemplate({ name: file.name, size: file.size, sha256: await sha256(buffer), ...info });
       setError(null);
       if (info.kind === 'xls') {
         setNotice('ไฟล์หลักเป็น .xls จึงไม่สามารถเขียนลงไฟล์เดิมได้ ระบบจะสร้างไฟล์ใหม่โดยคัดลอกเฉพาะค่า (pivot/สูตรจะไม่ถูกรักษาไว้) แนะนำให้บันทึกเทมเพลตเป็น .xlsx');
@@ -141,6 +143,7 @@ export default function useConsolidator() {
         await yieldToBrowser();
         try {
           const buffer = await f.file.arrayBuffer();
+          const digest = f.sha256 || await sha256(buffer); // hashed once per file, reused by the manifest
           const { rows, meta } = excel.readSourceBuffer(buffer);
           rows.forEach((row, idx) => {
             row.id = `${f.id}-${idx}`;
@@ -154,7 +157,7 @@ export default function useConsolidator() {
             logs.push({ fileName: f.name, plant: f.category, action: 'warning', details: 'ไม่พบแถวข้อมูล (ตรวจสอบแถวหัวตาราง "PART NUMBER")' });
           }
           if (meta.productionMonthRaw) months.set(meta.productionMonthRaw, [...(months.get(meta.productionMonthRaw) || []), f.name]);
-          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'done', rowCount: rows.length, meta } : x)));
+          setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'done', rowCount: rows.length, meta, sha256: digest } : x)));
         } catch (err) {
           setSourceFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, status: 'error', error: err.message } : x)));
           logs.push({ fileName: f.name, plant: f.category, action: 'error', details: err.message });
@@ -222,11 +225,17 @@ export default function useConsolidator() {
     setProcessedData(next);
     setSummaryData(summary);
     setMatchingDetails(matching);
-    log({ fileName: before.fileName, plant: before.plant, partNumber: before.partNumber, action: 'edit', details: `${changes.join(', ')}${reason ? ` (${reason})` : ''}` });
+    log({ fileName: before.fileName, plant: before.plant, partNumber: before.partNumber, dockCode: before.dockCode, action: 'edit', details: `${changes.join(', ')}${reason ? ` (${reason})` : ''}` });
     return true;
   };
 
   // ---------- export ----------
+  // provenance-manifest: the stamp is opt-in (feature data), exportedAt only when a clock is supplied
+  const optionalStamp = async (now) => {
+    const cur = refs.current;
+    if (!cur.features?.['provenance-manifest']?.stampEnabled) return null;
+    return stampSubset({ template: cur.template, sourceFiles: cur.sourceFiles, productionMonth: cur.productionMonth }, { now });
+  };
   const exportExcel = async (options = {}) => {
     const { processedData: data, summaryData: summary, template: tpl } = refs.current;
     if (!data) return null;
@@ -244,7 +253,10 @@ export default function useConsolidator() {
         overflow: options.overflow,
         clearBeyondTable: options.clearBeyondTable,
         addAutoFilter: options.addAutoFilter,
+        stamp: options.stamp ?? await optionalStamp(options.now),
       });
+      result.report.fileName = result.fileName;
+      result.report.sha256 = await sha256(result.blob); // identifies the bytes this app produced
       if (options.download !== false) excel.downloadBlob(result.blob, result.fileName);
       setExportReport(result.report);
       const parts = result.report.mode === 'template'
