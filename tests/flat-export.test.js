@@ -162,8 +162,10 @@ describe('presets', () => {
     expect(loadSettings(bad)).toEqual(DEFAULT_SETTINGS);
     expect(saveSettings(DEFAULT_SETTINGS, bad)).toBe(false);
     let saved;
-    saveSettings({ preset: 'odoo', zip: true, includeSheet: true }, { setItem: (_, v) => { saved = v; } });
-    expect(loadSettings({ getItem: () => saved })).toEqual({ preset: 'odoo', zip: true, includeSheet: true });
+    saveSettings({ preset: 'odoo', includeSheet: true }, { setItem: (_, v) => { saved = v; } });
+    expect(loadSettings({ getItem: () => saved })).toEqual({ preset: 'odoo', includeSheet: true });
+    // a saved "zip" flag from an older version is ignored: the zip is its own button now
+    expect(loadSettings({ getItem: () => JSON.stringify({ preset: 'odoo', zip: true, includeSheet: false }) })).toEqual({ preset: 'odoo', includeSheet: false });
   });
 });
 
@@ -205,5 +207,23 @@ describe('feature contract', () => {
     const plain = await buildExport({ template: { kind: 'xlsx', buffer: tpl }, processedData: state.processedData, summaryData: state.summaryData, extraSheets: feature.exportSheets(ctx()) });
     const wb2 = XLSX.read(new Uint8Array(await plain.blob.arrayBuffer()), { type: 'array' });
     expect(wb2.SheetNames).not.toContain('Data (flat)');
+  });
+});
+
+describe('saved settings survive "รีเซ็ต"', () => {
+  it('onProcessed re-hydrates the saved choice every time state.features was cleared', async () => {
+    const { getStorage } = await import('../src/lib/storage/index.js');
+    const { SETTINGS_KEY } = await import('../src/features/flat-export/presets.js');
+    await getStorage().put('prefs', SETTINGS_KEY, { preset: 'odoo', includeSheet: true });
+    const applied = [];
+    const run = async () => {
+      const features = {};
+      const c = { state: { features }, actions: { setFeatureData: (id, patch) => applied.push(typeof patch === 'function' ? patch(features[id] || {}) : patch) } };
+      await feature.onProcessed(c);
+    };
+    await run(); // first processing
+    await run(); // after a reset the features state is empty again
+    expect(applied).toHaveLength(2);
+    applied.forEach((p) => expect(p).toEqual({ settings: { preset: 'odoo', includeSheet: true } }));
   });
 });

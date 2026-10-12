@@ -28,13 +28,12 @@ export const applyPreset = (records, preset = BUILTIN_PRESETS[0]) => {
 
 // ---- last choice: persisted through src/lib/storage (prefs tier) by index.jsx; these helpers stay storage-agnostic ----
 export const SETTINGS_KEY = 'flat-export.settings';
-export const DEFAULT_SETTINGS = { preset: DEFAULT_PRESET_ID, zip: false, includeSheet: false };
+export const DEFAULT_SETTINGS = { preset: DEFAULT_PRESET_ID, includeSheet: false };
 /** unknown value -> a valid settings object (never throws). */
 export const normalizeSettings = (v) => {
   if (!v || typeof v !== 'object') return DEFAULT_SETTINGS;
   return {
     preset: BUILTIN_PRESETS.some((p) => p.id === v.preset) ? v.preset : DEFAULT_SETTINGS.preset,
-    zip: v.zip === true,
     includeSheet: v.includeSheet === true,
   };
 };

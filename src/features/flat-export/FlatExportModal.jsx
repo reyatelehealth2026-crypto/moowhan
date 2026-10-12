@@ -35,7 +35,7 @@ export default function FlatExportModal({ state, settings, onSettings, onClose, 
     setBusy(true);
     try {
       const files = buildFiles(state, preset);
-      if (settings.zip) {
+      if (kind === 'zip') {
         const { zipFiles } = await import('../../lib/excel/index.js');
         const bytes = await zipFiles([files.long, files.wide, files.json]);
         downloadBlob(new Blob([bytes], { type: 'application/zip' }), files.zipName);
@@ -77,10 +77,7 @@ export default function FlatExportModal({ state, settings, onSettings, onClose, 
         {btn('long', 'ดาวน์โหลด CSV รายวัน (long)', '1 แถวต่อ โรงงาน × Part × เดือน × วัน (ใช้รูปแบบข้างบน)')}
         {btn('wide', 'ดาวน์โหลด CSV สรุป (wide)', '1 แถวต่อ Part Number: ยอด N..N+3 รวมทุกโรงงาน')}
         {btn('json', 'ดาวน์โหลด JSON', 'ครบทั้งไฟล์ ยอดรายวัน และสรุป ตาม schema เวอร์ชัน 1 (docs/schema/flat-export.schema.json)')}
-        <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" className="mt-1" checked={settings.zip} onChange={(e) => onSettings({ zip: e.target.checked })} />
-          <span>ดาวน์โหลดเป็นชุด (.zip) — ปุ่มด้านบนจะรวม CSV รายวัน, CSV สรุป และ JSON ไว้ในไฟล์เดียว</span>
-        </label>
+        {btn('zip', 'ดาวน์โหลดเป็นชุด (.zip)', 'รวม CSV รายวัน, CSV สรุป และ JSON ไว้ในไฟล์เดียว')}
         <label className="flex items-start gap-2 text-sm border-t border-slate-200 pt-3">
           <input type="checkbox" className="mt-1" checked={settings.includeSheet} onChange={(e) => onSettings({ includeSheet: e.target.checked })} />
           <span>ใส่ชีท “Data (flat)” ในไฟล์ Excel ตอนดาวน์โหลด (ปิดไว้เป็นค่าเริ่มต้น เพื่อให้ไฟล์เทมเพลตเหมือนเดิม)</span>
