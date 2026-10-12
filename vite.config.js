@@ -25,8 +25,15 @@ export default defineConfig({
       },
     },
   },
+  // Test speed (spec target: npm test < 15 s). Worker start-up + module graph per file dominated the run, so the
+  // pure-Node tests share workers (isolate:false) while the jsdom/UI files keep a clean worker each.
+  // Checked with --sequence.shuffle (3 runs, all green): no Node test relies on module state left by another file.
+  // A test that needs a clean module graph belongs in the 'ui' project (*.test.jsx) below.
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.{js,jsx}'],
+    projects: [
+      { extends: true, test: { name: 'node', include: ['tests/**/*.test.js'], pool: 'threads', isolate: false } },
+      { extends: true, test: { name: 'ui', include: ['tests/**/*.test.jsx'], pool: 'forks', isolate: true } },
+    ],
   },
 });
