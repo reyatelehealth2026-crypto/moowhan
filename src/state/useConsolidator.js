@@ -40,13 +40,14 @@ export default function useConsolidator() {
   const [notice, setNoticeState] = useState(null); // { tone: 'warning' | 'success', message }
   const [exportReport, setExportReport] = useState(null);
   const [features, setFeatures] = useState({}); // per-feature data: state.features[id]
+  const [isDemo, setIsDemo] = useState(false); // onboarding: sample data in use
   const [profile, setProfileState] = useState(defaultProfile); // loaded/saved by settings-profile (useProfileStore)
   const [lastExport, setLastExportState] = useState(null); // export-gate: { blob, fileName, report, verification, extraSheets } kept in memory
   const lastExportRef = useRef(null);
 
   // refs so async actions always see the latest values
   const refs = useRef({});
-  refs.current = { template, sourceFiles, processedData, summaryData, profile, productionMonth, features };
+  refs.current = { template, sourceFiles, processedData, summaryData, profile, productionMonth, features, isDemo, processedSignature };
   const processingRef = useRef(false);
 
   const fileCounts = useMemo(
@@ -278,9 +279,12 @@ export default function useConsolidator() {
           result.fileName = result.report.mode === 'fallback' && pattern === DEFAULT_FILE_NAME_PATTERN ? named.replace('Production_Updated', 'Production_Summary') : named;
         }
       }
+      if (refs.current.isDemo && !result.fileName.startsWith('DEMO_')) result.fileName = `DEMO_${result.fileName}`; // onboarding: sample data is never mistaken for real output
       result.report.fileName = result.fileName;
       result.report.sha256 = await sha256(result.blob); // identifies the bytes this app produced
-      setLastExport(makeLastExport(result, { extraSheets: options.extraSheets || [], highlight: options.highlight ?? true }), true);
+      // signature = which data was downloaded (onboarding step 5); held exports get it when downloadLastExport() runs
+      const downloaded = options.download !== false && !options.hold;
+      setLastExport(makeLastExport(result, { extraSheets: options.extraSheets || [], highlight: options.highlight ?? true, ...(downloaded ? { signature: refs.current.processedSignature } : {}) }), true);
       if (options.hold) { // export-gate verifies first and downloads later through downloadLastExport()
         setExportReport(result.report);
         return { ...result, extraSheets: options.extraSheets || [] };
@@ -315,6 +319,7 @@ export default function useConsolidator() {
     if (!last) return null;
     const excel = await loadExcel();
     redownload(last, excel.downloadBlob);
+    setLastExport({ signature: refs.current.processedSignature }); // onboarding: this data has now been downloaded
     const report = last.report;
     const parts = report.mode === 'template'
       ? `เขียนลงเทมเพลต: ${report.patched.map((p) => `${p.sheet} ${p.rows} แถว`).join(', ')}`
@@ -341,6 +346,7 @@ export default function useConsolidator() {
     setNoticeState(null);
     setExportReport(null);
     setFeatures({});
+    setIsDemo(false);
   };
 
   const state = {
@@ -348,12 +354,13 @@ export default function useConsolidator() {
     processedData, summaryData, matchingDetails, changeLog,
     productionMonth, monthLabels: labels, totals, fileCounts,
     error, notice, exportReport, isStale, features, profile, lastExport,
+    isDemo, processedSignature,
   };
   const actions = {
     setTemplateFile, removeTemplate,
     addSourceFiles, removeSourceFile, clearSourceFiles,
     processAll, updateRowValues, updateRowsBatch, commitProcessedData, exportExcel, reset,
-    setError, setNotice, log, setFeatureData, setProfile, replaceProfile, resetProfile, setUiMode,
+    setError, setNotice, log, setDemo: setIsDemo, setFeatureData, setProfile, replaceProfile, resetProfile, setUiMode,
     downloadLastExport, setLastExport, getLastExport: () => lastExportRef.current,
     dismissError: () => setError(null),
     dismissNotice: () => setNoticeState(null),

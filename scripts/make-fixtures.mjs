@@ -2,7 +2,8 @@
 //   node scripts/make-fixtures.mjs synth      write synthetic source files to tests/fixtures/out/
 //   node scripts/make-fixtures.mjs variants   write template variants to tests/fixtures/out/
 //   node scripts/make-fixtures.mjs expected   rewrite tests/fixtures/expected.json from input/*.xls + template.xlsx
-// sanitise / samples / previous are reserved for the onboarding item (see docs/backlog.json).
+// samples        write public/samples (synthetic demo set + manifest.json) for the onboarding demo button
+// sanitise / previous are still reserved (see docs/backlog.json).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,7 +59,25 @@ if (cmd === 'synth') {
 } else if (cmd === 'expected') {
   fs.writeFileSync(path.join(ROOT, 'tests', 'fixtures', 'expected.json'), `${JSON.stringify(await buildExpected(), null, 2)}\n`);
   console.log('wrote tests/fixtures/expected.json');
-} else if (['sanitise', 'samples', 'previous'].includes(cmd)) {
+} else if (cmd === 'samples') {
+  // public/samples: synthetic demo set for the onboarding "ลองข้อมูลตัวอย่าง" button (no real data, no template)
+  const dir = path.join(ROOT, 'public', 'samples');
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const plan = [['BP', 'BP veh DEMO.xls', 6], ['BPK', 'BPK packing DEMO.xls', 5], ['GW', 'GW veh DEMO.xls', 6], ['GW', 'GW packing DEMO.xls', 4], ['SR', 'SR veh DEMO.xls', 5]];
+  const productionMonth = '202602';
+  const expected = { rows: {}, partNumbers: [] };
+  for (const [plant, name, rows] of plan) {
+    const { buffer, expected: e } = makeSource({ plantCode: plant, productionMonth, rows, format: 'xls', includeEof: true, seed: name.length * 13 });
+    fs.writeFileSync(path.join(dir, name), Buffer.from(buffer));
+    expected.rows[name] = rows;
+    e.forEach((r) => expected.partNumbers.push(r.partNumber));
+  }
+  expected.partNumbers = [...new Set(expected.partNumbers)].sort();
+  const manifest = { demo: true, productionMonth, template: null, sources: plan.map((p) => p[1]), expected };
+  fs.writeFileSync(path.join(dir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`wrote ${plan.length} sample files + manifest to ${dir}`);
+} else if (['sanitise', 'previous'].includes(cmd)) {
   console.log(`'${cmd}' is reserved for the onboarding item — not implemented yet`);
 } else if (import.meta.url === `file://${process.argv[1]}` || cmd) {
   console.error('usage: node scripts/make-fixtures.mjs synth|variants|expected');
