@@ -144,6 +144,25 @@ try {
   await page.getByRole('button', { name: 'ปิด', exact: true }).click();
   step('daily-grid tab, sticky column, capacity, 390px and print css ok');
 
+  // ---- dock-analysis ----
+  const dockTab = page.getByRole('tab', { name: 'วิเคราะห์ Dock/รุ่น/บรรจุภัณฑ์' });
+  if (!(await dockTab.count())) {
+    const modeBtn = page.getByRole('button', { name: /โหมด/ });
+    if (await modeBtn.count()) await modeBtn.click();
+  }
+  if (!(await dockTab.count())) {
+    const more = page.getByRole('button', { name: /เพิ่มเติม/ });
+    if (await more.count()) await more.click();
+  }
+  await (await dockTab.count() ? dockTab : page.getByRole('menuitem', { name: /วิเคราะห์ Dock/ })).first().click();
+  await page.getByRole('heading', { name: 'วิเคราะห์ Dock/รุ่น/บรรจุภัณฑ์' }).waitFor();
+  await page.getByRole('group', { name: 'จัดกลุ่มตาม' }).getByRole('button', { name: 'Dock', exact: true }).click();
+  await page.getByText(/พบ 6 จาก 6|รวม 6 กลุ่ม/).first().waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) errors.push('dock-analysis: page overflows horizontally at 390px');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  step('dock-analysis tab shows 6 dock groups, no overflow at 390px');
+
   // Ctrl+Enter on the upload tab processes the files again
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).click();
   await page.getByTestId('process').focus();

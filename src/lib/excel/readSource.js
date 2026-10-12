@@ -40,6 +40,7 @@ export const readMetadata = (aoa, headerRowIndex) => {
     else if (key === 'PLANT CODE') meta.plantCode = String(val).trim();
     else if (key === 'REVISION NUMBER') meta.revision = String(val).trim();
     else if (key === 'FORECAST TYPE') meta.forecastType = String(val).trim();
+    else if (key === 'PART TYPE') meta.partType = String(val).trim();
   }
   meta.productionMonth = parseProductionMonth(meta.productionMonthRaw);
   return meta;

@@ -146,6 +146,7 @@ export default function useConsolidator() {
             row.id = `${f.id}-${idx}`;
             row.plant = f.category;
             row.fileName = f.name;
+            row.partType = meta.partType || '';
             data[dailySheetName(f.category)].push(row);
             logs.push({ fileName: f.name, plant: f.category, partNumber: row.partNumber, action: 'extracted', details: `N=${row.n}, N+1=${row.n1}, N+2=${row.n2}, N+3=${row.n3}` });
           });
