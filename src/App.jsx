@@ -223,6 +223,7 @@ export default function App() {
           <ExcelPreview
             data={state.processedData}
             summaryData={state.summaryData}
+            template={state.template}
             fileName={previewFileName}
             onClose={() => setShowPreview(false)}
             onDownload={() => actions.exportExcel()}
