@@ -4,6 +4,7 @@ import { PLANTS, PLANT_META } from '../../constants.js';
 import { WEEKDAY_LABELS } from '../../utils/calendar.js';
 import { formatNumber } from '../../utils/format.js';
 import { copyText } from '../../utils/clipboard.js';
+import ManualCopyModal from '../../components/ManualCopyModal.jsx';
 import {
   PRESETS, VIEW_MODES, buildColumns, buildGridItems, cellValue, gridToAoa, isOver,
   overDays, plantKpis, sumItems, toTsv,
@@ -113,6 +114,7 @@ export default function DailyGridTab({ state, actions, monthLabels }) {
   const s = settingsOf(ctx);
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState(false);
+  const [manualCopy, setManualCopy] = useState(null);
   const { processedData, productionMonth } = state;
   const columns = useMemo(() => buildColumns(s.preset, productionMonth), [s.preset, productionMonth]);
   const items = useMemo(() => buildGridItems(processedData, { view: s.view, plant: s.plant, search }), [processedData, s.view, s.plant, search]);
@@ -128,7 +130,7 @@ export default function DailyGridTab({ state, actions, monthLabels }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } else {
-      actions.setNotice('คัดลอกไม่สำเร็จ เบราว์เซอร์ไม่อนุญาตให้เข้าถึงคลิปบอร์ด ลองกดใหม่อีกครั้งหรืออนุญาตสิทธิ์คลิปบอร์ด');
+      setManualCopy(text); // clipboard refused: show the TSV pre-selected to copy by hand
     }
   };
   const chip = (active) => `px-3 py-1.5 rounded-lg text-sm border ${active ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}`;
@@ -179,6 +181,7 @@ export default function DailyGridTab({ state, actions, monthLabels }) {
       {items.length === 0
         ? <p className="py-10 text-center text-slate-500">ไม่พบรายการ{search ? ` ที่ตรงกับ “${search}”` : ' ในมุมมองนี้ ลองเลือกโรงงานอื่น'}</p>
         : <Grid items={items} columns={columns} view={s.view} capacity={s.capacity} monthLabels={monthLabels} findings={findings} />}
+      {manualCopy !== null && <ManualCopyModal text={manualCopy} title="คัดลอกตารางรายวัน" onClose={() => setManualCopy(null)} />}
     </div>
   );
 }

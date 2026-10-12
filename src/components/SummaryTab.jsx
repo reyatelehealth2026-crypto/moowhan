@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Icons from './Icons.jsx';
 import { MONTH_META, PLANT_META } from '../constants.js';
 import { formatNumber } from '../utils/format.js';
@@ -6,6 +6,7 @@ import HorizonBadge from '../features/qa-file-guards/HorizonBadge.jsx';
 import useAnalytics from '../hooks/useAnalytics.js';
 import ShareButton from '../features/share-clipboard/ShareButton.jsx';
 import CopyButton from './CopyButton.jsx';
+import ManualCopyModal from './ManualCopyModal.jsx';
 import { DataGrid, KpiCard, Button, STRINGS, GLOSSARY } from '../features/ui-kit/index.js';
 import GlossaryTip from '../features/help-center/GlossaryTip.jsx';
 import { COLUMN_TIPS } from '../features/help-center/columns.js';
@@ -16,6 +17,7 @@ const total = (r) => r.n + r.n1 + r.n2 + r.n3;
 // ==================== SUMMARY TAB ("สรุปรวม") ====================
 export default function SummaryTab({ state, actions, monthLabels }) {
   const { summaryData, exporting } = state;
+  const [manualCopy, setManualCopy] = useState(null); // text to copy by hand when the clipboard is refused
   const totals = useAnalytics(state.processedData, summaryData, state.sourceFiles)?.kpis.totals ?? state.totals;
 
   const columns = useMemo(() => [
@@ -73,8 +75,9 @@ export default function SummaryTab({ state, actions, monthLabels }) {
               return [['Part Number', 'Plants', ...monthLabels, 'Total'], ...rows, ['รวม', '', sum.n, sum.n1, sum.n2, sum.n3, sum.total]];
             }}
             onCopied={(res) => {
+              if (!res.ok) { setManualCopy(res.text); return; } // nothing was copied: no log entry, show the text to copy by hand
               actions.log({ fileName: '-', action: 'share', details: `คัดลอกตารางสรุป ${res.rows.length - 2} แถว` });
-              actions.setNotice(res.ok ? `คัดลอก ${res.rows.length - 2} แถวแล้ว - วางลง Excel/Google Sheets ได้เลย` : 'เบราว์เซอร์ไม่อนุญาตให้คัดลอก — ลองกด "แชร์สรุป" > ตาราง TSV แล้วคัดลอกด้วยตนเอง', res.ok ? 'success' : 'warning');
+              actions.setNotice(`คัดลอก ${res.rows.length - 2} แถวแล้ว - วางลง Excel/Google Sheets ได้เลย`, 'success');
             }}
           />
         </div>
@@ -89,6 +92,7 @@ export default function SummaryTab({ state, actions, monthLabels }) {
           footerLabel={(rows) => `รวม (${rows.length} รายการ)`}
         />
       </div>
+      {manualCopy !== null && <ManualCopyModal text={manualCopy} title="คัดลอกตารางสรุป" onClose={() => setManualCopy(null)} />}
     </div>
   );
 }
