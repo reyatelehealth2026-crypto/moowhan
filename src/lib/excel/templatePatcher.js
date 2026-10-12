@@ -284,6 +284,40 @@ export class StyleRegistry {
     return idx;
   }
 
+  // index of a cellXf identical to `base` but with a solid `rgb` fill + thin border (manual-edit amber).
+  // Fill/border are looked up before being added and an xf that already has them is reused, so patching an
+  // already patched workbook again does not grow cellXfs. Map is keyed base:colour.
+  colored(base, rgb, borderRgb = 'FFD97706') {
+    this.ensureXfs();
+    const b = Number(base) || 0;
+    this.colorMap = this.colorMap || new Map();
+    const key = `${b}:${rgb}`;
+    if (this.colorMap.has(key)) return this.colorMap.get(key);
+    const ensureItem = (tag, xmlItem) => {
+      const m = this.xml.match(new RegExp(`<${tag}s count="(\\d+)">([\\s\\S]*?)</${tag}s>`));
+      if (!m) throw new Error(`styles.xml: ไม่พบ <${tag}s>`);
+      const items = [...m[2].matchAll(new RegExp(`<${tag}\\b[^>]*?(?:/>|>[\\s\\S]*?</${tag}>)`, 'g'))].map((x) => x[0]);
+      const found = items.indexOf(xmlItem);
+      if (found !== -1) return found;
+      this.xml = spliceAt(this.xml, m, `<${tag}s count="${items.length + 1}">${m[2]}${xmlItem}</${tag}s>`);
+      return items.length;
+    };
+    const fillId = ensureItem('fill', `<fill><patternFill patternType="solid"><fgColor rgb="${rgb}"/><bgColor indexed="64"/></patternFill></fill>`);
+    const side = (name) => `<${name} style="thin"><color rgb="${borderRgb}"/></${name}>`;
+    const borderId = ensureItem('border', `<border>${side('left')}${side('right')}${side('top')}${side('bottom')}<diagonal/></border>`);
+    const all = [...this.xfs, ...this.newXfs];
+    let xf = all[b] || all[0] || '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>';
+    if (Number(attr(xf, 'fillId')) === fillId && Number(attr(xf, 'borderId')) === borderId) { this.colorMap.set(key, b); return b; }
+    xf = setXfAttr(xf, 'fillId', fillId);
+    xf = setXfAttr(xf, 'borderId', borderId);
+    xf = setXfAttr(xf, 'applyFill', 1);
+    xf = setXfAttr(xf, 'applyBorder', 1);
+    const idx = all.length;
+    this.newXfs.push(xf);
+    this.colorMap.set(key, idx);
+    return idx;
+  }
+
   // returns the new styles.xml, or null when nothing changed
   commit() {
     if (!this.newXfs.length) return null;
@@ -346,10 +380,11 @@ export const insertAutoFilter = (xml, ref) => {
  * @param {number} [opts.capRow]  extra upper bound for data rows (e.g. an autoFilter end)
  * @param {number} [opts.clearMax]  last column that may be cleared (default: zone.max; Infinity restores the old behaviour)
  * @param {{headerRow:number,lastCol:number}} [opts.autoFilter]  insert an <autoFilter> when the sheet has none
+ * @param {(Map<number,string>|undefined)[]} [opts.cellColors]  per data row: column -> ARGB fill (see editedColors)
  * @returns formulas inside the zone stop the table: rows at/below the first formula row are never
  *   written or cleared; rows that do not fit come back as `blocked` ([] or one entry) with `dropped` indexes.
  */
-export const patchSheetXml = (xml, parsed, { startRow, dataRows, clearThroughRow, styles, highlight, zone, clearMax, capRow, autoFilter }) => {
+export const patchSheetXml = (xml, parsed, { startRow, dataRows, clearThroughRow, styles, highlight, zone, clearMax, capRow, autoFilter, cellColors }) => {
   const { sheetData, rows } = parsed;
   const guarded = Boolean(zone); // the formula-row guard is on whenever the caller names a writable zone
   const zMin = zone?.min ?? 1;
@@ -404,7 +439,9 @@ export const patchSheetXml = (xml, parsed, { startRow, dataRows, clearThroughRow
         let s = ex?.s ?? templateRow?.cells.get(col)?.s;
         const fmt = numFmtFor(value);
         if (fmt && styles) s = styles.withNumFmt(s, fmt);
-        if (highlight && styles) s = styles.highlighted(s);
+        const tone = cellColors?.[r - startRow]?.get(col); // manual-edit amber wins over the plain highlight
+        if (tone && styles) s = styles.colored(s, tone);
+        else if (highlight && styles) s = styles.highlighted(s);
         cells.set(col, buildCell(col, r, value, s));
         if (col > maxCol) maxCol = col;
         written++;
@@ -468,6 +505,15 @@ const rowToMap = (rawRow, offset, maxCols = Infinity) => {
     if (v !== undefined && v !== null && v !== '') map.set(i + offset, v);
   }
   return map;
+};
+
+// manual-edit: row.editedCells (0-based rawRow indexes) -> Map(col -> amber) for patchSheetXml's `cellColors`
+export const EDITED_FILL = 'FFFFF1C2';
+export const editedColors = (row, offset, maxCols = Infinity) => {
+  if (!row?.editedCells?.length) return undefined;
+  const map = new Map();
+  row.editedCells.forEach((i) => { if (i < maxCols) map.set(i + offset, EDITED_FILL); });
+  return map.size ? map : undefined;
 };
 
 // ---------- workbook-level range fix-ups ----------
@@ -761,6 +807,7 @@ export const patchTemplate = async (templateBuffer, {
       startRow, dataRows, clearThroughRow: parsed.lastRow, styles, highlight,
       zone: { min: 1, max: lastCol }, clearMax: clearBeyondTable ? Infinity : lastCol,
       autoFilter: addAutoFilter ? { headerRow, lastCol } : null,
+      cellColors: rows.map((row) => editedColors(row, 1, lastCol)),
     });
     writeText(zip, sheet.path, res.xml);
     patched.push({ ...sheet, lastDataRow: res.lastDataRow, filterRef: res.filterRef });
@@ -808,6 +855,7 @@ export const patchTemplate = async (templateBuffer, {
       startRow, dataRows, clearThroughRow, styles, highlight,
       zone: { min: offset, max: plantCol }, clearMax: clearBeyondTable ? Infinity : plantCol,
       capRow: af ? Number(af[1]) : undefined,
+      cellColors: analyzeRows.map((row) => editedColors(row, offset, maxSourceCols)),
     });
     writeText(zip, analyze.path, res.xml);
     patched.push({ ...analyze, lastDataRow: res.lastDataRow });
