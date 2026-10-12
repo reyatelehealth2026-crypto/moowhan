@@ -1,8 +1,10 @@
 import Icons from '../../components/Icons.jsx';
 import { defineFeature } from '../defineFeature.js';
-import FolderImportModal from './FolderImportModal.jsx';
+import { lazyComponent } from '../lazy.js';
 import { canPickFolder, planFolderImport, scanDirectory } from './folder.js';
 import { expandFile } from './intake.js';
+
+const FolderImportModal = lazyComponent(() => import('./FolderImportModal.jsx'));
 
 const ID = 'import-cli';
 export const FOLDER_BUTTON_LABEL = 'เปิดโฟลเดอร์เดือนนี้ (ทดลอง – Chrome/Edge)';

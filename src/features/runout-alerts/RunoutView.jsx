@@ -7,24 +7,14 @@ import { computeIssues } from '../qa-engine/compute.js';
 import { getWaiverStore, waiverKey } from '../qa-engine/waivers.js';
 import { noteKey } from '../manual-edit/notes.js';
 import { STATUS_LABEL, isRunout } from './classify.js';
+import { ID, notesByKey, slotOf } from './meta.js';
 import { RULE_ID } from './rules.js';
 import { buildRunoutRows, signalRows, withOverride } from './rows.js';
 
-export const ID = 'runout-alerts';
 const selectCls = 'px-3 py-2 min-h-[44px] border border-slate-200 rounded-lg text-sm bg-white';
 const TONE = { 'runout-n1': 'error', 'runout-n2': 'warning', 'runout-n3': 'warning', new: 'info', gap: 'info', normal: 'success', zero: 'neutral' };
 
-/** profile.features[id] is the persisted slot (settings-profile saves it); keep the other keys when patching. */
-export const slotOf = (state) => state.profile?.features?.[ID] || {};
-
-/** Note texts by row key from the shared notes store (manual-edit), plus the runout-owned note per key. */
-export const notesByKey = (state) => {
-  const out = {};
-  (state.features?.['manual-edit']?.notes || []).forEach((n) => {
-    if (typeof n?.key === 'string' && n.key.startsWith('row:')) (out[n.key.slice(4)] ||= []).push(n.text);
-  });
-  return out;
-};
+export { ID, slotOf, notesByKey };
 
 export default function RunoutView({ state, actions }) {
   const [status, setStatus] = useState('signal'); // signal | all | <status>

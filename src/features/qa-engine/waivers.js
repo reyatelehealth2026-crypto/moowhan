@@ -5,7 +5,9 @@
 //
 // Storage: an adapter { read(): object|null, write(obj) }; the default is storageAdapter() over src/lib/storage.
 
-import { getStorage, registerKey } from '../../lib/storage/index.js';
+// registry.js is tiny and shared with the storage layer; the storage layer itself is loaded on first use so it
+// stays out of the entry chunk.
+import { registerKey } from '../../lib/storage/registry.js';
 
 export const MIN_REASON = 3;
 
@@ -41,7 +43,15 @@ export const memoryAdapter = (initial = {}) => {
 // writes go to storage in the background and never throw.
 export const WAIVERS_KEY = 'qa.waivers';
 registerKey({ key: WAIVERS_KEY, tier: 'prefs', purpose: 'รายการ “รับทราบ” ของผลตรวจคุณภาพ (หมดอายุสิ้นเดือนผลิต)', retention: null });
-export const storageAdapter = (storage = getStorage()) => {
+const lazyStorage = () => {
+  let loaded;
+  const get = () => (loaded ||= import('../../lib/storage/index.js').then((m) => m.getStorage()));
+  return {
+    get: async (...args) => (await get()).get(...args),
+    put: async (...args) => (await get()).put(...args),
+  };
+};
+export const storageAdapter = (storage = lazyStorage()) => {
   let data = {};
   return {
     read: () => data,
@@ -49,7 +59,7 @@ export const storageAdapter = (storage = getStorage()) => {
   };
 };
 /** Waivers saved in a previous session (or {} when none / storage unavailable). */
-export const loadSavedWaivers = async (storage = getStorage()) => {
+export const loadSavedWaivers = async (storage = lazyStorage()) => {
   try {
     const saved = await storage.get('prefs', WAIVERS_KEY);
     return saved && typeof saved === 'object' ? saved : {};

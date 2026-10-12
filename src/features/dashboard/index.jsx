@@ -1,6 +1,8 @@
 import Icons from '../../components/Icons.jsx';
 import { defineFeature } from '../defineFeature.js';
-import DashboardTab from './DashboardTab.jsx';
+import { lazyComponent } from '../lazy.js';
+
+const DashboardTab = lazyComponent(() => import('./DashboardTab.jsx'));
 
 export default defineFeature({
   id: 'dashboard',

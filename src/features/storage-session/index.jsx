@@ -1,6 +1,8 @@
 import { defineFeature } from '../defineFeature.js';
-import StorageHost from './StorageHost.jsx';
-import StoragePanel from './StoragePanel.jsx';
+import { lazyComponent } from '../lazy.js';
+
+const StorageHost = lazyComponent(() => import('./StorageHost.jsx'));
+const StoragePanel = lazyComponent(() => import('./StoragePanel.jsx'));
 
 // No tab: StorageHost (banner slot) is mounted for the whole app run and owns the effects
 // (hydrate, autosave, restore banner); StoragePanel is the "ข้อมูลที่เก็บในเครื่องนี้" section on the upload tab.

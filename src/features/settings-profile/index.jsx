@@ -1,6 +1,8 @@
 import Icons from '../../components/Icons.jsx';
 import { defineFeature } from '../defineFeature.js';
-import SettingsPanel from './SettingsPanel.jsx';
+import { lazyComponent } from '../lazy.js';
+
+const SettingsPanel = lazyComponent(() => import('./SettingsPanel.jsx'));
 
 // The one settings tab. The profile itself lives in useConsolidator (state.profile / actions.setProfile,
 // replaceProfile, resetProfile); other features read it through ctx.profile and the pure helpers

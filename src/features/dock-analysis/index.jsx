@@ -1,9 +1,9 @@
 import Icons from '../../components/Icons.jsx';
 import { defineFeature } from '../defineFeature.js';
-import DockPanel, { ID, DEFAULTS } from './DockPanel.jsx';
-import { buildSheets } from './sheets.js';
-import { emptyMaster, loadMaster } from './master.js';
-import { readPackingTypeMap } from './packaging.js';
+import { lazyComponent } from '../lazy.js';
+import { ID, DEFAULTS } from './meta.js';
+
+const DockPanel = lazyComponent(() => import('./DockPanel.jsx'));
 
 export default defineFeature({
   id: ID,
@@ -22,6 +22,7 @@ export default defineFeature({
     const d = { ...DEFAULTS, ...(ctx.state.features?.[ID] || {}) };
     const o = d.exportOpts || {};
     if (!ctx.state.processedData || !(o.dock || o.carFamily || o.boxes)) return [];
+    const [{ buildSheets }, { emptyMaster, loadMaster }, { readPackingTypeMap }] = await Promise.all([import('./sheets.js'), import('./master.js'), import('./packaging.js')]);
     const master = d.master || loadMaster() || emptyMaster();
     let map = d.packMap;
     if (o.boxes && !map && ctx.state.template?.kind === 'xlsx') map = await readPackingTypeMap(ctx.state.template.buffer);

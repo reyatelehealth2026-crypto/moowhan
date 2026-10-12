@@ -1,5 +1,7 @@
 import { defineFeature } from '../defineFeature.js';
-import InspectionCard from './InspectionCard.jsx';
+import { lazyComponent } from '../lazy.js';
+
+const InspectionCard = lazyComponent(() => import('./InspectionCard.jsx'));
 
 // Template inspector: the facts live in state.template.inspection (computed once when the template is
 // loaded, see lib/excel/templateInfo.js). This feature only shows them under the upload tab.

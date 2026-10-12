@@ -1,10 +1,11 @@
 import Icons from '../../components/Icons.jsx';
 import { defineFeature } from '../defineFeature.js';
 import { isoNow } from '../../utils/clock.js';
-import ProvenanceHost from './ProvenanceHost.jsx';
-import { FEATURE_ID, buildManifest, manifestToAoa } from './manifest.js';
+import { lazyComponent } from '../lazy.js';
+import { FEATURE_ID } from './meta.js';
 import { dataSignature, isStaleSent, sentChipText } from './sent.js';
 
+const ProvenanceHost = lazyComponent(() => import('./ProvenanceHost.jsx'));
 const data = (ctx) => ctx.state.features?.[FEATURE_ID] || {};
 
 // No top-level tab: the manifest opens as a dialog from the header; sign-off prompts are a banner slot.
@@ -23,8 +24,9 @@ export default defineFeature({
     }];
     return ctx.state.processedData ? actions : [];
   },
-  exportSheets: (ctx) => {
+  exportSheets: async (ctx) => {
     if (!ctx.state.processedData || data(ctx).runInfo === false || ctx.state.profile?.features?.[FEATURE_ID]?.runInfo === false) return [];
+    const { buildManifest, manifestToAoa } = await import('./manifest.js');
     return [{ name: 'Run Info', aoa: manifestToAoa(buildManifest(ctx.state)) }];
   },
   onExported: (ctx, result) => {

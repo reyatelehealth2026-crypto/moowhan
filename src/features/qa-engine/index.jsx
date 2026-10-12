@@ -1,11 +1,13 @@
 import Icons from '../../components/Icons.jsx';
 import { defineFeature } from '../defineFeature.js';
-import QaTab from './QaTab.jsx';
-import SettingsPanel from './SettingsPanel.jsx';
+import { lazyComponent } from '../lazy.js';
 import { DEFAULT_SETTINGS } from './settings.js';
 import { FEATURE_ID, computeIssues } from './compute.js';
 import { countActive, toContractIssue } from './model.js';
 import { buildReportSheet, summaryLine } from './report.js';
+
+const QaTab = lazyComponent(() => import('./QaTab.jsx'));
+const SettingsPanel = lazyComponent(() => import('./SettingsPanel.jsx'));
 
 // QA engine feature (the single quality-check engine of the app).
 // Add a rule: see README.md. Other features should register rules instead of building their own tab/badge.

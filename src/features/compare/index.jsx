@@ -1,8 +1,10 @@
 import Icons from '../../components/Icons.jsx';
 import { defineFeature } from '../defineFeature.js';
-import ComparePanel, { ID, DEFAULTS } from './ComparePanel.jsx';
+import { lazyComponent } from '../lazy.js';
+import { ID, DEFAULTS } from './meta.js';
 import { COMPARE_SHEET, alignMonths, compare, compareToAoa, filterRows, rowsFromProcessed, summarize } from './compare.js';
-import { baselineFromProcessed } from './readPrevious.js';
+
+const ComparePanel = lazyComponent(() => import('./ComparePanel.jsx'));
 
 const signature = (rows) => rows.map((r) => `${r.plant}|${r.part}|${r.dock}|${r.n},${r.n1},${r.n2},${r.n3}`).join(';');
 
@@ -29,7 +31,8 @@ export default defineFeature({
     Component: ComparePanel,
   },
   // Keep an in-memory snapshot of the previous processAll so "same round, old Rev -> new Rev" needs no upload.
-  onProcessed: (ctx, result) => {
+  onProcessed: async (ctx, result) => {
+    const { baselineFromProcessed } = await import('./readPrevious.js');
     const next = baselineFromProcessed(result.processedData, { month: result.productionMonth, label: 'รอบที่ประมวลผลก่อนหน้า (ในหน่วยความจำ)' });
     const sig = signature(next.rows);
     ctx.actions.setFeatureData(ID, (cur) => (cur.last && cur.last.sig !== sig

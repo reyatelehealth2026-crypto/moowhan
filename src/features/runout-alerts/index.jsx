@@ -1,9 +1,12 @@
 import Icons from '../../components/Icons.jsx';
 import { defineFeature } from '../defineFeature.js';
-import RunoutView, { ID, notesByKey, slotOf } from './RunoutView.jsx';
+import { lazyComponent } from '../lazy.js';
+import { ID, notesByKey, slotOf } from './meta.js';
 import { STATUS_LABEL } from './classify.js';
 import { EXPORT_SHEET_NAME, buildRunoutAoa, buildRunoutRows } from './rows.js';
 import './rules.js'; // registers QA rule B01 (group 'business') into the single qa-engine registry
+
+const RunoutView = lazyComponent(() => import('./RunoutView.jsx'));
 
 // Run-out signals from the TMT forecast (no stock figures exist in those files).
 // - classifier: classify.js (only copy) · rows: rows.js · QA rule B01: rules.js

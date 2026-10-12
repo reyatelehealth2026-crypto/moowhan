@@ -1,10 +1,10 @@
 // Run history snapshots (pure; persistence only through src/lib/storage). No DOM/React.
 import { PLANTS, MONTH_KEYS } from '../../constants.js';
 import { isoNow } from '../../utils/clock.js';
-import { registerKey } from '../../lib/storage/index.js';
+import { registerKey } from '../../lib/storage/registry.js';
 import { monthIndex } from './align.js';
 
-export const FEATURE_ID = 'run-history';
+export { FEATURE_ID } from './meta.js';
 export const SCHEMA_VERSION = 1;
 export const MAX_RUNS = 24;
 export const RUNS_KEY = 'runs.list';

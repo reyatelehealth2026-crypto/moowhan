@@ -6,7 +6,8 @@ import { isoNow } from '../../utils/clock.js';
 import { sha256, shortHash } from '../../utils/hash.js';
 
 export const MANIFEST_SCHEMA_VERSION = 1;
-export const FEATURE_ID = 'provenance-manifest';
+export { FEATURE_ID } from './meta.js';
+import { FEATURE_ID } from './meta.js';
 
 export const monthKey = (pm) => (pm ? `${pm.year}${String(pm.month).padStart(2, '0')}` : '');
 

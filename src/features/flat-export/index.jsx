@@ -1,31 +1,35 @@
 import Icons from '../../components/Icons.jsx';
 import { defineFeature } from '../defineFeature.js';
 import { PLANTS, dailySheetName } from '../../constants.js';
-import FlatExportModal from './FlatExportModal.jsx';
-import { getStorage, registerKey } from '../../lib/storage/index.js';
-import { DEFAULT_SETTINGS, SETTINGS_KEY, applyPreset, normalizeSettings, presetById } from './presets.js';
+import { lazyComponent } from '../lazy.js';
+import { registerKey } from '../../lib/storage/registry.js';
 import { buildLongRows } from './logic.js';
+import { DEFAULT_SETTINGS, SETTINGS_KEY, applyPreset, normalizeSettings, presetById } from './presets.js';
+
+const FlatExportModal = lazyComponent(() => import('./FlatExportModal.jsx'));
+const loadStorage = () => import('../../lib/storage/index.js');
 
 const ID = 'flat-export';
 export const FLAT_SHEET = 'Data (flat)';
 
 const hasRows = (state) => PLANTS.some((p) => state.processedData?.[dailySheetName(p)]?.length > 0);
 registerKey({ key: SETTINGS_KEY, tier: 'prefs', purpose: 'ตัวเลือกส่งออกข้อมูล CSV/JSON ล่าสุด', retention: null });
+// the storage layer is loaded on first use (it is not part of the entry chunk)
+const flatStorage = async () => (await loadStorage()).getStorage();
 
 const settingsOf = (ctx) => ctx.state.features?.[ID]?.settings ?? DEFAULT_SETTINGS;
 const setOpen = (ctx, open) => ctx.actions.setFeatureData(ID, { open });
 // Last choice lives in the storage layer's prefs tier; it is loaded once after the first processing.
-let hydrated = false;
+// Re-read on every processing: "รีเซ็ต" clears state.features, so a one-shot guard would lose the saved choice (F16).
 const hydrate = async (ctx) => {
-  if (hydrated) return;
-  hydrated = true;
-  const saved = await getStorage().get('prefs', SETTINGS_KEY);
-  if (saved && !ctx.state.features?.[ID]?.settings) ctx.actions.setFeatureData(ID, { settings: normalizeSettings(saved) });
+  if (ctx.state.features?.[ID]?.settings) return;
+  const saved = await (await flatStorage()).get('prefs', SETTINGS_KEY);
+  if (saved) ctx.actions.setFeatureData(ID, (cur) => (cur.settings ? {} : { settings: normalizeSettings(saved) }));
 };
-const updateSettings = (ctx, patch) => {
+const updateSettings = async (ctx, patch) => {
   const next = { ...settingsOf(ctx), ...patch };
-  getStorage().put('prefs', SETTINGS_KEY, next);
   ctx.actions.setFeatureData(ID, { settings: next });
+  (await flatStorage()).put('prefs', SETTINGS_KEY, next);
 };
 
 export default defineFeature({

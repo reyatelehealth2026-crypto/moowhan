@@ -5,11 +5,11 @@ import FileDropZone from '../../components/FileDropZone.jsx';
 import Banner from '../../components/Banner.jsx';
 import { formatMonth, formatNumber } from '../../utils/format.js';
 import { Button, Chip, EmptyState, InfoTip, KpiCard, pushToast } from '../ui-kit/index.js';
-import { DEFAULT_THRESHOLD, STATUS_LABEL, alignMonths, compare, filterRows, rowsFromProcessed, summarize } from './compare.js';
+import { ID, DEFAULTS } from './meta.js';
+import { STATUS_LABEL, alignMonths, compare, filterRows, rowsFromProcessed, summarize } from './compare.js';
 import { baselineToJson, readPrevious, readPreviousTmt, readPreviousWorkbook } from './readPrevious.js';
 
-export const ID = 'compare';
-export const DEFAULTS = { baseline: null, confirmedMonth: null, level: 'dock', pct: DEFAULT_THRESHOLD.pct, minPcs: DEFAULT_THRESHOLD.minPcs, positional: false, exportCompare: false, error: '' };
+export { ID, DEFAULTS };
 const SHOW_MAX = 300;
 
 const STATUS_TONE = { new: 'info', missing: 'warning', changed: 'neutral', same: 'success' };

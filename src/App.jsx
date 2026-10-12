@@ -1,12 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import Icons from './components/Icons.jsx';
 import Banner from './components/Banner.jsx';
 import UploadTab from './components/UploadTab.jsx';
-import PreviewTab from './components/PreviewTab.jsx';
-import SummaryTab from './components/SummaryTab.jsx';
-import MatchingTab from './components/MatchingTab.jsx';
-import ChangelogTab from './components/ChangelogTab.jsx';
-import ExcelPreview from './components/ExcelPreview.jsx';
+import LoadingFallback from './components/LoadingFallback.jsx';
 import useConsolidator from './state/useConsolidator.js';
 import { FEATURES } from './features/index.js';
 import FeatureErrorBoundary from './components/FeatureErrorBoundary.jsx';
@@ -24,9 +20,16 @@ import { gateIssuesFor, requestExport } from './features/export-gate/flow.js';
 import { summarizeGate } from './features/export-gate/gate.js';
 import { attachOverrideNote } from './features/export-gate/lastExport.js';
 
+// tabs after the upload step are separate chunks (the entry keeps only the upload step and the shell)
+const PreviewTab = lazy(() => import('./components/PreviewTab.jsx'));
+const SummaryTab = lazy(() => import('./components/SummaryTab.jsx'));
+const MatchingTab = lazy(() => import('./components/MatchingTab.jsx'));
+const ChangelogTab = lazy(() => import('./components/ChangelogTab.jsx'));
+const ExcelPreview = lazy(() => import('./components/ExcelPreview.jsx'));
+
 const MAX_INLINE_ACTIONS = 3;
 // renders feature slot output inside the error boundary (a throwing slot cannot blank the app)
-const SlotHost = ({ fn, ctx }) => fn(ctx) ?? null;
+const SlotHost = ({ fn, ctx }) => <Suspense fallback={null}>{fn(ctx) ?? null}</Suspense>;
 const warnOnly = ({ message, error }) => console.warn(message, error);
 
 const APP_TITLE = 'รีบทำเดียวอดเลนเกม';
@@ -207,7 +210,7 @@ export default function App() {
               <span className="w-4 h-4"><Icons.Filter /></span>
               <span className="hidden sm:inline">{simple ? 'โหมดเริ่มต้น' : 'ขั้นสูง'}</span>
             </button>
-            {inlineNodes.map((n, i) => <span key={`n${i}`}>{n}</span>)}
+            {inlineNodes.map((n, i) => <span key={`n${i}`}><Suspense fallback={null}>{n}</Suspense></span>)}
             {inlineActions.map((a) => (
               <button key={a.key} type="button" onClick={a.onClick} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600">
                 {a.Icon && <span className="w-4 h-4"><a.Icon /></span>}<span className="hidden sm:inline">{a.label}</span>
@@ -245,7 +248,9 @@ export default function App() {
 
         <FeatureErrorBoundary key={activeTab.id} name={activeFeature ? featureName(activeFeature) : activeTab.label} onError={activeFeature ? logFeatureError(activeFeature) : (error) => report({ message: `แท็บ "${activeTab.label}" เกิดข้อผิดพลาดขณะแสดงผล`, error })}>
           <div role="tabpanel" id="tabpanel-main" aria-labelledby={`tab-${activeTab.id}`}>
-            <activeTab.Component state={state} actions={actions} monthLabels={state.monthLabels} />
+            <Suspense fallback={<LoadingFallback />}>
+              <activeTab.Component state={state} actions={actions} monthLabels={state.monthLabels} />
+            </Suspense>
           </div>
         </FeatureErrorBoundary>
 
@@ -256,14 +261,14 @@ export default function App() {
         ))}
 
         {showPreview && (
-          <ExcelPreview
+          <Suspense fallback={null}><ExcelPreview
             data={state.processedData}
             summaryData={state.summaryData}
             template={state.template}
             fileName={previewFileName}
             onClose={() => setShowPreview(false)}
             onDownload={() => actions.exportExcel()}
-          />
+          /></Suspense>
         )}
       </main>
 

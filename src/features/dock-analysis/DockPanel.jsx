@@ -3,11 +3,11 @@ import { downloadText } from '../../utils/download.js';
 import { PLANTS, MONTH_KEYS } from '../../constants.js';
 import { formatNumber } from '../../utils/format.js';
 import { Chip, DataGrid, KpiCard, pushToast } from '../ui-kit/index.js';
+import { ID, DEFAULTS } from './meta.js';
 import { allRows, groupRows, multiDockParts, deliveryDays, basePartNumber, shippingDockText } from './logic.js';
 import { buildBoxRows, palletKey, readPackingTypeMap, sumNullable } from './packaging.js';
 import { dockLabel, emptyMaster, exportMasterJson, loadMaster, parseMasterJson, saveMaster, setDock, setPallet } from './master.js';
 
-export const ID = 'dock-analysis';
 export const GROUP_OPTIONS = [
   { id: 'plant', label: 'โรงงาน' },
   { id: 'dock', label: 'Dock' },
@@ -15,7 +15,7 @@ export const GROUP_OPTIONS = [
   { id: 'basePart', label: 'Part หลัก' },
   { id: 'packing', label: 'บรรจุภัณฑ์' },
 ];
-export const DEFAULTS = { by: 'dock', plant: 'all', unit: 'pieces', partType: '', showAllFiles: false, exportOpts: { dock: false, carFamily: false, boxes: false } };
+export { ID, DEFAULTS };
 const PART_TYPE_LABEL = { V: 'Vehicle', P: 'Packing' };
 
 const btn = (active) => `px-3 py-1.5 rounded-lg text-sm border whitespace-nowrap ${active ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}`;

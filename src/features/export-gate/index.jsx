@@ -1,5 +1,7 @@
 import { defineFeature } from '../defineFeature.js';
-import ExportGateHost from './ExportGateHost.jsx';
+import { lazyComponent } from '../lazy.js';
+
+const ExportGateHost = lazyComponent(() => import('./ExportGateHost.jsx'));
 
 // Export dialog + gate + post-export check. The gate rules live in gate.js and are collected by App.jsx
 // (runtime.collectGate + buildGate) when the user downloads; the dialog only opens for block/confirm issues.
