@@ -34,11 +34,13 @@ export default function useConsolidator() {
   const [notice, setNoticeState] = useState(null); // { tone: 'warning' | 'success', message }
   const [exportReport, setExportReport] = useState(null);
   const [features, setFeatures] = useState({}); // per-feature data: state.features[id]
+  const [isDemo, setIsDemo] = useState(false); // onboarding: sample data in use
+  const [lastExport, setLastExport] = useState(null); // onboarding: { signature, fileName } of the last download
   const [profile, setProfileState] = useState(DEFAULT_PROFILE); // standalone default until settings-profile persists it
 
   // refs so async actions always see the latest values
   const refs = useRef({});
-  refs.current = { template, sourceFiles, processedData, summaryData };
+  refs.current = { template, sourceFiles, processedData, summaryData, isDemo, processedSignature };
   const processingRef = useRef(false);
 
   const fileCounts = useMemo(
@@ -245,7 +247,9 @@ export default function useConsolidator() {
         clearBeyondTable: options.clearBeyondTable,
         addAutoFilter: options.addAutoFilter,
       });
-      if (options.download !== false) excel.downloadBlob(result.blob, result.fileName);
+      const fileName = refs.current.isDemo ? `DEMO_${result.fileName}` : result.fileName;
+      if (options.download !== false) excel.downloadBlob(result.blob, fileName);
+      if (options.download !== false) setLastExport({ signature: refs.current.processedSignature, fileName });
       setExportReport(result.report);
       const parts = result.report.mode === 'template'
         ? `เขียนลงเทมเพลต: ${result.report.patched.map((p) => `${p.sheet} ${p.rows} แถว`).join(', ')}`
@@ -277,6 +281,8 @@ export default function useConsolidator() {
     setNoticeState(null);
     setExportReport(null);
     setFeatures({});
+    setIsDemo(false);
+    setLastExport(null);
   };
 
   const state = {
@@ -284,12 +290,13 @@ export default function useConsolidator() {
     processedData, summaryData, matchingDetails, changeLog,
     productionMonth, monthLabels: labels, totals, fileCounts,
     error, notice, exportReport, isStale, features, profile,
+    isDemo, lastExport, processedSignature,
   };
   const actions = {
     setTemplateFile, removeTemplate,
     addSourceFiles, removeSourceFile, clearSourceFiles,
     processAll, updateRowValues, exportExcel, reset,
-    setError, setNotice, log, setFeatureData, setProfile, setUiMode,
+    setError, setNotice, setDemo: setIsDemo, log, setFeatureData, setProfile, setUiMode,
     dismissError: () => setError(null),
     dismissNotice: () => setNoticeState(null),
   };

@@ -191,6 +191,29 @@ try {
   await page.getByRole('tab', { name: 'อัปโหลดไฟล์' }).waitFor();
   await page.getByRole('button', { name: /โหมด/ }).click();
   step('simple/advanced toggle ok');
+
+  // ---- onboarding: step strip, demo mode (no cross-origin requests), boot-check ----
+  if ((await page.getByTestId('step-strip').count()) !== 1) errors.push('onboarding: expected exactly one step-strip');
+
+  const demo = await context.newPage();
+  const foreign = [];
+  demo.on('request', (r) => { if (!r.url().startsWith(new URL(url).origin) && !/^(data|blob):/.test(r.url())) foreign.push(r.url()); });
+  await demo.goto(url, { waitUntil: 'networkidle' });
+  await demo.getByRole('button', { name: 'ลองข้อมูลตัวอย่าง' }).click();
+  await demo.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
+  if ((await demo.getByTestId('demo-chip').count()) !== 1) errors.push('onboarding: demo chip missing');
+  const [demoDl] = await Promise.all([demo.waitForEvent('download', { timeout: 60000 }), demo.keyboard.press('Control+s')]);
+  if (!demoDl.suggestedFilename().startsWith('DEMO_')) errors.push(`onboarding: demo file name ${demoDl.suggestedFilename()}`);
+  if (foreign.length) errors.push(`onboarding: cross-origin requests ${foreign.join(', ')}`);
+  await demo.close();
+  step('demo mode loads samples, DEMO_ download, same-origin only');
+
+  const blocked = await context.newPage();
+  await blocked.addInitScript(() => Object.defineProperty(window, '__moowhanBooted', { get: () => false, set: () => {}, configurable: true }));
+  await blocked.goto(url);
+  await blocked.getByTestId('unsupported-browser').waitFor({ timeout: 10000 });
+  await blocked.close();
+  step('boot-check shows unsupported message when the app never boots');
 } finally {
   await browser.close();
   if (server) server.kill();
