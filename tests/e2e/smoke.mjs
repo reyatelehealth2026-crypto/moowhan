@@ -49,6 +49,20 @@ try {
   await inputs.nth(1).setInputFiles(SOURCES);
   await page.getByText('SR veh 481D.xls').waitFor();
   step('template + 5 source files listed');
+
+  // ---- template-inspector: card under the upload tab, informational only ----
+  const inspection = page.getByTestId('template-inspection');
+  await inspection.getByText('ผลตรวจเทมเพลต').waitFor();
+  const inspectRows = await inspection.getByTestId('inspection-sheet-row').count();
+  if (inspectRows !== 11) errors.push(`template-inspector: expected 11 sheet rows, got ${inspectRows}`);
+  if (!(await inspection.innerText()).includes('Analyze รองรับ 54 แถว')) errors.push('template-inspector: summary line missing "Analyze รองรับ 54 แถว"');
+  if (!(await inspection.innerText()).includes('วิธีแก้')) errors.push('template-inspector: issues have no "วิธีแก้" line');
+  await page.setViewportSize({ width: 390, height: 800 });
+  const inspectOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (inspectOverflow > 0) errors.push(`template-inspector: horizontal page overflow ${inspectOverflow}px at 390px`);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  if (await page.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).isDisabled()) errors.push('template-inspector: process button disabled by the inspection');
+  step('template inspection card: 11 rows, no overflow at 390px');
   await shot(page, '02-files');
 
   await page.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();

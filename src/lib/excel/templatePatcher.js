@@ -28,7 +28,7 @@ const escapeXml = (s) =>
     .replace(/[&<>"]/g, (c) => ESCAPES[c])
     // control characters are not allowed in XML 1.0
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
-const decodeXml = (s) =>
+export const decodeXml = (s) =>
   String(s)
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'").replace(/&#(\d+);/g, (m, d) => String.fromCodePoint(Number(d)))
@@ -42,7 +42,7 @@ const ROW_RE = /<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g;
 const CELL_RE = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
 
 // ---------- workbook parts ----------
-const readText = async (zip, path) => {
+export const readText = async (zip, path) => {
   const f = zip.file(path);
   return f ? f.async('string') : null;
 };
@@ -74,7 +74,7 @@ export const listSheetNames = async (buffer) => {
   return (await listSheets(zip)).map((s) => s.name);
 };
 
-const loadSharedStrings = async (zip) => {
+export const loadSharedStrings = async (zip) => {
   const xml = await readText(zip, 'xl/sharedStrings.xml');
   if (!xml) return [];
   return [...xml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)].map((m) =>
@@ -122,7 +122,7 @@ export const parseSheet = (xml) => {
   return { sheetData, rows, lastRow: Math.max(0, ...rows.keys()) };
 };
 
-const cellText = (cell, sst) => {
+export const cellText = (cell, sst) => {
   if (!cell) return '';
   if (cell.t === 'inlineStr') {
     return [...cell.inner.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map((m) => decodeXml(m[1])).join('');
@@ -135,7 +135,7 @@ const cellText = (cell, sst) => {
 const norm = (s) => String(s ?? '').trim().toUpperCase();
 
 // First row (1-based) whose cell in `col` reads `text`.
-const findRowWithText = (rows, sst, col, text, limit = 80) => {
+export const findRowWithText = (rows, sst, col, text, limit = 80) => {
   for (const row of [...rows.values()].sort((a, b) => a.r - b.r)) {
     if (row.r > limit) break;
     if (norm(cellText(row.cells.get(col), sst)) === text) return row.r;
@@ -144,7 +144,7 @@ const findRowWithText = (rows, sst, col, text, limit = 80) => {
 };
 
 // Right-most column in a row whose cell reads `text`.
-const lastColWithText = (row, sst, text) => {
+export const lastColWithText = (row, sst, text) => {
   let found = null;
   if (!row) return null;
   for (const [col, cell] of row.cells) {
