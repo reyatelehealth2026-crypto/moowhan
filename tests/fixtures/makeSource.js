@@ -51,7 +51,7 @@ export const makeSource = (o = {}) => {
   const {
     plantCode = 'BP', productionMonth = '202602', rows = 5, headerRow = 13, extraLeadingCols = 0, nShift = 0,
     includeEof = false, duplicates = false, docks = ['D1'], packingSizes = [60, 120], weekendZero = false,
-    runoutRows = 0, format = 'xlsx', seed = 7, calendarDays = false,
+    runoutRows = 0, format = 'xlsx', seed = 7, calendarDays = false, partOffset = 0,
   } = o;
   const rnd = lcg(seed);
   const kv = [
@@ -73,7 +73,7 @@ export const makeSource = (o = {}) => {
 
   const expected = [];
   const makeRow = (i, dock, n) => {
-    const r = [partNumberOf(i), `P${i + 1}`, `PART ${i + 1}`, 'S001', dock, dock, `CF${(i % 3) + 1}`, packingSizes[i % packingSizes.length]];
+    const r = [partNumberOf(i + partOffset), `P${i + 1}`, `PART ${i + 1}`, 'S001', dock, dock, `CF${(i % 3) + 1}`, packingSizes[i % packingSizes.length]];
     for (let e = 0; e < extraLeadingCols; e++) r.push(`x${e}`);
     n.forEach((total, b) => {
       r.push(...spreadDays(total, weekendZero, calendarDays ? monthLength(productionMonth, b) : 31));

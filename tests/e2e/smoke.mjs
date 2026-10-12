@@ -99,7 +99,7 @@ try {
     await zp.getByText('SR veh 481D.xls', { exact: true }).waitFor();
     const noticeText = await zp.getByText(/แตกไฟล์จาก forecast\.zip: เพิ่ม 5 ไฟล์/).first().innerText();
     if (!noticeText) errors.push('import-cli: no extraction notice');
-    await zp.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
+    await zp.getByTestId('process').click();
     await zp.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
     await zp.getByRole('tab', { name: 'สรุปรวม' }).click().catch(() => {});
     if (!(await zp.locator('body').innerText()).includes('48,934')) errors.push('import-cli: zip totals differ from the 5 loose files (expected N = 48,934)');
@@ -415,7 +415,7 @@ try {
   await pr.locator('input[type=file]').nth(0).setInputFiles(path.join(ROOT, 'template.xlsx'));
   await pr.locator('input[type=file]').nth(1).setInputFiles(SOURCES);
   await pr.getByText('SR veh 481D.xls').waitFor();
-  await pr.getByRole('button', { name: 'รวมข้อมูลและคำนวณ' }).click();
+  await pr.getByTestId('process').click();
   await pr.getByRole('heading', { name: 'ตรวจสอบข้อมูล' }).waitFor({ timeout: 60000 });
   const prTab = pr.getByRole('tab', { name: 'Run-out' });
   if (!(await prTab.count())) await pr.getByRole('button', { name: /เพิ่มเติม/ }).click();

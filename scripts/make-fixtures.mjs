@@ -64,11 +64,12 @@ if (cmd === 'synth') {
   const dir = path.join(ROOT, 'public', 'samples');
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  const plan = [['BP', 'BP veh DEMO.xls', 6], ['BPK', 'BPK packing DEMO.xls', 5], ['GW', 'GW veh DEMO.xls', 6], ['GW', 'GW packing DEMO.xls', 4], ['SR', 'SR veh DEMO.xls', 5]];
+  // [plant, file, rows, partOffset]: the two GW files get disjoint part numbers (a repeated part+dock would trip the D01 duplicate rule)
+  const plan = [['BP', 'BP veh DEMO.xls', 6, 0], ['BPK', 'BPK packing DEMO.xls', 5, 0], ['GW', 'GW veh DEMO.xls', 6, 0], ['GW', 'GW packing DEMO.xls', 4, 10], ['SR', 'SR veh DEMO.xls', 5, 0]];
   const productionMonth = '202602';
   const expected = { rows: {}, partNumbers: [] };
-  for (const [plant, name, rows] of plan) {
-    const { buffer, expected: e } = makeSource({ plantCode: plant, productionMonth, rows, format: 'xls', includeEof: true, seed: name.length * 13, calendarDays: true });
+  for (const [plant, name, rows, partOffset] of plan) {
+    const { buffer, expected: e } = makeSource({ plantCode: plant, productionMonth, rows, partOffset, format: 'xls', includeEof: true, seed: name.length * 13, calendarDays: true });
     fs.writeFileSync(path.join(dir, name), Buffer.from(buffer));
     expected.rows[name] = rows;
     e.forEach((r) => expected.partNumbers.push(r.partNumber));
