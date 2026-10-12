@@ -1,0 +1,1554 @@
+{
+  "stats": {
+    "proposals": 125,
+    "new_in_rebuttal": 47,
+    "candidates": 110,
+    "items": 23,
+    "waves": 16,
+    "unplaced": []
+  },
+  "summary_th": "การประชุมถกเถียง 10 ฝ่าย (planner, เจ้าของเทมเพลต Excel, data QA, supply chain, UX, architect, security, management, integration, adoption) ได้ข้อเสนอรวม 125 ข้อ เพิ่มระหว่างรอบโต้แย้งอีก 47 ข้อ ตัดข้อเสนอด้าน security ออก 13 ข้อตามที่ผู้ใช้สั่งให้ข้าม ถอนเอง 2 ข้อ และผู้ตัดสินปฏิเสธ 1 ข้อ (excel:extend-capacity-mode เพราะงานระดับ XL และเสี่ยงทำ pivot/สูตรในเทมเพลตเสียหาย) ผลลัพธ์ถูกรวมเหลือ 23 ฟีเจอร์ เรียงเป็น 16 wave. ข้อที่ทุกฝ่ายเห็นตรงกันคือต้องรวมข้อเสนอที่ซ้ำกันให้เป็นฟีเจอร์เดียว ไม่แตกแท็บเพิ่ม ใช้ตัวตรวจ/engine/แหล่งตัวเลข/ชั้น storage/ฟังก์ชัน hash ร่วมกัน และแก้ไฟล์เทมเพลตผ่าน templatePatcher เท่านั้น. ข้อโต้แย้งหลักคือ CLI batch ที่ planner ค้านเพราะกลัวไฟล์ออกโดยไม่ผ่านคนตรวจ ซึ่งแก้โดยให้ CLI ใช้ด่าน qa-engine และ verifyExport ชุดเดียวกัน; กลุ่ม template-inspector/preflight/capacity-guard/header-meta-sync ที่ถูกแก้ไขหลายรอบ จึงแบ่งหน้าที่ให้ inspector ผลิตข้อมูลอย่างเดียว ส่วนการบล็อกอยู่ที่ patcher-safety และ export-gate; ข้อเสนอ qa-rules-tab ได้เสียงสนับสนุนสูงสุดและเป็นฐานของ engine เดียว (badge นับเฉพาะ error ใช้คำ ต้องแก้/ควรดู/ข้อมูล). อีกประเด็นคือ Data (flat) sheet ที่ตั้งเป็น opt-in ปิดโดยปริยาย, storage และ session เป็น opt-in มีวันหมดอายุ, และ dialog ส่งออกไม่เปิดเมื่อสะอาด. การจัดลำดับงาน: wave 1-2 วางรากฐาน (feature-contract, daily-grid, ui-kit, dock-analysis), wave 3-4 ความปลอดภัยของ patcher แดชบอร์ด ตัวตรวจเทมเพลต และแชร์ข้อมูล, wave 5-8 เทียบรอบก่อน โครงสร้างทดสอบ แก้ไขตัวเลข ส่งออกดิบ manifest และศูนย์ช่วยเหลือ, wave 9-12 storage การตั้งค่า qa-engine export-gate และ run-out alerts, wave 13-16 onboarding ประวัติการรัน ตรวจไฟล์นำเข้า และ import/CLI เป็นลำดับสุดท้ายเพราะต้องพึ่ง gate ที่สร้างก่อนหน้า.",
+  "conflicts_resolved": [
+    {
+      "issue": "CLI batch (planner ค้าน เกรงไฟล์ออกโดยไม่ผ่านการตรวจ)",
+      "resolution": "รวมเป็น import-cli ทำเป็นเฟส zip, eml, CLI, folder picker; CLI ต้องใช้ qa-engine gate และ verifyExport เดียวกับ UI ไม่มีเอาต์พุตที่ไม่ผ่านตรวจ"
+    },
+    {
+      "issue": "ข้อเสนอ template-preflight, capacity-guard, header-meta-sync, provenance, formula-audit, comment-map, compat-formats ถูกแก้ไขหลายรอบ (modify 5-8 เสียง)",
+      "resolution": "ยุบเป็นตัวตรวจเทมเพลตกลาง (ผลิตข้อมูลอย่างเดียว) กับ patcher-safety (guard สูตร/overflow) ส่วนการบล็อกและยืนยันอยู่ที่ qa-engine และ export-gate"
+    },
+    {
+      "issue": "validate กับ beforeExport ซ้ำซ้อน และแท็บ/engine QA ซ้ำหลายชุด",
+      "resolution": "ใช้ Issue type เดียวสองจังหวะเวลา และมี qa-engine เดียว ไม่มีแท็บหรือชีต QA Report ที่สอง badge นับเฉพาะ error"
+    },
+    {
+      "issue": "แท็บล้น (dock, car family, packing, daily/print ฯลฯ)",
+      "resolution": "รวมเป็นแผงเดียวด้วย group-by (dock-analysis) และแท็บ daily-grid เดียว ใช้คำว่า 'ไม่มีการส่ง' แทน 'วันหยุด'"
+    },
+    {
+      "issue": "Data (flat) sheet เปิดเป็นค่าเริ่มต้น และการเก็บข้อมูลในเครื่อง",
+      "resolution": "flat export เป็น opt-in ปิดโดยปริยาย; storage และการบันทึกงานเป็น opt-in มีวันหมดอายุและปุ่มล้างเดียว ตัดแท็บเซสชันและ LRU-5"
+    },
+    {
+      "issue": "การเทียบรอบก่อนและเดือนฐานที่ล้าสมัยใน template",
+      "resolution": "รวมเป็น compare ฟีเจอร์เดียว จัดแนวเดือนตามปฏิทิน ให้ผู้ใช้ยืนยันเดือนฐาน"
+    },
+    {
+      "issue": "ข้อเสนอ security และ extend-capacity-mode",
+      "resolution": "ตัด security 13 ข้อตามคำสั่งผู้ใช้; ผู้ตัดสินปฏิเสธ extend-capacity-mode เพราะเสี่ยงทำ pivot/สูตรเสียหาย"
+    },
+    {
+      "issue": "Dialog ส่งออกและ carry-over แถวเดือนก่อน",
+      "resolution": "ถ้าสะอาดส่งออกคลิกเดียวไม่เปิด dialog; confirm ต้องกดยืนยัน; block ต้องติ๊ก override; ถอน carry-over เหลือเพียงการยอมรับที่บันทึกไว้"
+    }
+  ],
+  "items": [
+    {
+      "id": "feature-contract",
+      "title_th": "สัญญา Feature Registry และการนำทาง",
+      "title_en": "Feature contract, nav governance, simple mode",
+      "priority": 5,
+      "effort": "L",
+      "depends_on": [],
+      "new_files": [
+        "src/features/defineFeature.js",
+        "src/features/runtime.js",
+        "src/features/visibility.js",
+        "src/components/FeatureErrorBoundary.jsx",
+        "src/components/TabBar.jsx",
+        "src/components/OverflowMenu.jsx",
+        "tests/feature-contract.test.js"
+      ],
+      "shared_files": [
+        "src/features/index.js",
+        "src/App.jsx",
+        "src/state/useConsolidator.js",
+        "src/lib/excel/exportWorkbook.js",
+        "src/lib/excel/templatePatcher.js",
+        "CLAUDE.md"
+      ],
+      "spec": "Goal: make the auto-discovered feature registry a validated, fault-isolated contract that every other backlog item builds on, and fix two real defects found in App.jsx: (1) onProcessed(ctx) at App.jsx:33 uses a ctx captured before `await core.processAll()`, so ctx.state.processedData is stale/null on first run; (2) exportSheets results are flatMapped synchronously (App.jsx:39), so an async exportSheets yields a Promise element with no .name that patchTemplate silently skips.\n\n1. defineFeature.js: defineFeature(spec) validates at module-eval: id kebab-case and unique; group in {core, ตรวจสอบ, วิเคราะห์, ประวัติ, ตั้งค่า} (default วิเคราะห์); order inside the group band (core 10-49, ตรวจสอบ 50-69, วิเคราะห์ 70-89, ประวัติ 90-94, ตั้งค่า 95-99); known keys only: id, order, group, description, tab{label,Icon,enabled,tooltip,badge->number|{count,severity:'error'|'warning'|'info'},Component,emptyState}, headerActions(ctx)->[{label,Icon,onClick,priority}] (a legacy single element is still accepted), exportSheets(ctx)->Sheet[]|Promise<Sheet[]>, exportCellWrites(ctx)->CellWrite[], validate(ctx)->Issue[], beforeExport(ctx)->Issue[], onProcessed(ctx,result), onExported(ctx,result), expandFiles(file)->Promise<File[]|null>, slots{banner(ctx),uploadPanel(ctx)}, settings{defaults,Component,schema}. Issue = {level:'block'|'confirm'|'info',code,message,sheet?,rowId?,fix?}. Throw a Thai error when import.meta.env.DEV; otherwise console.warn and exclude the module. Existing plain-object features must keep working.\n2. runtime.js (pure, no React): runHook(feature,name,...args) wraps try/catch, never rethrows, returns undefined on failure, and reports via a callback (Thai notice 'ฟีเจอร์ \"X\" ทำงานผิดพลาด (hook) — ข้ามไปก่อน' + changelog error). collectIssues (validate), collectGate (validate+beforeExport sorted block>confirm>info, extra templateIssues accepted as an argument for later items), collectExportSheets (await Promise.all; safeSheetName; reject >31 chars, duplicates, and names in protectedSheets/ inspection.sheets, with Thai message), collectCellWrites.\n3. useConsolidator: processAll returns a truthy ProcessResult {processedData,summary,matching,productionMonth,files}; add state.features[id] with actions.setFeatureData(id, patchOrFn), cleared on reset. App wrapper builds a fresh ctx from the result and calls onProcessed(ctx,result). exportExcel wrapper awaits collectExportSheets and collectCellWrites, and passes protectedSheets (template sheet names) so exportWorkbook can reject collisions; cellWrites are passed through but implemented by patcher-safety (additive no-op if unsupported). Call onExported afterwards.\n4. visibility.js: visibleFeatures(FEATURES, profile) pure: removes features with profile.features[id].enabled===false; in profile.ui.mode==='simple' keeps only groups core and ตรวจสอบ. Hidden affects tabs, header actions, exportSheets, slots and onProcessed only, not pure logic modules. App.jsx calls it exactly once. Until the profile store exists, read from a small localStorage-free default {ui:{mode:'advanced'}} via a prop/state in useConsolidator (try/catch), so this item works standalone; settings-profile later persists it. Never hide a tab with block-level issues.\n5. UI: FeatureErrorBoundary wraps the active tab Component and every slot with Thai fallback 'ฟีเจอร์ \"X\" เกิดข้อผิดพลาด — ปิดฟีเจอร์นี้ชั่วคราว' plus a 'ลองใหม่' button and logs to the changelog. TabBar renders groups as labelled segments, max 7 visible tabs, rest in an 'เพิ่มเติม' OverflowMenu (role=menu, arrow keys, aggregated badge count); header actions capped at 3 inline, rest in the menu; mobile: horizontally scrollable strip, active tab scrolled into view, no page-level horizontal overflow. Header toggle 'โหมดเริ่มต้น / ขั้นสูง' and a link 'แสดงแท็บเพิ่มเติม (n)'. Icons only from Icons.jsx. Document the contract as JSDoc in src/features/index.js and in CLAUDE.md.",
+      "acceptance_criteria": [
+        "Contract test fails on missing id/order/tab.label, duplicate id, unknown hook key, order outside group band, or an export sheet named like a template sheet; passes with an empty features directory.",
+        "onProcessed receives a fresh ctx whose state.processedData equals result.processedData on the first run.",
+        "Async exportSheets (Promise) produces its sheet; a throwing feature does not block export and adds a changelog error naming the feature.",
+        "collectGate orders block before confirm before info and includes extra templateIssues.",
+        "defineFeature({id:'Bad Id'}) throws a Thai message in DEV and warns and is excluded when not DEV.",
+        "A throwing tab Component shows the Thai fallback while the rest of the app works.",
+        "visibleFeatures: simple mode keeps only core/ตรวจสอบ; enabled:false removes the feature in both modes; no group defaults to วิเคราะห์.",
+        "With more than 7 tabs, the bar shows at most 7 and the rest are in the 'เพิ่มเติม' menu; at 390px there is no horizontal page scroll.",
+        "Existing legacy plain-object features and current behaviour with zero features are unchanged; npm test and npm run build pass."
+      ],
+      "decision_notes": "Merged architect (contract, runtime, fault isolation) as the base, with ux nav governance and adoption simple mode folded in because they share one visibleFeatures filter point. Resolved validate vs beforeExport: one Issue type, two timings (validate after processing feeds badges and QA; beforeExport adds gate-only items at export time); no hook opens its own dialog, the ExportDialog belongs to export-gate. Group names follow architect's Thai names; bands unified (core 10-49, ตรวจสอบ 50-69, วิเคราะห์ 70-89, ประวัติ 90-94, ตั้งค่า 95-99) by taking ux's wider core band. Dropped the unused 'เชื่อมต่อ' group from adoption. Storage key declarations, types.js, and the Settings feature-toggle section are deferred to storage-session and settings-profile to avoid overlap; here the toggle state has a standalone default. exportCellWrites is declared and collected but applied by patcher-safety. Hidden features affect only UI/export/hooks. Security hardening was dropped per user request. Per the user instruction, this is kept moderate: no heavy extras beyond the contract.",
+      "tests": [
+        "vitest: defineFeature accepts a valid spec, rejects bad id, bad band, unknown key, duplicate id (Thai messages).",
+        "vitest: runHook swallows exceptions and calls the reporter.",
+        "vitest: collectExportSheets with async, throwing, duplicate, over-31-char and protected-name cases.",
+        "vitest: collectGate sorting and templateIssues merge.",
+        "vitest: visibleFeatures for simple/advanced/enabled false/default group.",
+        "vitest: import.meta.glob over src/features/*/index.jsx asserts the contract and a grep asserts no static xlsx/jszip imports.",
+        "e2e: more than 7 tabs show the overflow menu with arrow-key navigation, and no horizontal scroll at 390px."
+      ],
+      "merged_from": [
+        "architect:feature-contract",
+        "ux:nav-governance",
+        "adoption:simple-mode"
+      ],
+      "support_count": 5,
+      "oppose_count": 0,
+      "modify_count": 3,
+      "wave": 1
+    },
+    {
+      "id": "daily-grid",
+      "title_th": "ตารางรายวันและพิมพ์แผน",
+      "title_en": "Daily grid and print plan",
+      "spec": "สร้างแท็บเดียว \"ตารางรายวัน\" (src/features/daily-grid/index.jsx, order 25, enabled เมื่อมี processedData) แทน 3 grid ที่เสนอมา ตัวเลขรายวันอยู่ใน row.rawRow อยู่แล้ว (4 บล็อก x 31 วัน) จึงไม่ต้องแก้ readSource\n\nLogic ล้วน (ไม่แตะ DOM, เทสใน Node):\n- src/lib/excel/daily.js: dayValues(row, monthIdx) = rawRow[nCol-31 .. nCol-1] โดย nCol มาจาก row.colPositions (fallback DEFAULT_N_COLS ห้ามฮาร์ดโค้ดเริ่มที่ 8); sumByPartDay(processedData, monthIdx) รวมทุกโรงงานต่อ part ต่อวัน; totalsByDock(processedData, monthIdx) จัดกลุ่ม plant→dock→part; weeklyBuckets(days, pm, weekStart=1) ใช้ convention เดียวคือ จันทร์–อาทิตย์\n- src/utils/calendar.js: daysInMonth, weekday, buildDayColumns(pm) คืน [{day, weekday, exists, isWeekend}] 4 กลุ่ม; ถ้า productionMonth เป็น null ซ่อนแถววันในสัปดาห์ ป้ายวัน จ อ พ พฤ ศ ส อา\n- src/features/daily-grid/views.js: presets คอลัมน์ ('ยอดรวมรายเดือน' ค่าเริ่มต้น, รายวันเดือน N..N+3, รายวันทั้ง 4 เดือน), โหมดมุมมอง 'ต่อโรงงาน' / 'รวมทุกโรงงาน' / 'โหลดตาม Dock', KPI ต่อโรงงาน (วันที่มีส่ง, เฉลี่ย, วันพีค), นับวันเกินกำลัง\n- src/features/daily-grid/print.js: buildPrintSections(processedData,{plant,groupByDock,month,includeZero}) คืน section เรียง BP,BPK,GW,SR แยกตาม dock\n- วันที่ทุกแถวเป็น 0 ใช้คำว่า 'ไม่มีการส่ง' ห้ามเรียก 'วันหยุด'\n\nUI: ตารางหัวสองแถว (กลุ่มเดือน / วันที่+วันในสัปดาห์), sticky header + คอลัมน์ Part Number, วันอาทิตย์/วันที่ไม่มีในเดือนแรเงา, ตัวเลข tabular-nums, ซ่อนค่า 0, ช่องค้นหา, แถวรวมท้ายตาราง; เลื่อนแนวนอนในกรอบของตารางเอง ไม่ให้หน้าล้นบนมือถือ; แถวเกิน 80 ใช้ windowing ด้วย hook เล็กๆ ในโฟลเดอร์ฟีเจอร์ (ไม่เพิ่ม dependency). ช่องกรอก 'กำลังรับ/วัน' ระบายสีเซลล์ที่เกิน. ปุ่ม 'คัดลอก (TSV)' ใส่ ' นำหน้าค่าที่ขึ้นต้น = + - @. ถ้ามี QA findings ใน ctx (ถ้า qa-engine ลงแล้ว) แสดงเป็น chip ตาม key plant|part|dock โดยไม่คำนวณ R01/R02 เอง; ถ้ายังไม่มีให้ซ่อนส่วนนี้.\n\nพิมพ์: ปุ่ม 'พิมพ์แผนรายวัน' เปิด overlay (portal) เลือกโรงงาน/เดือน/แยก dock/รวมแถว 0; หัวกระดาษมีโรงงาน เดือน ISSUE DATE Rev เวลาพิมพ์; CSS @media print + @page landscape ใน index.css (ซ่อน app, thead เป็น table-header-group, break-before ต่อ section, print-color-adjust exact, ฟอนต์ 9pt); เรียก window.print() ไม่มี PDF lib.\n\nExport: exportSheets คืนชีท 'Daily Total' แบบค่าล้วน (Part Number, Plant, Dock, 1..31 ต่อบล็อกเดือน) เฉพาะเมื่อผู้ใช้เปิดตัวเลือก (ค่าเริ่มต้นปิด) ผ่านปุ่ม/เช็กบ็อกซ์ใน headerActions ก่อน export-gate ลง; ตั้งค่า (preset, โหมด, กำลังรับ) เก็บด้วย try/catch ใน localStorage เป็น fallback และย้ายไป settings hook เมื่อ settings-profile พร้อม.",
+      "acceptance_criteria": [
+        "dayValues ของแถวแรกไฟล์ BP เดือน N คืน 31 ตัวเลข ผลรวม 1891 และทุกแถวทุกเดือนของ fixture ผลรวมรายวัน = n/n1/n2/n3",
+        "dayValues ใช้ colPositions (แถวสังเคราะห์ nCol=40 อ่าน rawRow[9..39]) ไม่ใช้ค่าคงที่",
+        "buildDayColumns ก.พ.2026: วันที่ 1 เป็นอาทิตย์, วัน 29-31 exists=false, เดือน N+1 มี 31 วัน",
+        "โหมด 'รวมทุกโรงงาน' ได้ 1 แถวต่อ part และ 86790-0K051-00 วันที่ 2 = 446, ยอดรวม 9673",
+        "แท็บเปิดได้หลังประมวลผล preset 'รายวันทั้ง 4 เดือน' แสดงคอลัมน์ตัวเลข 128 คอลัมน์ และคอลัมน์ Part Number ยังเห็นหลังเลื่อนขวา",
+        "ที่ 390px ตัวหน้าไม่เลื่อนแนวนอน แต่กรอบตารางเลื่อนได้",
+        "กรอกกำลังรับแล้วเซลล์ที่เกินถูกแรเงา",
+        "TSV ที่คัดลอกมีเครื่องหมาย ' นำหน้าเซลล์ที่ขึ้นต้นด้วย =",
+        "buildPrintSections เรียง BP,BPK,GW,SR แยก dock; มุมมองพิมพ์ซ่อนส่วนอื่นของแอป",
+        "Export ติ๊ก Daily Total ได้ชีทที่มี header ถูกต้อง 15 แถวในโหมดรวม; ไม่ติ๊กไม่มีชีทนี้ และ pivot/สูตรเดิมครบ",
+        "ถ้า localStorage โยน error ยังเรนเดอร์ด้วยค่าเริ่มต้น"
+      ],
+      "new_files": [
+        "src/features/daily-grid/index.jsx",
+        "src/features/daily-grid/views.js",
+        "src/features/daily-grid/print.js",
+        "src/features/daily-grid/PrintView.jsx",
+        "src/features/daily-grid/useWindowedRows.js",
+        "src/lib/excel/daily.js",
+        "src/utils/calendar.js",
+        "tests/daily.test.js",
+        "tests/daily-grid.test.js",
+        "tests/calendar.test.js"
+      ],
+      "shared_files": [
+        "src/index.css",
+        "src/lib/excel/index.js",
+        "tests/e2e/smoke.mjs"
+      ],
+      "depends_on": [],
+      "effort": "L",
+      "priority": 5,
+      "decision_notes": "รวม ux/planner/supply เป็นแท็บเดียวตามเสียงคัดค้านทุกฝ่าย; ใช้ nCol-31 จาก colPositions ตามที่ architect/qa ขอ (ไม่ใช้ DAY_BLOCK_START คงที่); ไม่ implement R01/R02 ในฟีเจอร์ ให้อ่านจาก QA findings เมื่อมี; ใช้คำ 'ไม่มีการส่ง' แทน 'วันหยุด' เพราะเสาร์ 14/28 มีการส่งจริง; สัปดาห์ใช้ จันทร์–อาทิตย์ แบบเดียว; 'Daily Total' ชีทเดียว opt-in ไม่ใช่ 'Daily Load'. เพื่อลดการพึ่งพา (depends_on ว่าง) ไม่บังคับสร้าง DataGrid ร่วมของ ui-kit: ใช้ตารางในฟีเจอร์เองก่อน และเปลี่ยนไปใช้ DataGrid ร่วมภายหลังได้เพราะ logic แยกไว้ใน daily.js แล้ว; ตัดพิมพ์เป็น overlay ในฟีเจอร์เดียวกัน (รวม print-daily-plan ทั้งสองข้อเสนอ) ไม่แยกฟีเจอร์; ไม่เพิ่มงาน security ตามคำสั่ง ยกเว้นการ escape สูตรตอนคัดลอก TSV ซึ่งเป็นความถูกต้องของข้อมูลพื้นฐาน.",
+      "tests": [
+        "vitest daily.test.js: dayValues sums 1891 และตรงกับ n..n3 ทุกแถว fixture, synthetic colPositions",
+        "vitest daily.test.js: sumByPartDay 86790-0K051-00 วัน 2 = 446 รวม 9673; totalsByDock แยก BPK BN/D1",
+        "vitest calendar.test.js: daysInMonth(2026,2)=28, weekday วันที่ 1 = อาทิตย์, weeklyBuckets จันทร์เริ่ม [[1],[2..8],...]",
+        "vitest daily-grid.test.js: preset/view defaults เมื่อ storage throw, TSV escape, buildPrintSections ลำดับโรงงานและ zero-row filter, exportSheets ปิดเป็นค่าเริ่มต้นและเปิดได้ 15 แถว",
+        "e2e: เปิดแท็บ ตรวจ 128 คอลัมน์ตัวเลข, sticky Part Number หลัง scrollLeft, ไม่ล้นที่ 390px, emulateMedia print ซ่อน nav และ thead เป็น table-header-group"
+      ],
+      "merged_from": [
+        "ux:daily-grid",
+        "planner:daily-grid",
+        "supply:daily-load",
+        "planner:print-daily-plan",
+        "ux:print-daily-plan"
+      ],
+      "support_count": 3,
+      "oppose_count": 0,
+      "modify_count": 21,
+      "wave": 1
+    },
+    {
+      "id": "ui-kit",
+      "title_th": "ชุด UI กลาง DataGrid การเข้าถึง และรูปแบบข้อความ",
+      "title_en": "UI kit, shared DataGrid, a11y, formatting and copy",
+      "priority": 5,
+      "effort": "L",
+      "depends_on": [],
+      "spec": "Goal: one shared UI base so later features look and behave alike. Scope is fixed; no new runtime dependency, no external font, no security scope.\n\n1. Primitives in src/features/ui-kit/components/ (re-exported from src/features/ui-kit/index.js; pure logic in sibling .js): Button (primary/secondary/ghost/danger, sizes, loading, min 44px touch), Chip (neutral/info/warning/error/success, optional dismiss), KpiCard (label, value with class num, delta slot), Toast + ToastRegion (bottom-right, role=status aria-live=polite, auto-dismiss 6s, pause on hover/focus, optional action e.g. 'เลิกทำ'), ConfirmDialog (built on Modal, two actions, Escape cancels), EmptyState (icon, one Thai sentence, one action), InfoTip (hover/tap/focus). Use only Icons.jsx icons. Rule documented in a short README in the folder: errors = Banner, success/info = Toast.\n\n2. DataGrid (src/features/ui-kit/DataGrid.jsx): props columns[{key,label,num,sortable,render}], rows, getKey, footer totals, searchable, initialSort. Sticky header and sticky first column, sortable headers rendered as buttons with aria-sort, windowed rendering (about 200 rows visible; no 'แสดงเพิ่ม' paging), numeric cells class num. Pure helpers in gridUtils.js: searchRows(rows, q, fields=['partNumber','partCode','dockCode']) case-insensitive, sortRows(rows,key,dir) stable. Search placeholder 'ค้นหา Part Number / Part Code / Dock…', count 'พบ X จาก Y', '/' focuses search, Escape clears. Sort state per tab, reset when processedData changes. Migrate PreviewTab (plant segmented control + one grid, keep 'ตรวจสอบข้อมูล' heading and readiness cards), SummaryTab and MatchingTab (grouped expandable rows) onto it; keep existing e2e heading selectors.\n\n3. A11y: useFocusTrap hook in Modal (trap Tab, focus first control, restore focus on close, aria-labelledby); tab bar with role=tablist/tab/tabpanel plus arrow/Home/End; useHotkeys with pure dispatch helper (hotkeys.js): Ctrl/Cmd+Enter process, Ctrl/Cmd+S download with preventDefault only when processedData exists, '/' focus search, Esc closes modal; ignore keystrokes in inputs except Escape; suspended while a modal flagged ownsKeyboard is open. Visually hidden live region announcing 'ประมวลผลเสร็จ: N ไฟล์ M แถว' and 'ดาวน์โหลด <file> แล้ว'. :focus-visible rings, prefers-reduced-motion, ExcelPreview sort headers as buttons with aria-sort. Defer '?' help shortcut to help-center (expose a hotkey registration hook only).\n\n4. Typography in src/index.css: --font-sans system Thai stack (Leelawadee UI, Thonburi, Sarabun, Noto Sans Thai, system-ui), .num {font-variant-numeric: tabular-nums}, table line-height 1.6.\n\n5. Format policy: add to src/utils/format.js formatDate(value,'short'|'long'|'time', {tz:'Asia/Bangkok'}) Gregorian with Thai month abbreviations ('5 ต.ค. 2026 14:32'), relativeTime(iso, now), formatDelta(n,pct), injectable clock format.now. Replace toLocaleString('th-TH') in ChangelogTab. Unify label 'Preview Excel'.\n\n6. Strings catalog src/features/ui-kit/strings.js (STRINGS by area: status, actions, buttons, empty states, plant labels) plus glossary of column labels (Part Number, Part Code, Dock Code, Packing Size, N..N+3). ChangelogTab ACTION_META and shared button labels import from it. Skip the docs/strings.md generator script this wave.\n\n7. Feature-contract hooks (tab.emptyState, loading, FeatureBoundary) belong to feature-contract; ui-kit only supplies the EmptyState component. Add data-testid on process, download, options, reset buttons; keep smoke.mjs locators exact.\n\nEdge cases: empty rows show EmptyState; invalid dates return '-'; sort of mixed null numbers puts nulls last.",
+      "acceptance_criteria": [
+        "Modal traps focus (Tab 30 times stays inside role=dialog), Escape returns focus to opener, aria-labelledby resolves",
+        "Preview, Summary and Matching use DataGrid with sticky header, sortable aria-sort buttons, shared search with 'พบ X จาก Y', '/' focuses and Escape clears; no 'แสดงเพิ่ม' button",
+        "Numeric cells have class num with tabular-nums; body font-family contains a Thai-capable family and no external font request",
+        "Ctrl+S preventDefault only when processedData exists; Ctrl+Enter processes on upload tab; keys in inputs ignored except Escape",
+        "Toast region role=status shows success; errors still use Banner; live region announces process and download completion",
+        "formatDate('2026-10-05T07:32:00Z','long',{tz:'Asia/Bangkok'}) === '5 ต.ค. 2026 14:32'; changelog shows Gregorian years only",
+        "No toLocaleString('th-TH') remains in src/ outside format.js; 'Excel Preview' string no longer appears",
+        "npm test and npm run build pass; existing smoke e2e still passes"
+      ],
+      "new_files": [
+        "src/features/ui-kit/index.jsx",
+        "src/features/ui-kit/DataGrid.jsx",
+        "src/features/ui-kit/gridUtils.js",
+        "src/features/ui-kit/hotkeys.js",
+        "src/features/ui-kit/strings.js",
+        "src/features/ui-kit/components/Button.jsx",
+        "src/features/ui-kit/components/Chip.jsx",
+        "src/features/ui-kit/components/KpiCard.jsx",
+        "src/features/ui-kit/components/Toast.jsx",
+        "src/features/ui-kit/components/ConfirmDialog.jsx",
+        "src/features/ui-kit/components/EmptyState.jsx",
+        "src/features/ui-kit/components/InfoTip.jsx",
+        "src/features/ui-kit/components/LiveRegion.jsx",
+        "src/hooks/useFocusTrap.js",
+        "src/hooks/useHotkeys.js",
+        "tests/ui-kit.test.js"
+      ],
+      "shared_files": [
+        "src/App.jsx",
+        "src/index.css",
+        "src/components/Modal.jsx",
+        "src/components/PreviewTab.jsx",
+        "src/components/SummaryTab.jsx",
+        "src/components/MatchingTab.jsx",
+        "src/components/ExcelPreview.jsx",
+        "src/components/ChangelogTab.jsx",
+        "src/utils/format.js",
+        "tests/e2e/smoke.mjs"
+      ],
+      "decision_notes": "Merged ux:ui-kit, ux:core-tables, ux:a11y-keyboard, ux:format-policy and adoption:copy-catalog into one item. Critics (planner, architect, integration, adoption) agreed on system Thai font stack, no self-hosted font, Ctrl+S gated on processedData, errors=Banner/success=Toast, and '?' belonging to help-center; all applied. Dropped axe-core devDependency, the docs/strings.md generator and grep lint tests as nice-to-have to keep the wave smaller. FeatureBoundary and tab emptyState/loading contract moved to feature-contract to avoid overlap; ui-kit only provides components. Date policy chose Gregorian Thai-month format (ux) over dd/MM/yyyy (adoption) since it is unambiguous; strings catalog kept minimal for shared copy only.",
+      "tests": [
+        "vitest: searchRows matches partCode 'w036' case-insensitively across partNumber/partCode/dockCode",
+        "vitest: sortRows stable for equal values, nulls last, asc/desc",
+        "vitest: hotkeys dispatch ignores input targets except Escape, Ctrl+S preventDefault only when export enabled, suspended while ownsKeyboard modal open",
+        "vitest: formatDate long/short/time with Asia/Bangkok, relativeTime 90s => '2 นาทีที่แล้ว', formatDelta(1234,0.026)=='+1,234 (+2.6%)', injected clock deterministic",
+        "vitest: strings catalog has no empty values and glossary labels match column headers",
+        "e2e: focus trap in Preview Excel dialog and focus restore on Escape",
+        "e2e: sort N header gives aria-sort descending; search 'BN' filters with 'พบ … จาก …' on three tabs",
+        "e2e: Ctrl+Enter processes, Ctrl+S downloads, live region text contains 'ประมวลผลเสร็จ'"
+      ],
+      "merged_from": [
+        "ux:ui-kit",
+        "ux:core-tables",
+        "ux:a11y-keyboard",
+        "ux:format-policy",
+        "adoption:copy-catalog"
+      ],
+      "support_count": 4,
+      "oppose_count": 0,
+      "modify_count": 4,
+      "wave": 2
+    },
+    {
+      "id": "dock-analysis",
+      "title_th": "วิเคราะห์ Dock Car Family และบรรจุภัณฑ์",
+      "title_en": "Dock, car family and packaging analysis",
+      "spec": "Merge dock-view, car-family, box-pallet and dock-master into ONE feature src/features/dock-analysis/ registering a single tab \"วิเคราะห์ Dock/รุ่น/บรรจุภัณฑ์\" (no extra tabs; if feature-contract provides a group, use group 'วิเคราะห์', otherwise one tab with an inner segmented control).\n\nPure logic (Node-testable, no DOM), sibling files:\n- logic.js: basePartNumber(pn) = first 11 chars (shorter returned as-is); groupRows(processedData, {by: 'plant'|'dock'|'carFamily'|'basePart', plants?, partType?}) -> [{key, plant, dockCode, shippingDocks (distinct non-empty), carFamily, parts, n,n1,n2,n3, boxes{n..n3}, rows}]. Dock key = plant+dockCode (NOT shippingDock; empty shippingDock shown '-'). Empty carFamily -> '(ไม่ระบุ)'. multiDockParts() -> [{plant, partNumber, dockCodes}] for parts with >1 dock in a plant. deliveryDays(rows, monthIndex) = count of distinct days with value>0 (union across rows), peakDay; reuse dayValues from src/lib/excel/daily.js if it exists (daily-grid item), otherwise a local helper reading day columns derived from colPositions (nCol-31) with fallback constant; do not duplicate once daily.js lands.\n- packaging.js: toBoxes(pieces,size) = ceil(pieces/size), null if size not positive integer (never throws); isExactMultiple; buildBoxRows(rows, master) with box sum = sum of per-row ceil; pallets = ceil(boxes/boxesPerPallet) only when master value set, else null (UI '-'); packingTypeFor(map, master, {basePart,plant,dock}) -> {type, inferred}: exact key basePart|plant|dock from template map, else majority of (plant,dock), flagged inferred; master override wins. readPackingTypeMap(templateBuffer) reads Analyze EN5:ER12 (key LEFT(part,11)&plant&dock) via lazy barrel; if template-inspect lands, delegate to it; no hard-coded dock->type table.\n- master.js: dock master (alias per plant|dock, packingType override, boxesPerPallet per plant|part|dock) with validate/import/export JSON (<=200KB, strings <=40, numbers 1..10000, <=100 docks); corrupt -> empty. Persist in profile.features['dock-analysis'] if settings-profile/storage exist; fallback single localStorage key 'moowhan.dockAnalysis.v1' in try/catch. Transit/cut-off from dock-master is dropped (belongs to daily-grid/calendar).\n\nUI (index.jsx + DockPanel.jsx): group-by selector (โรงงาน / Dock / Car Family / Part หลัก / บรรจุภัณฑ์); plant filter; Vehicle/Packing filter hidden when no partType; unit toggle ชิ้น/กล่อง only inside this panel (not Summary/Preview). Summary cards: 'Dock ทั้งหมด X แห่ง', 'Part ที่ส่งหลาย Dock Y รายการ' with list. Expandable rows to parts. Columns: จำนวน part, N..N+3, วันส่ง(N), พีค/วัน, run-out chip only if runout classify() exists (import, else omit). Packaging view: Packing Size, Packing Type (badge 'อนุมาน'), boxes, pallets, chip 'ไม่ลงตัว' info tone, default only for partType P files with switch 'แสดงทุกไฟล์'. Small settings section for aliases/boxesPerPallet with JSON import/export. Alias shown as 'BN (CPN-TP)'. Mobile: horizontal scroll inside table container only.\n\nExport: exportSheets(ctx) returns [] unless user opted in; sheets 'By Dock' (PART NUMBER, PLANT, DOCK CODE, SHIPPING DOCK, Sum of N..N+3; key part×plant×dock) and 'By Car Family', 'Boxes', default OFF, fixed unique names, never colliding with template sheet names. Opt-in stored in feature option (checkboxes in panel until export dialog exists). Never writes template cells.",
+      "acceptance_criteria": [
+        "groupRows by dock on fixtures gives 6 groups: BPK D1 8 parts n 22450; BPK BN 4 parts n 1210; GW Z1 2 parts n 10298 shippingDocks []; GW G2 3 parts n 7296 ['R1']; BP P1 8 parts 5399; SR S1 4 parts 2281; by plant gives 4 groups",
+        "multiDockParts returns exactly 3 BPK parts (0K051, 0K110, 0K190) and none from BP/GW/SR",
+        "carFamily groups: 024J n 31340, D33H 10298, D41H 7296; basePart groups: 15, sum n = 48934 = state.totals.n; 0K051 n 9673 n1 12094 n2 8906 n3 3950",
+        "deliveryDays SR 0K141 month N = 2; BPK D1 group union = 22",
+        "toBoxes(640,25)=26, toBoxes(5790,30)=193 exact; size 0/''/'abc' gives null without throwing; group boxes = sum of per-row ceil",
+        "readPackingTypeMap(template.xlsx) returns 8 entries; BPK 0K051 D1 -> SN1, BN -> TP1; unknown dock gets inferred true; BP/P1 absent -> type ''; master override wins",
+        "pallets null (shown '-') without master; boxesPerPallet 20 on BPK|0K051|D1 gives palletsN 10",
+        "not-exact chip default shows 3 rows (P files, BPK BN), 'แสดงทุกไฟล์' shows 17; never styled as error",
+        "Vehicle/Packing filter hidden when all partType empty; no new top-level tab beyond one; export sheets absent unless opted in and also work in fallback export mode",
+        "corrupt or >200KB master JSON rejected with Thai message, app continues"
+      ],
+      "new_files": [
+        "src/features/dock-analysis/index.jsx",
+        "src/features/dock-analysis/DockPanel.jsx",
+        "src/features/dock-analysis/logic.js",
+        "src/features/dock-analysis/packaging.js",
+        "src/features/dock-analysis/master.js",
+        "src/features/dock-analysis/sheets.js",
+        "tests/dock-analysis.test.js"
+      ],
+      "shared_files": [],
+      "depends_on": [
+        "feature-contract"
+      ],
+      "effort": "M",
+      "priority": 3,
+      "decision_notes": "Four proposals merged into one feature to honour the tab-explosion critique (ux, adoption, planner, management): dock, car family and base part become group-by options of a single panel rather than separate tabs. Box/pallet kept as a view of the same panel; a unit toggle exists only inside it, not in Summary/Preview/KPI cards (management, architect). 'ไม่ลงตัว' is info-only and defaults to PART TYPE P files (planner, qa). Packing type is read from the template (Analyze EN:ER) not hard-coded (excel). Dock key is plant+dockCode to fix the GW G2 split. Settings/alias/master go in the shared profile when it exists, else one namespaced key (integration, architect). Dock-master transit/cut-off, D06/R08/P01 QA rules, glossary and daily-grid presets are deferred to qa-engine, daily-grid and settings-profile to avoid overlap; run-out badge reuses the shared classifier from runout-alerts if present, never a new rule. Extra sheets are opt-in, default off, unique names. No new aggregate.js edits are required to keep shared_files empty; helpers live in the feature folder.",
+      "tests": [
+        "vitest: groupRows by plant/dock/carFamily/basePart against fixture totals",
+        "vitest: multiDockParts and deliveryDays values",
+        "vitest: toBoxes/isExactMultiple/buildBoxRows incl. invalid sizes and per-row ceil sums",
+        "vitest: readPackingTypeMap on template.xlsx and packingTypeFor inference/override",
+        "vitest: master JSON validation (size, ranges, corrupt input)",
+        "vitest: sheets.js aoa shape for By Dock (29 data rows, 0K051 BPK BN N=640 N+1=650)",
+        "e2e: upload template and sources, open the tab, switch group-by to Dock and see 6 groups, no horizontal page scroll at 390px"
+      ],
+      "merged_from": [
+        "supply:dock-view",
+        "supply:car-family",
+        "supply:box-pallet",
+        "supply:dock-master"
+      ],
+      "support_count": 10,
+      "oppose_count": 0,
+      "modify_count": 14,
+      "wave": 2
+    },
+    {
+      "id": "patcher-safety",
+      "title_th": "ความปลอดภัยของ patcher และซิงค์หัวเทมเพลต",
+      "title_en": "Patcher safety and header sync",
+      "priority": 5,
+      "effort": "L",
+      "depends_on": [],
+      "spec": "Goal: make templatePatcher.js safe by construction and add one value-cell write primitive. All logic stays inside templatePatcher plus small sibling modules; no formula cell is ever modified. Capacity inspection UI/gauge, ExportDialog and beforeExport belong to template-inspector / export-gate; this item only exposes the patcher-side data they consume.\n\n1) Formula-row guard (unconditional, last line of defence). In patchSheetXml compute the writable zone per sheet: columns 1..N+3 (N+3 = last column with text on the header row via lastColWithText, fallback TEMPLATE.maxSourceCols; Analyze: 1..plantCol). firstFormulaRow = first row >= dataStartRow with a formula cell inside the zone. Never write a data row at or below firstFormulaRow and never clear anything at or below it (today clearThroughRow = parsed.lastRow clears non-formula cells there). Rows that do not fit are returned as res.blocked; patchTemplate adds report.overflow = [{sheet, rows, capacity, dropped:[partNumbers]}] and a Thai warning ('SR Daily: ข้อมูล 8 แถว เกินพื้นที่ 6 แถว ...'). No report.errors, no UI decisions. Capacity also capped by autoFilter/_FilterDatabase end when present. Option overflow:'spill' writes surplus rows to values-only sheet '<Plant> Daily (เกิน)' via upsertSheet (row 1 = header values A..N+3), marks report.patched entry spilled:n. Default 'block' (drop and report). Analyze receives all rows within its own capacity.\n\n2) Writable zone: clear only inside columns 1..N+3, so GW EH, BP EI:EJ, BPK EK:EP side columns/pivot output survive. Option clearBeyondTable (default false) restores old behaviour. report.patched[] gets preservedCols (e.g. 'EG:EL') and preservedValues {count, refs:first 5}.\n\n3) Protected sheet names: new src/lib/excel/sheetNames.js exports APP_SHEET_NAMES registry (QA Report, Manual Edits, FC Compare, Daily Total, Run Info, Notes, README, Data (flat), Comments, Formula Audit, and '<Plant> Daily (เกิน)') and isProtected(name, templateSheets). Protected set = template sheet list minus registry. upsertSheet refuses protected/duplicate names; report.skippedSheets [{name, reason:'protected'|'duplicate'}]; truncation collisions of safeSheetName get ' (2)'. Update the existing extraSheets test that replaced Sheet2 to assert refusal.\n\n4) cellWrites primitive: patchTemplate option cellWrites:[{sheet, ref, value, highlight?}] implemented as writeCells(zip, sheet, list): re-parse only the named rows, skip formula cells (status 'skipped-formula'), skip missing sheets, keep the cell s attribute, write in the target's current type (shared-string/inlineStr target -> inlineStr String(value); numeric/empty target -> number or Date serial). Returns report.cellWrites [{sheet, ref, before, after, status}]. Planner (headerSync.js planHeaderWrites with pattern guards and injectable clock) is owned by the export-gate/provenance items; this item ships only the primitive and a tested example (By Plant C2 serial keeps numFmt 15, C3 string). CLAUDE.md By Plant rule amended to 'value cells via cellWrites only'.\n\n5) Typed values: buildCell accepts {v, t:'date'|'int'|'num'|'text'|'bool'}; StyleRegistry.withNumFmt(baseXf, numFmtId) derives and caches xf with built-in ids 1, 3, 15 only. Date primitives in upsertSheet aoa default to date format. Daily rawRow copies are never coerced.\n\n6) AutoFilter: option addAutoFilter (default true) inserts <autoFilter ref=\"A{hdr}:{N+3}{last}\"/> right after </sheetData> respecting CT_Worksheet order (before mergeCells/phoneticPr/conditionalFormatting/dataValidations/hyperlinks/printOptions/pageMargins/pageSetup/headerFooter/drawing/legacyDrawing) and creates _xlnm._FilterDatabase definedName with localSheetId; existing filters only extended as today. report.patched[].autoFilter = 'added'|'extended'.\n\nEdge cases: report fields are additive; useConsolidator only passes new options through and appends skipped-sheet/overflow warnings to the existing notice.",
+      "acceptance_criteria": [
+        "patchTemplate with 8 SR rows writes exactly 6; SR AN20/AN21 formulas intact, A20/A21 empty; report.overflow[0] = {sheet:'SR Daily', rows:8, capacity:6, dropped:[7th,8th]} and a warning matching /SR Daily.*8.*6/.",
+        "Rows at/below the first formula row (SR 20-22, BPK 39-44, BP 26) are byte-identical to the template after patching; patchSheetXml unit test with formula in row 5 and 6 data rows returns res.blocked length 1 and leaves row 5 untouched.",
+        "overflow:'spill' creates 'SR Daily (เกิน)' with header row and 2 rows; report.patched shows spilled 2; Analyze still gets all 8 rows.",
+        "After patchTemplate(fixtures): GW Daily EH14 === '86790-BZ270-00' with EI14 formula intact; BP Daily EJ14/EI14 and BPK EK16/EM16 preserved; BP A22..A25 cleared; clearBeyondTable:true reproduces old clearing; preservedCols 'EG:EL' for BP.",
+        "extraSheets name 'Sheet2' is refused: sheet10.xml byte-identical, report.skippedSheets [{name:'Sheet2',reason:'protected'}]; a prior 'QA Report' sheet is replaced; duplicate 'README' second one refused; truncated-name collisions get ' (2)'.",
+        "cellWrites: By Plant C3 \"Feb'26\" and C2 Date -> serial 46045 keep original xf (numFmtId 15); Summary!B3 and Monthly FC I1 formula targets reported skipped-formula; BPK B4 written as inlineStr '202602', GW B4 numeric.",
+        "Typed cells: Date in aoa reads back '23-Jan-26' (numFmtId 15); {v:'880',t:'int'} writes <v>880</v> without inlineStr; withNumFmt twice returns same index and cellXfs grows by 1.",
+        "GW Daily gets <autoFilter ref=\"A13:EF18\"/> before legacyDrawing/pageMargins and a _FilterDatabase definedName localSheetId=5; BP/BPK/SR filters unchanged apart from existing extension; option off leaves GW without filter.",
+        "Existing templatePatcher tests (part counts, pivot/cache/comment parts, cellXfs prefix invariant) still pass; no ExcelJS at runtime."
+      ],
+      "new_files": [
+        "src/features/patcher-safety/index.jsx",
+        "src/features/patcher-safety/logic.js",
+        "src/lib/excel/sheetNames.js",
+        "tests/patcher-safety.test.js"
+      ],
+      "shared_files": [
+        "src/lib/excel/templatePatcher.js",
+        "src/lib/excel/exportWorkbook.js",
+        "src/state/useConsolidator.js",
+        "src/utils/format.js",
+        "CLAUDE.md",
+        "tests/templatePatcher.test.js",
+        "tests/extraSheets.test.js"
+      ],
+      "decision_notes": "Merged four excel proposals plus planner:template-sync into one patcher-level item. Opposition resolved: (a) architect/ux/qa wanted no report.errors and no UI in the patcher, so the formula-row guard is unconditional but only returns res.blocked and report.overflow; gating, dialog and the gauge belong to export-gate and template-inspector. (b) Five competing cell-write primitives collapse to one cellWrites/writeCells that skips formulas, preserves type and style, and reports status; the planner (planHeaderWrites, C2 default ISSUE DATE, injectable clock, pattern guards) and the dialog section are left to export-gate/provenance-manifest, while this item supplies the primitive. (c) Last FC roll-forward excluded (belongs to compare). (d) Spill stays an option and never a mode setting, default is block/drop with warning; download is never disabled. (e) Protected-sheet change alters an existing test deliberately (documented as behaviour fix, not skipped). (f) Autofilter kept as lowest-risk additive default-on option because element order is unit-tested. Security scope not added.",
+      "tests": [
+        "vitest: patchSheetXml formula in row 5 with 6 data rows returns blocked length 1, row 5 untouched",
+        "vitest: patchTemplate fixtures with 8 SR rows -> 6 written, report.overflow and warning",
+        "vitest: overflow:'spill' creates 'SR Daily (เกิน)' sheet with header and 2 rows",
+        "vitest: side columns GW EH14, BP EJ14, BPK EK16 preserved; clearBeyondTable:true clears them",
+        "vitest: protected Sheet2 refused byte-identical; duplicate and truncation collision handling",
+        "vitest: cellWrites keeps numFmt 15 for By Plant C2, skips formula targets, type-preserving writes for BPK B4 and GW B4",
+        "vitest: typed cells date/int and StyleRegistry.withNumFmt caching",
+        "vitest: GW autoFilter and _FilterDatabase inserted in correct element order; option off",
+        "vitest: existing part-count and cellXfs prefix tests still pass",
+        "e2e: npm run e2e smoke still exports a downloadable file with fixtures"
+      ],
+      "merged_from": [
+        "excel:capacity-guard",
+        "excel:preserve-side-columns",
+        "excel:protected-sheet-guard",
+        "excel:header-meta-sync",
+        "planner:template-sync",
+        "excel:typed-writes",
+        "excel:autofilter-normalise"
+      ],
+      "support_count": 16,
+      "oppose_count": 0,
+      "modify_count": 16,
+      "wave": 3
+    },
+    {
+      "id": "dashboard",
+      "title_th": "แดชบอร์ดผู้บริหารและโมดูลวิเคราะห์",
+      "title_en": "Executive dashboard and analytics core",
+      "spec": "Goal: replace the ChartDashboard modal with one 'แดชบอร์ด' tab, backed by a single DOM-free analytics lib so every surface shows identical numbers. Scope is deliberately limited to what exists today; hooks owned by other items (QA findings, run-history, notes, dock panels) are consumed only if present, never built here.\n\n1) Analytics lib: src/lib/analytics/ (no xlsx/jszip, no DOM). kpis.js buildKpis(processedData, summaryData, {files, clock}) returns {totals (= computeTotals from aggregate.js, reused not reimplemented), total4, parts, rows, plantsWithFiles, issueDate, revision, forecastType, revisionConsistent, dataAgeDays}. Issue/revision come from sourceFiles[].meta; if revisions differ, revisionConsistent=false. clock is injectable (default () => new Date()). matrix.js plantMonthMatrix(processedData) gives BP/BPK/GW/SR x n..n3 plus total row, 4-month column and share percent (use totalsByPlant/computeTotals). movers.js topMovers(summary, fromKey, toKey, limit, {level:'part'|'row'}) returns {up, down} with diff and pct (pct=null when base is 0, UI shows 'ใหม่'); 'row' level keys Part|Plant|Dock. pareto.js paretoByPart(summary) gives cumulative share, top5Share, countToReach(0.8). labels.js has th and en dictionaries with identical keys ('N (Firm)', 'N+1 (FC)', 'รวม 4 เดือน (Firm+FC)'). index.js buildAnalytics(ctx). src/hooks/useAnalytics.js is a useMemo keyed on processedData/summaryData.\n\n2) Feature: src/features/dashboard/index.jsx { id:'dashboard', order:45, tab:{label:'แดชบอร์ด', Icon: Icons.PieChart (add if missing, inline SVG), enabled: summaryData present, tooltip:'ต้องประมวลผลไฟล์ก่อน', Component: DashboardTab} }. DashboardTab sections: KPI strip (grid-cols-2 on mobile, 4 on lg; ยอด N, รวม 4 เดือน, Part Number, แถว, โรงงาน x/4, Issue/Rev/Type, อายุข้อมูล as days, yellow if over 7); 'ยอดรวมรายเดือน' (keep heading for e2e) with SVG bar chart (port from ChartDashboard) and plant x month table scrolling inside its card; 'รายการที่ขยับมากสุด' with month-pair select (default N to N+1) and level toggle; 'Pareto' card with Top 5 share. Optional nickname: partLabel(partNumber, aliases) in labels.js, aliases passed from ctx.state.profile?.features?.aliases?.parts if it exists, else empty (no new storage key here). Attention card: if ctx.state.qa/findings exists show counts, otherwise show only local facts from KPIs (missing plant files, inconsistent revision).\n\n3) Print/PNG: buttons 'พิมพ์ / PDF' and 'บันทึกเป็นรูป' in tab. Print uses document.documentElement.dataset.print='report', requestAnimationFrame then window.print(), cleared on afterprint. Add @media print and @page A4 in index.css, hide header/nav via print:hidden classes. report.js: buildReportModel(analytics) pure, buildSummaryCardSvg(model,{width:1080}) pure string, svgToPngBlob (browser only, canvas 2x) then existing download helper, file name Report_<YYYY-MM>_<date>.png. No button label starts with 'ดาวน์โหลด'.\n\n4) Removal: delete ChartDashboard.jsx, showChart/openChart in App.jsx; SummaryTab button 'ดูกราฟวิเคราะห์' calls actions.goTo('dashboard') (add goTo to App actions if absent); SummaryTab KPI cards read from useAnalytics. useConsolidator totals keep using computeTotals (same function, so equal).\n\nEdge cases: empty plants (share 0, no NaN), single-month data, base 0, missing issueDate (show '-'), mobile 390px no page overflow. Does not touch the Excel export.",
+      "acceptance_criteria": [
+        "With current fixtures KPI shows N=48,934, 4-month=177,042, parts 15, rows 29, plants 4/4, Issue 23/01/2026, Rev 0, Type F (values read from tests/expected.js if present)",
+        "plantMonthMatrix totals deep-equal computeTotals(summary); BPK.n=23,660, share BPK 48.5%",
+        "topMovers(summary,'n','n1',5): top down 86790-BZ280-00 -2,780 (-33.9%), top up 86790-0K051-00 +2,421; base 0 gives pct null",
+        "paretoByPart top5Share 72.9%, 80% reached at part 7",
+        "labels.th and labels.en have identical key sets",
+        "ChartDashboard.jsx and openChart removed; 'ดูกราฟวิเคราะห์' switches to the แดชบอร์ด tab showing heading 'ยอดรวมรายเดือน'",
+        "Tab disabled with tooltip before processing; no horizontal page overflow at 390px",
+        "'พิมพ์ / PDF' sets data-print and calls window.print; 'บันทึกเป็นรูป' downloads a non-empty PNG; buildSummaryCardSvg output contains '48,934' and 'BPK'",
+        "npm test and npm run build pass; no new dependency; no static xlsx/jszip import in analytics"
+      ],
+      "new_files": [
+        "src/lib/analytics/index.js",
+        "src/lib/analytics/kpis.js",
+        "src/lib/analytics/matrix.js",
+        "src/lib/analytics/movers.js",
+        "src/lib/analytics/pareto.js",
+        "src/lib/analytics/labels.js",
+        "src/hooks/useAnalytics.js",
+        "src/features/dashboard/index.jsx",
+        "src/features/dashboard/DashboardTab.jsx",
+        "src/features/dashboard/report.js",
+        "src/features/dashboard/panels/KpiStrip.jsx",
+        "src/features/dashboard/panels/PlantMonthMatrix.jsx",
+        "src/features/dashboard/panels/TopMovers.jsx",
+        "src/features/dashboard/panels/AttentionCard.jsx",
+        "src/features/dashboard/panels/ParetoCard.jsx",
+        "tests/dashboard.test.js"
+      ],
+      "shared_files": [
+        "src/components/SummaryTab.jsx",
+        "src/components/ChartDashboard.jsx",
+        "src/App.jsx",
+        "src/components/Icons.jsx",
+        "src/index.css",
+        "tests/e2e/smoke.mjs"
+      ],
+      "depends_on": [],
+      "effort": "M",
+      "priority": 5,
+      "decision_notes": "Merged exec-dashboard, analytics-core, printable-report and part-alias into one item. Critics unanimously asked for one shared numbers source, replacement of the modal, QA counts visible, Firm/FC labels, and print-the-dashboard rather than a separate ReportView; all accepted. To avoid hard dependencies, consumers of other items (QA findings, run-history, notes, dashboardPanels slot, profile aliases) are optional and degrade gracefully, so depends_on is empty. Tab grouping is left to feature-contract; this tab uses order 45. Part aliases kept minimal (partLabel only, no storage or settings UI here; the settings UI belongs to settings-profile). Security hardening excluded per instruction. Share text, history and dock panels are owned by other items and merely reuse this lib.",
+      "tests": [
+        "vitest: buildKpis totals deep-equal computeTotals and total4 177042 with injected clock for dataAgeDays",
+        "vitest: plantMonthMatrix BPK.n 23660, column sums 48934/51986/40646/35476, share",
+        "vitest: topMovers ranks, level row, base 0 pct null",
+        "vitest: paretoByPart top5Share and countToReach(0.8)",
+        "vitest: labels th/en keys equal",
+        "vitest: buildSummaryCardSvg contains 48,934 and BPK; buildReportModel pure",
+        "e2e: click ดูกราฟวิเคราะห์ lands on แดชบอร์ด with heading ยอดรวมรายเดือน; 390px no horizontal overflow; print button sets data-print; PNG download non-empty"
+      ],
+      "merged_from": [
+        "management:exec-dashboard",
+        "management:analytics-core",
+        "management:printable-report",
+        "management:part-alias"
+      ],
+      "support_count": 8,
+      "oppose_count": 0,
+      "modify_count": 8,
+      "wave": 3
+    },
+    {
+      "id": "template-inspector",
+      "title_th": "ตัวตรวจเทมเพลตกลาง",
+      "title_en": "Template inspector and readiness",
+      "spec": "สร้างตัวตรวจเทมเพลตตัวเดียว (รวม architect:template-preflight, excel:template-preflight, qa:template-readiness, comment-map, compat-formats ส่วน detection) อ่าน zip ครั้งเดียวตอนโหลดเทมเพลต แล้วคืน \"ข้อมูล\" ไม่ตัดสินใจเรื่องกฎ (กฎอยู่ที่ qa-engine) ไม่เปิด dialog เอง\n\nโมดูล: src/features/template-inspector/templateInspect.js (pure, ไม่ใช้ DOM) export inspectTemplate(buffer, {deep=false}) async. ใช้ JSZip ผ่าน lazy import เท่านั้น และใช้ helper ของ templatePatcher (export เพิ่ม parseSheet, cellText, findRowWithText, listSheets แบบ additive) ไม่เขียน parser ซ้ำ.\n\nรูปแบบผลลัพธ์: { sheets:[{name,path,index,hidden,role:'daily'|'analyze'|'other',headerRow,dataStartRow,capacity,capacitySource:'formula'|'autoFilter',firstFormulaRowBelowData,autoFilter,dimension,flags:{conditionalFormatting,mergeCells,sheetProtection,dataValidations}}], missingSheets, pivots:{tables,caches:[{cacheId,sheet,ref,refreshOnLoad,refreshedDate}]}, headerCells (By Plant!C2, C3, Analyze AO1..EG1), templateMonth, nCols:[40,72,104,136] ต่อ Daily, analyze.plantCol, generator:{application,version}, kind:'xlsx'|'xlsm'|'xlsb', vba, externalLinks, fingerprint (sha256 ของชื่อชีต + แถวหัว + สูตรในช่วงที่เขียน), issues:[{level,code,sheet,message,fix}] เฉพาะข้อเท็จจริงโครงสร้าง: SHEET_MISSING, NO_PIVOT, NO_AUTOFILTER, AUTOFILTER_HEADER_ONLY, COND_FORMAT_IN_RANGE, KIND_UNSUPPORTED (xlsb/xlsm), GENERATOR_NOT_EXCEL }. deep:true เพิ่ม masters (byPlantKeys, totalParts, dockSuffixMap EN:ER, pivotSources) และ comments inventory (9 รายการ, insidePatchedArea) แบบ memoised getter.\n\nความจุ: Daily = แถวจาก dataStartRow ถึงแถวแรกที่มีสูตรในคอลัมน์ A..H หรือ N ทั้ง 4 (ได้ 12/25/9/6); Analyze ใช้ autoFilter (54). ไม่รองรับ override ที่นี่ (settings-profile ส่งมาเป็นอาร์กิวเมนต์ capacityOverrides ของ helper templateCapacityReport).\n\nฟังก์ชัน pure เสริม templateCapacityReport(inspection, processedRowsByPlant, overrides) -> [{sheet,rows,capacity,sumRow,over}] เป็นข้อมูลให้ QA แปลงเป็น Issue (ข้อความ 'แถว 26' อยู่ในกฎ QA ไม่ใช่ที่นี่).\n\nstate: เรียกจาก readTemplateBuffer/setTemplateFile แบบ additive เก็บที่ state.template.inspection (คำนวณครั้งเดียว) ไม่พังถ้าอ่านไม่ได้ (คืน issue 'ตรวจไม่ได้').\n\nUI (index.jsx): การ์ด 'ผลตรวจเทมเพลต' พับได้ใต้ช่อง template ในแท็บอัปโหลด ผ่าน feature slot ถ้า contract ยังไม่มีให้ render จาก UploadTab ด้วย hook เล็ก ๆ; ตารางชีต/แถวหัว/ความจุ/สถานะ, บรรทัดสรุป 'เทมเพลต: 11 ชีต • เดือน Feb'26 • Analyze รองรับ 54 แถว', ข้อความ 'บันทึกโดย {app}' และคำแนะนำ Refresh All เมื่อไม่ใช่ Excel, ทุก ⚠/✕ มีบรรทัด 'วิธีแก้'. ไม่ปิดปุ่มดาวน์โหลด.\n\nนอกขอบเขต: overflow/spill ใน patcher (patcher-safety), dialog/gate (export-gate), formula audit ทั่วไป, VML re-anchoring.",
+      "acceptance_criteria": [
+        "inspectTemplate(template.xlsx) ให้ capacity BP/BPK/GW/SR = 12/25/9/6 (firstFormulaRowBelowData 26/39/23/20) และ Analyze 54 (autoFilter); headerRow 13 และ 2",
+        "hidden เป็น true สำหรับ Summary และ Monthly FC (Don't use); templateMonth Feb'26; pivots 3 caches พร้อม source ที่ถูกต้อง",
+        "issues ของ fixture: NO_AUTOFILTER (GW Daily), AUTOFILTER_HEADER_ONLY (SR Daily), COND_FORMAT_IN_RANGE (BPK Daily), ไม่มี error; kind xlsx, vba false",
+        "เทมเพลตที่ลบ/เปลี่ยนชื่อ SR Daily ให้ SHEET_MISSING และ missingSheets มี SR Daily",
+        "fingerprint คงที่เมื่ออ่าน buffer เดิมสองครั้ง และเปลี่ยนเมื่อแก้ข้อความหัวตาราง",
+        "zip ที่มี xl/workbook.bin ให้ kind xlsb และ content type macroEnabled ให้ xlsm + vba true",
+        "deep: masters.byPlantKeys 51, totalParts 27, dockSuffixMap 8; comments 9 รายการ",
+        "templateCapacityReport กับ BP 14 แถวให้ over=true (capacity 12, sumRow 26) และกับ fixture จริงไม่มี over",
+        "การ์ดแสดงใน UI 11 แถวชีตและไม่ disable ปุ่มดาวน์โหลด; inspectTemplate ใช้ JSZip.loadAsync ครั้งเดียว"
+      ],
+      "new_files": [
+        "src/features/template-inspector/templateInspect.js",
+        "src/features/template-inspector/capacity.js",
+        "src/features/template-inspector/index.jsx",
+        "src/features/template-inspector/InspectionCard.jsx",
+        "tests/template-inspector.test.js"
+      ],
+      "shared_files": [
+        "src/lib/excel/templatePatcher.js",
+        "src/lib/excel/index.js",
+        "src/lib/excel/templateInfo.js",
+        "src/state/useConsolidator.js",
+        "src/components/UploadTab.jsx",
+        "tests/e2e/smoke.mjs"
+      ],
+      "depends_on": [
+        "feature-contract"
+      ],
+      "effort": "M",
+      "priority": 5,
+      "decision_notes": "รวมทุกข้อเสนอเป็นโมดูลเดียวตามที่ทุกฝ่ายวิจารณ์ ใช้รูปแบบรายงานแบบ architect (sheets+issues+capacity) เสริม masters/comments/generator/kind จากฝ่ายอื่น. ตามขอบเขต item นี้ผลิตข้อมูลเท่านั้น: กฎ CAPACITY, T01-T06 และ block/confirm อยู่ที่ qa-engine/export-gate; overflow block/spill อยู่ที่ patcher-safety. ตัด formula-audit ทั่วไปและ re-anchoring comment ตามคำวิจารณ์ (เหลือ inventory). .xlsm: ตรวจพบและรายงาน kind/vba เป็น issue ให้ชั้น intake ตัดสินนโยบายรับ/ปฏิเสธ เพราะขัดแย้งกันระหว่างฝ่าย. ไม่ disable ปุ่มดาวน์โหลด. ตำแหน่งไฟล์ย้ายมาอยู่ในโฟลเดอร์ feature ตามกฎสถาปัตยกรรม. Analyze ใช้กฎ autoFilter (54) เพราะ heuristic สูตรให้ 60. ไม่เพิ่มขอบเขต security.",
+      "tests": [
+        "vitest: capacity 12/25/9/6 และ Analyze 54 จาก template.xlsx จริง",
+        "vitest: hidden sheets, templateMonth, headerCells, pivot sources",
+        "vitest: issues ของ fixture ตรงตามที่คาด และ zip แก้ที่ลบ SR Daily ให้ SHEET_MISSING",
+        "vitest: kind xlsm/xlsb จาก zip สังเคราะห์ และ generator ไม่ใช่ Excel",
+        "vitest: fingerprint คงที่/เปลี่ยน, JSZip.loadAsync spy นับหนึ่งครั้ง, เวลา < 150 ms (ขอบเขตกว้าง)",
+        "vitest: deep masters (51/27/8) และ comments 9 รายการ, templateCapacityReport 14 แถว BP",
+        "e2e: อัปโหลด template.xlsx แล้วเห็นการ์ด 'ผลตรวจเทมเพลต' 11 แถวและปุ่มดาวน์โหลดยังใช้ได้"
+      ],
+      "merged_from": [
+        "architect:template-preflight",
+        "excel:template-preflight",
+        "excel:formula-audit",
+        "excel:comment-map",
+        "excel:compat-formats",
+        "qa:template-readiness"
+      ],
+      "support_count": 15,
+      "oppose_count": 0,
+      "modify_count": 33,
+      "wave": 4
+    },
+    {
+      "id": "share-clipboard",
+      "title_th": "แชร์สรุป คลิปบอร์ด และตัวแปลงข้อความ",
+      "title_en": "Share summary, clipboard and safe serializers",
+      "spec": "Goal: one safe text-serializer module, one clipboard util, one CopyButton, one share modal. Merges management:share-summary-text, planner:line-summary, integration:copy-tsv and integration:safe-serializers.\n\n1) src/utils/serialize.js (pure, no DOM/React, runs in Node). Exports: escapeCellText(v) - strings starting with = + - @ TAB CR get a leading apostrophe; strip control chars (U+0000-U+001F except \\n where quoted CSV needs it) and bidi (U+202A-202E, U+2066-2069); numbers/booleans/null untouched (so -5 stays -5). toTsv(aoa) - tabs/newlines inside cells become spaces, raw numbers (no thousand separators), rows joined by \\n. toCsv(aoa,{bom=true,eol='\\r\\n',delimiter=','}) RFC 4180 quoting. jsonSafe(v) deep-sanitises strings. flat-export and others import these.\n\n2) src/utils/clipboard.js: copyText(text) -> Promise<{ok, method}>. Calls navigator.clipboard.writeText inside the click handler; on missing API or rejection, falls back to hidden textarea + document.execCommand('copy'); if that also fails returns {ok:false} so the caller shows the manual-copy UI (readonly pre-selected textarea in the existing Modal, closes on Escape) and a Thai notice. canShare() = typeof navigator.share==='function'; shareText(text,title) wraps navigator.share and swallows AbortError. navigator.clipboard is referenced ONLY in this file. Re-export toTsv from serialize.\n\n3) src/components/CopyButton.jsx: props {getText | getRows, label='คัดลอก', onCopied}. Uses Icons (add small Share/Copy icon to Icons.jsx if missing). Label switches to 'คัดลอกแล้ว' for 2 s; aria-live polite, keyboard accessible. If getRows is given, text = toTsv(getRows()). Optionally calls actions.setNotice('คัดลอก n แถวแล้ว - วางลง Excel/Google Sheets ได้เลย','success'). Wire it ONLY into SummaryTab header (filtered rows + totals) in this item; other tables (Preview/Matching/Changelog/ExcelPreview) are left for ui-kit DataGrid toolbar slot - do not hand-edit them.\n\n4) src/features/share-clipboard/logic.js (pure): buildShareModel(state, monthLabels) and buildShareText(model,{mode:'short'|'full'|'tsv', lang:'th'|'en'}) plus buildShareTsv. Model derives from state.summaryData, computeTotals, per-plant totals, source file metas (productionMonth, issue date, revision, forecast type), top 5 movers if available. Optional sections read defensively from state.features (compare, qa findings, manifest, sent marker); each is skipped silently when absent - no imports of other features. Short mode: title line, N..N+3 + total, per-plant lines with %, 3 biggest changes, QA line, warnings, file name; hard cap 1000 chars (drop sections in order: movers, files). Full adds dock split, notes, file list, hash 8 chars, generated time. Labelled lines not columns. No user names. TSV mode: header + Part rows (8 base columns not needed; Part Number, Plants, N..N+3, Total).\n\n5) index.jsx: feature {id:'share-clipboard', order, headerActions} - NO new header button per critics; instead export a ShareButton ('แชร์สรุป') placed in SummaryTab button row opening ShareModal.jsx (existing Modal): mode radios 'สั้น (LINE)'/'เต็ม (อีเมล)'/'ตาราง TSV', TH/EN toggle, editable textarea, CopyButton, and 'แชร์…' button rendered only if canShare(). Every copy/share calls actions.log('share', detail). Add share:'แชร์' to ACTION_META in ChangelogTab.jsx. Disabled when no summaryData.\n\nEdge cases: empty data, missing month labels, failed files, clipboard denied, very long text.",
+      "acceptance_criteria": [
+        "toTsv([['a','=SUM(1)'],['-5','@x']]) escapes strings to \"'=SUM(1)\" and \"'@x\"; numeric -5 is untouched; tabs/newlines in cells become spaces",
+        "escapeCellText strips U+202E and control characters; toCsv quotes commas, quotes and newlines with CRLF and optional BOM",
+        "buildShareText short mode with fixtures contains N..N+3 totals equal to formatNumber(computeTotals(summaryData)) and per-plant lines with %, and is <= 1000 chars",
+        "Optional QA/compare/manifest sections appear only when present in state.features and never throw when absent",
+        "TSV mode returns one header plus one row per Part separated by tabs without thousand separators",
+        "copyText falls back to textarea then to manual-copy modal; no exception escapes; navigator.clipboard referenced only in src/utils/clipboard.js",
+        "'แชร์…' button not rendered when navigator.share is undefined; CopyButton shows 'คัดลอกแล้ว' for 2 s",
+        "Each copy/share adds a changelog entry with action 'share' labelled 'แชร์'",
+        "No new header button; ShareButton sits in the SummaryTab row; layout does not overflow on mobile"
+      ],
+      "new_files": [
+        "src/utils/serialize.js",
+        "src/utils/clipboard.js",
+        "src/components/CopyButton.jsx",
+        "src/features/share-clipboard/index.jsx",
+        "src/features/share-clipboard/ShareModal.jsx",
+        "src/features/share-clipboard/logic.js",
+        "tests/share-clipboard.test.js"
+      ],
+      "shared_files": [
+        "src/components/SummaryTab.jsx",
+        "src/components/ChangelogTab.jsx",
+        "src/components/Icons.jsx"
+      ],
+      "depends_on": [
+        "feature-contract"
+      ],
+      "effort": "M",
+      "priority": 3,
+      "decision_notes": "All parties agreed the three share/copy proposals are one deliverable. Management's spec is the base (short/full/TSV, Web Share guard, changelog entry); planner is merged in; copy-tsv is narrowed to the shared primitives; safe-serializers is folded in as serialize.js so escaping is identical for TSV/CSV/JSON. Architect's concern about hand-editing five components is resolved by wiring CopyButton only into SummaryTab now and leaving other tables to the ui-kit DataGrid toolbar. UX's request to avoid header clutter is honoured (no headerActions button). Cross-feature data (QA, compare, manifest) is read defensively from state.features, not imported. Per-user instruction, model/effort kept low; security hardening beyond formula-escaping of output is not added. Tests do not cover DOM; contract grep for navigator.clipboard is a simple node test.",
+      "tests": [
+        "vitest: toTsv/escapeCellText/toCsv/jsonSafe cases (formula prefixes, bidi, control chars, numbers untouched)",
+        "vitest: buildShareText short/full/tsv x th/en with real fixtures; length cap; missing optional sections",
+        "vitest: grep contract that navigator.clipboard appears only in src/utils/clipboard.js",
+        "e2e: after processing, click Summary copy button and assert success text 'คัดลอกแล้ว'; open share modal, switch modes, assert textarea content changes"
+      ],
+      "merged_from": [
+        "management:share-summary-text",
+        "planner:line-summary",
+        "integration:copy-tsv",
+        "integration:safe-serializers"
+      ],
+      "support_count": 3,
+      "oppose_count": 0,
+      "modify_count": 21,
+      "wave": 4
+    },
+    {
+      "id": "compare",
+      "title_th": "เทียบรอบก่อน",
+      "title_en": "Compare with previous round",
+      "spec": "แท็บเดียว \"เทียบรอบก่อน\" ที่ src/features/compare/index.jsx (Icons.Compare, enabled เมื่อมี processedData, tooltip \"ต้องประมวลผลไฟล์ก่อน\"). รวม 5 ข้อเสนอ compare เป็นหนึ่งเดียว ไม่มี tab/ชีตซ้ำ.\n\nไฟล์ใหม่ (pure, ทดสอบใน Node): \n- src/features/compare/readPrevious.js: adapter คืน baseline {rows:[{plant,part,dock,n,n1,n2,n3}], monthCandidates:[{source,value}], month|null, confidence, label}. Adapter: (a) สมุดผลลัพธ์รอบก่อน .xlsx อ่าน 4 ชีต \"<Plant> Daily\" ด้วย extractSourceRows (ไม่ใช้ Daily B4 เป็นเดือนเด็ดขาด; เดือนเสนอจาก By Plant!C3 รูปแบบ Mon'YY แต่ต้องให้ผู้ใช้ยืนยัน), (b) ไฟล์ TMT .xls รอบก่อนผ่าน readSource เดิม, (c) \"ข้อมูลเดิมในเทมเพลต\" อ่านแถว Daily ที่อยู่ในเทมเพลตปัจจุบัน (ไม่ต้องอัปโหลด), (d) snapshot ในหน่วยความจำก่อน processAll ทุกครั้ง (รอบเดียวกัน Rev เก่า→ใหม่), (e) JSON baseline ที่แอปส่งออกเอง (loadForecastJson ตรวจ schemaVersion, ข้อความไทยเมื่อไม่รองรับ). ไฟล์ที่ผิดโครงสร้างให้ throw ข้อความไทยระบุชื่อชีต. โหลด xlsx ผ่าน barrel lazy เท่านั้น.\n- src/features/compare/compare.js: alignMonths(prevMonth, currMonth) จับคู่ตามปฏิทิน (shift = ผลต่างเดือน; เท่ากัน = mode 'revision'; ไม่ทับซ้อน = [] + คำเตือน); positional ผ่าน toggle ที่ติดป้าย \"ไม่แนะนำ\" เท่านั้น. compare(prev,curr,shift,{level:'dock'|'part',threshold:{pct:10,minPcs:50}}) -> rows {key,plant,part,dock,month,prev,curr,diff,pct|null,status:same|changed|new|missing}; ฐาน 0 => 'new' pct null ห้าม Infinity. summarize() -> KPI เปลี่ยน/เพิ่ม/ลด/ใหม่/หายไป/Firm เปลี่ยน (prev N+1 vs curr N). filterRows ตามเกณฑ์ (|pct|>=10 และ |diff|>=50 หรือ new/missing) เรียง |diff| มากไปน้อย. compareToAoa() สำหรับชีต.\n- src/features/compare/tagRows.js: tagRows(previousRows, current) -> unchanged/new/changed(changedCells)/removed สำหรับ preview overwrite.\n\nUI: คำอธิบายเลือก \"ข้อมูลรอบก่อนมาจาก\"; ช่อง \"เดือนของรอบก่อน\" (select) ต้องยืนยันก่อนจึงเทียบ มิฉะนั้นแสดง \"ยังไม่มีข้อมูลรอบก่อน\"; ประโยคจัดแนวเสมอ เช่น \"เทียบ Mar'26 (รอบก่อน N+1) กับ Mar'26 (รอบนี้ N)\" หรือ \"รอบเดียวกัน (revision)\"; KPI cards; ตาราง (Part, Plant, Dock, เดือน, รอบก่อน, รอบนี้, ผลต่าง, %, chip ใหม่/หายไป), slider เกณฑ์ % และชิ้น, toggle \"รวมระดับ part\"; กล่อง drop zone อยู่ในแท็บนี้ (ไม่เพิ่มใน UploadTab). ใช้ตารางธรรมดา (ถ้า DataGrid จาก ui-kit พร้อมค่อยสลับ). สถานะเก็บใน state.features.compare ผ่าน setFeatureState ถ้า feature-contract พร้อม มิฉะนั้นใช้ useState ใน component; baseline อยู่ในหน่วยความจำเท่านั้น. Snapshot ก่อน processAll เพิ่มเป็น hook เล็กๆ ใน useConsolidator.\n\nExport: exportSheets คืนชีต 'FC Compare' [Part, Plant, Dock, Month, Previous, Current, Diff, Diff%, Status] เฉพาะแถวที่ผ่านเกณฑ์ (opt-in). Preview overwrite: toggle ใน ExcelPreview \"เทียบกับชีตในเทมเพลต\" (เมื่อเทมเพลต xlsx) แสดง ใหม่/เปลี่ยนค่า/เท่าเดิม และ \"จะถูกลบออกจากชีต (N แถว)\" พร้อมคำอธิบายว่าไม่ใช่การเทียบ forecast. Findings (new/missing/over threshold) ส่งเข้า validate(ctx) เมื่อ feature-contract พร้อม. Last FC write-back (By Plant M:O) เป็น opt-in ผ่าน cellWrites เมื่อ patcher-safety พร้อม เท่านั้น: ข้ามเซลล์สูตร, ปิดเมื่อเดือนฐานไม่ใช่ N-1, log ต่อเซลล์ — แยกเป็นขั้นหลัง.",
+      "acceptance_criteria": [
+        "readPrevious ของ input/download.xlsx คืน 42 แถว (BP12/BPK16/GW8/SR6) และไม่ใช้ Daily B4 เป็นเดือน; confidence ต่ำจึงต้องยืนยันเดือน",
+        "ใช้ download.xlsx เป็นฐานรอบเดียวกัน (revision) เทียบ fixture ปัจจุบัน: 29 same, 13 missing, 0 new",
+        "ฐานสังเคราะห์เลื่อน 1 เดือน: compare จับ prev.n1 กับ curr.n; ผลต่างและ % ถูกต้อง; prev=0 ได้ status new และ pct null",
+        "เกณฑ์ 10%/50 ชิ้นกรองแถวและเรียงตาม |diff|; toggle รวมระดับ part รวม dock ก่อนเทียบ",
+        "แท็บ disabled พร้อม tooltip จนกว่า processedData มี และแสดง 'ยังไม่มีข้อมูลรอบก่อน' จนยืนยันเดือน",
+        "เลือก export 'FC Compare' แล้วได้ชีตหัวตารางตามกำหนด โดย pivot/comment ในเทมเพลตไม่หาย",
+        "tagRows ของ BP Daily จากเทมเพลตเทียบ fixture ให้ unchanged 8, removed 4",
+        "JSON schemaVersion ไม่รองรับถูกปฏิเสธด้วยข้อความไทย ไม่ crash",
+        "npm test และ npm run build ผ่าน; ไม่ import xlsx/jszip แบบ static"
+      ],
+      "new_files": [
+        "src/features/compare/index.jsx",
+        "src/features/compare/compare.js",
+        "src/features/compare/readPrevious.js",
+        "src/features/compare/tagRows.js",
+        "tests/compare.test.js"
+      ],
+      "shared_files": [
+        "src/state/useConsolidator.js",
+        "src/components/ExcelPreview.jsx",
+        "src/utils/format.js",
+        "src/lib/excel/index.js"
+      ],
+      "depends_on": [
+        "feature-contract"
+      ],
+      "effort": "L",
+      "priority": 5,
+      "decision_notes": "ทุกฝ่ายเห็นตรงกันให้เหลือ compare ฟีเจอร์เดียวจึงรวมทั้ง 5 ข้อเสนอ ใช้ UI ของ planner เป็นฐาน. การจัดแนวเดือนใช้ปฏิทินเสมอและแสดงประโยคจัดแนว; positional มีเฉพาะ toggle ที่ไม่แนะนำ. เดือนฐานต้องให้ผู้ใช้ยืนยัน เพราะ Daily B4 และ By Plant!C3 ล้าสมัยจริง ตามที่ QA/excel ตรวจ. ตัวเลขทดสอบแก้ตาม QA: download.xlsx คือรอบเดียวกัน 42 แถว (29 same, 13 missing) และใช้ baseline สังเคราะห์สำหรับการเลื่อนเดือน. ตัด By Plant cache adapter และกล่องอัปโหลดที่ 3 ใน UploadTab ตามคำวิจารณ์. Last FC write-back เก็บเป็น opt-in ผ่าน cellWrites ของ patcher-safety ไม่สร้าง primitive ใหม่ จึงเป็นขั้นหลัง. preview-diff และ JSON import รวมเป็นส่วนย่อยของฟีเจอร์นี้. Findings/state ใช้สัญญาของ feature-contract และมี fallback ถ้ายังไม่พร้อม. ตัดงาน security ตามผู้ใช้. ต่อคำขอผู้ใช้ เขียน brief แบบประหยัดโดยไม่อ่านโค้ดเพิ่ม จึงชื่อ hook/action บางส่วนต้องตรวจกับโค้ดจริงตอนลงมือ.",
+      "tests": [
+        "vitest: alignMonths (shift 1, revision, ไม่ทับซ้อน)",
+        "vitest: compare() same/changed/new/missing, pct null เมื่อฐาน 0, ระดับ part",
+        "vitest: readPrevious(download.xlsx) 42 แถว และ monthCandidates",
+        "vitest: download.xlsx vs fixtures = 29 same / 13 missing / 0 new",
+        "vitest: ฐานสังเคราะห์เลื่อนเดือน diff -24 และ -3.4%",
+        "vitest: filterRows threshold และการเรียง",
+        "vitest: tagRows unchanged/new/changed/removed",
+        "vitest: compareToAoa หัวตาราง; JSON schemaVersion ผิดถูกปฏิเสธ",
+        "e2e: แท็บ disabled ก่อนประมวลผล, ต้องยืนยันเดือนก่อนตารางแสดง"
+      ],
+      "merged_from": [
+        "planner:compare-previous",
+        "qa:last-month-compare",
+        "supply:fc-compare",
+        "ux:compare-previous",
+        "management:compare-previous-run",
+        "ux:preview-diff",
+        "integration:json-roundtrip-import"
+      ],
+      "support_count": 5,
+      "oppose_count": 0,
+      "modify_count": 34,
+      "wave": 5
+    },
+    {
+      "acceptance_criteria": [
+        "npm test (node env) still passes and stays under 15 s; jsdom is opted in per file via // @vitest-environment jsdom",
+        "makeSource({rows:20, headerRow:15}) round-trips through readSourceBuffer with headerRowIndex 14, 20 rows, and every row's 31 day cells sum to its N in all four blocks",
+        "makeSource({nShift:2}) gives colPositions.nCol 41; makeSource({docks:['D1','BN']}) gives two rows for one part and one summary row listing both docks",
+        "makeTemplate({format:'xls'}) makes buildExport return mode 'fallback' with Sheet1 preserved; makeTemplate({sumRow:{sheet:'BP Daily',moveTo:30}}) is handled by capacity check",
+        "tests/fixtures/expected.json is the only file holding numeric literals derived from fixtures; tests read them via tests/helpers.js",
+        "tests/golden.test.js passes on committed snapshot; deliberately changing one written value fails naming 'BP Daily!A14'; UPDATE_GOLDEN=1 npm test re-baselines both golden files and passes again",
+        "Two buildExport runs with the same injected now produce byte-identical blobs (sha256 equal); without now the export is still valid",
+        "tests/ooxml.test.js validator passes on fixture export, fails naming element order violation (autoFilter after pageMargins) and missing content-type override for custom.xml",
+        "npm run typecheck exits 0; introducing row.n='x' in aggregate.js or a typo ctx.state.processedDat in a feature fails it",
+        "A Banner jsdom test and an axe test on a rendered tab report zero serious/critical violations",
+        "tests/ci.test.js fails if any uses: line in .github/workflows/ci.yml is not pinned to a 40-char SHA",
+        "CI workflow runs typecheck, test, build, check:bundle on Node 20 and 22 plus an e2e job; package.json has engines.node >=20.19",
+        "check:bundle passes on current build and fails when xlsx/jszip appear in the entry chunk",
+        "tests/e2e/smoke.mjs uses exact names/data-testid and still passes; adding another button starting with 'ดาวน์โหลด' does not break it",
+        "perf.test.js (1000-row parse+patch < 3 s) is skipped when CI_PERF=0"
+      ],
+      "decision_notes": "Merged six proposals into one test-infra item with five layers. (1) Fixture toolchain: kept architect's makeSource/makeTemplate + one scripts/make-fixtures.mjs shared with demo-mode/sanitise subcommands, and expected.json as sole holder of numeric literals (QA/management/supply modifications accepted; invariants day-sum=N, 4x32 blocks, manifest). The committed-fixture swap/sanitise and history purge are NOT done in this item: they are a separate coordinated step sequenced last (planner), tests are agnostic because they read expected.json; security-hardening scope is excluded per user. input/download.xlsx is kept until a synthetic previous_output replaces it. edits.js (applyRowEdit etc.) belongs to manual-edit item, so only a stub dependency is noted: edit tests are left to manual-edit; this item provides fixtures for it. (2) Golden: merged excel:golden-export, qa:golden-export and architect:golden-regression into a single cell-level snapshot (tests/golden) with UPDATE_GOLDEN flag and optional sha256 only when an injectable now/deterministic zip dates option exists (the clock itself is owned by provenance-manifest; here we add only the minimal optional date option to patcher, additive). snapshotWorkbook helper in tests, not src, to avoid overlap with export-gate verifyExport (can be promoted later). (3) OOXML: kept the mandatory structural validator in vitest; LibreOffice job is optional/advisory and skipped without soffice (excel's own risk note). (4) Types/CI: JSDoc typedefs + checkJs non-strict, typescript devDependency, CI with SHA-pinned actions, bundle budget, engines. Rejected vendoring xlsx tarball and deps:check mirror script (lockfile already holds integrity; adds binary and scope; supply-chain hardening is dropped per user) and npm audit/lockfile-lint (security). README limited to requirements line (adoption). (5) Component tests: jsdom + Testing Library + axe per-file opt-in, makeCtx from real fixtures; e2e hardened and run in CI. Perf test kept with generous bound and CI_PERF=0 switch. Effort kept at L overall but items are independently landable; Sonnet-level effort suffices.",
+      "depends_on": [
+        "feature-contract"
+      ],
+      "effort": "L",
+      "id": "test-infra",
+      "new_files": [
+        "src/features/test-infra/index.jsx",
+        "src/features/test-infra/types.js",
+        "scripts/make-fixtures.mjs",
+        "scripts/check-bundle.mjs",
+        "tests/fixtures/makeSource.js",
+        "tests/fixtures/makeTemplate.js",
+        "tests/fixtures/expected.json",
+        "tests/helpers/snapshot.js",
+        "tests/golden.test.js",
+        "tests/golden/export-cells.json",
+        "tests/golden/export.sha256",
+        "tests/ooxml.test.js",
+        "tests/ooxmlValidator.js",
+        "tests/robustness.test.js",
+        "tests/capacity.test.js",
+        "tests/fallback.test.js",
+        "tests/perf.test.js",
+        "tests/test-infra.test.js",
+        "tests/ci.test.js",
+        "tests/ui/render.js",
+        "tests/ui/axe.js",
+        "tests/ui/Banner.test.jsx",
+        "tests/ui/axe.test.jsx",
+        "tests/e2e/office.mjs",
+        "jsconfig.json",
+        "src/globals.d.ts",
+        ".github/workflows/ci.yml"
+      ],
+      "priority": 4,
+      "shared_files": [
+        "package.json",
+        "vite.config.js",
+        "tests/helpers.js",
+        "tests/e2e/smoke.mjs",
+        "src/lib/excel/templatePatcher.js",
+        "src/lib/excel/exportWorkbook.js",
+        "src/App.jsx",
+        "README.md",
+        "CLAUDE.md",
+        ".gitignore"
+      ],
+      "spec": "Goal: make every robustness path testable and catch regressions before users do. Dev-only infrastructure; the feature object in src/features/test-infra/index.jsx is a minimal stub (no tab) kept only so the folder follows the convention; real value is in tests/scripts/CI. UI copy untouched except data-testid and aria-live additions (Thai text unchanged).\n\n1. Fixture toolchain. tests/fixtures/makeSource.js builds TMT-shaped workbooks in memory: opts {plantCode, productionMonth, rows, headerRow (1-based, default 13), extraLeadingCols, nShift, includeEof, duplicates, docks, packingSizes, weekendZero, runoutRows, format:'xls'|'xlsx'}. Invariants: 12 key/value rows, 4 blocks x (31 days + total), day sums equal N, '<EOF>' line optional. tests/fixtures/makeTemplate.js derives variants of template.xlsx by zip-editing with JSZip (SheetJS cannot write pivots): {renameSheet, dropSheet, sumRow:{sheet,moveTo}, headerRow, format:'xls'}. scripts/make-fixtures.mjs (node) subcommands: synth, variants, expected (writes tests/fixtures/expected.json with per-file rows, per-part N..N+3, per-sheet totals, capacities). Sanitise/samples/previous subcommands are stubs owned by onboarding; the real-fixture swap is a separate later PR. tests/helpers.js gains loadExpected().\n\n2. New tests: robustness (header at row 15, shifted N columns, EOF and short part numbers skipped, duplicate parts, multi-dock part gives two rows and one summary row), capacity (14 BP rows triggers overflow), fallback (.xls template gives mode 'fallback', Sheet1 preserved), perf (1000 rows parse+patch under 3 s, skipped when CI_PERF=0).\n\n3. Golden regression. tests/helpers/snapshot.js reads the output zip at XML level and produces {'sheet!ref': {v,t,s}} for written cells plus dimension, autoFilter, _FilterDatabase, pivot worksheetSource strings, styles counts and sorted part list. golden.test.js diffs against tests/golden/export-cells.json printing added/removed/changed refs. UPDATE_GOLDEN=1 re-baselines. Additive: templatePatcher/buildExport accept optional {now} used as the JSZip entry date; sha256 assertion runs only when now is passed, no timestamps in snapshot.\n\n4. OOXML validator tests/ooxmlValidator.js: CT_Worksheet child order, relationship targets exist, content types cover every part, workbook r:ids resolve, definedName localSheetId in range, no duplicate sheet names; errors name part and element. Optional tests/e2e/office.mjs runs soffice headless when on PATH, else prints 'skipped' and exits 0.\n\n5. Types/CI. src/types.js-style typedefs (put in src/features/test-infra/types.js): SourceRow, SourceMeta, ProcessedData, SummaryRow, ChangeLogEntry, ExportReport, TemplateInfo, Feature, FeatureCtx. jsconfig.json checkJs, strict false; add // @ts-check to lib modules incrementally with a short @ts-expect-error list; script typecheck; devDependency typescript. package.json engines node >=20.19; README requirements line only. scripts/check-bundle.mjs asserts xlsx/jszip chunks are separate from entry and entry JS under a budget. .github/workflows/ci.yml with actions pinned by SHA: build-test (Node 20 and 22: npm ci, typecheck, test, build, check:bundle) and e2e (Chromium, npm run e2e); tests/ci.test.js asserts SHA pinning.\n\n6. Component tests. devDependencies jsdom, @testing-library/react, user-event, jest-dom, axe-core; per-file opt-in environment. tests/ui/render.js: renderFeature, makeCtx built from real fixtures via a headless processAll harness. Samples: Banner, UploadTab, tab nav axe. Harden tests/e2e/smoke.mjs with exact names/data-testid; add aria-live to progress.\n\nEdge cases: do not edit formula cells; heavy libs only via lazy barrel in app code (tests may import directly).",
+      "tests": [
+        "vitest: makeSource round-trip through readSourceBuffer (headerRowIndex, rows, day sums)",
+        "vitest: nShift moves colPositions.nCol",
+        "vitest: multi-dock part gives two rows and one summary row",
+        "vitest: makeTemplate xls variant gives fallback mode",
+        "vitest: capacity overflow with 14 BP rows",
+        "vitest: golden snapshot match and failure message names changed cell",
+        "vitest: deterministic export identical sha256 with fixed now",
+        "vitest: ooxml validator passes on export and fails on misordered autoFilter / missing content type override",
+        "vitest: ci.yml actions SHA-pinned",
+        "vitest jsdom: Banner renders; axe zero serious/critical on UploadTab",
+        "vitest: perf bound skipped with CI_PERF=0",
+        "e2e: smoke.mjs with exact button names; e2e:office skipped without soffice"
+      ],
+      "title_en": "Test infrastructure, fixtures, types and CI",
+      "title_th": "โครงสร้างทดสอบ ฟิกซ์เจอร์ type และ CI",
+      "merged_from": [
+        "architect:synthetic-fixtures",
+        "architect:type-contracts-ci",
+        "architect:component-test-infra",
+        "excel:golden-export",
+        "qa:golden-export",
+        "architect:golden-regression",
+        "excel:real-app-open-test"
+      ],
+      "support_count": 13,
+      "oppose_count": 0,
+      "modify_count": 3,
+      "wave": 5
+    },
+    {
+      "id": "manual-edit",
+      "title_th": "แก้ไขตัวเลข ย้อนกลับ และหมายเหตุ",
+      "title_en": "Manual edits, undo and notes",
+      "priority": 5,
+      "effort": "L",
+      "depends_on": [
+        "feature-contract",
+        "patcher-safety",
+        "ui-kit"
+      ],
+      "spec": "GOAL: let the planner apply Toyota late corrections inside the app, with the day cells reconciled so Daily sheets still sum to N, with reason, undo, replay after re-processing, amber highlight and one 'Manual Edits' ledger sheet. Existing updateRowValues (useConsolidator.js ~L179) only patches rawRow[nCol]; it becomes a thin caller of the new pure core.\n\n1) CORE src/features/manual-edit/edits.js (pure, no DOM; the CLAUDE.md rule on src/lib/excel applies to its purity, but the file lives in the feature folder per the architecture rule). Exports:\n- editKey(row) = `${plant}|${partNumber}|${dockCode}` normalised (trim, uppercase). Sheet is implied by plant.\n- reconcileDays(row, monthIdx, newTotal, strategy, calendar?) with strategies 'lastWorkingDay' (default label 'ปรับวันทำงานสุดท้าย'; increase goes to last working day/last non-zero day of the block; decrease walks backwards over days until absorbed), 'proportional' ('กระจายตามสัดส่วน': scale non-zero days, round, fix remainder on the last working day so the sum is exact), 'none' ('ไม่ปรับวัน'; days untouched, QA R01 finding expected when the qa-engine exists). Day block start = 8 + monthIdx*32, total column index 39/71/103/135.\n- applyRowEdit(row, patch{n,n1,n2,n3}, {strategy, reason, at}) returns {row, changes}; snapshots row.original on first edit; updates row.n.., rawRow[totalCol], day cells; validates integer >= 0; sets row.edited.\n- applyDayMove(row, monthIdx, fromDay, toDay, qty, {calendar}) leaves N unchanged; refuses qty > source ('วันที่ 14 มีเพียง 59 ชิ้น') and non-existent days; non-working target day needs confirm flag.\n- revertRow(row) restores from row.original; applyBatch(rows, items, opts); replayEdits(processedData, ledger) -> {applied, orphans}.\n- Ledger entry {key, kind:'total'|'dayMove', cells, strategy, reason, at}. State: state.edits (or state.features['manual-edit'] if feature-contract provides setFeatureState).\n\n2) paste.js: parseAdjustments(text) CSV/TSV autodetect, quoted fields, header aliases (Plant, Part Number, Dock, N, N+1..N+3, เหตุผล), line cap, reasons through sanitizeCellText; matchAdjustments(list, processedData) statuses 'ตรงกัน' / 'ต้องระบุ Dock' (candidates) / 'ไม่พบ' / 'ไม่เปลี่ยน' with before->after preview. A 'วางรายการ' collapsible panel in ตรวจสอบข้อมูล applies via actions.updateRowsBatch (one buildSummary call, one log entry per item). Optional export of applied edits as CSV in the same format.\n\n3) notes.js (reasons store): reasons are saved as notes {id, month, key:'row:PLANT|PART|DOCK', text, source:'edit'}; use the shared notes/storage module if it exists, otherwise a small in-feature store in state with an adapter so it can be swapped; no ad-hoc localStorage keys. Edits with reasons write a note; Manual Edits sheet references the text directly.\n\n4) UI (index.jsx + EditableCell.jsx + EditBar.jsx, Thai): N..N+3 cells in the per-plant table are editable (double-click/Enter/F2; Tab next, Esc cancel; integer input, hint when not a multiple of packingSize). On commit an inline bar below the row: strategy select showing default, reason chips 'TMT แจ้งแก้' / 'ปรับตามสต็อก' / 'ปรับตามกำลังผลิต' / 'อื่นๆ' (text required, 120 chars), old -> new preview, 'บันทึก' (disabled until chip chosen, error 'กรุณาเลือกเหตุผล') and 'ยกเลิก'. Validation error 'ต้องเป็นจำนวนเต็ม 0 ขึ้นไป'. Saved rows show amber 'แก้ไขแล้ว' chip, per-row 'คืนค่าเดิม', filter 'เฉพาะที่แก้ไข'. Undo: a toast 'แก้ไขแล้ว · เลิกทำ' (6s) after save/revert/batch, single-level undo kept in feature (Ctrl/Cmd+Z only while toast visible and not inside an input), uses ui-kit Toast. Day move popover in per-plant mode of the daily grid only when daily-grid exists (optional integration, hook via extension; otherwise a small 'ย้ายยอดวัน' dialog from the row). Feature tab badge = number of edited rows; header counter 'แก้ไขด้วยมือ N รายการ'. Stale banner: 'มีการแก้ไข N รายการ จะถูกนำกลับมาใช้หลังประมวลผลใหม่'.\n\n5) Replay: onProcessed(ctx, result) replays the ledger; orphans produce setNotice 'มีการแก้ไข N รายการที่หาแถวไม่พบ: ...' plus a 'warning' log entry; applied ones log 'replayed'.\n\n6) Export: exportSheets returns 'Manual Edits' [เวลา, โรงงาน, Part, Dock, ช่อง, ก่อน, หลัง, วิธีปรับวัน, เหตุผล], reasons through sanitizeCellText, only when edits exist; include when recipient profile is not 'ส่งลูกค้า' (if export-gate has no profile, default on with an option to turn off). Amber fill FFFFF1C2 for edited cells: small additive StyleRegistry colour parameter in templatePatcher (map keyed base:colour so repeated runs do not bloat cellXfs) driven by an optional processedData row.editedCells list.",
+      "acceptance_criteria": [
+        "applyRowEdit on SR fixture 86790-0K051-00 with {n:1300} default strategy sets row.n=1300, rawRow[39]=1300 and day sum equals 1300 (day 28 lowered 64 to 12); {n:1200} zeroes days 28 and 27 and day 26 becomes 50; change text contains 'N: 1352 → 1300'.",
+        "proportional strategy gives exact day sum for every fixture row and monthIdx; 'none' leaves days unchanged and flags a mismatch finding.",
+        "revertRow restores n..n3, rawRow and days from row.original and removes the ledger entry; the 'แก้ไขแล้ว' chip disappears.",
+        "replayEdits after processAll with same files re-applies the edit; with the file removed the edit is an orphan reported in notice and changelog.",
+        "applyDayMove(SR row, 0, 14, 16, 20) changes day 14 59 to 39 and day 16 64 to 84, N unchanged; moving 60 from day 14 is refused with 'วันที่ 14 มีเพียง 59 ชิ้น'.",
+        "Save is disabled until a reason chip is chosen; 'อื่นๆ' requires text; invalid input (-5, 'abc') keeps edit mode with the Thai error and no state change.",
+        "parseAdjustments handles comma and tab, quoted reasons, line cap; matchAdjustments gives BPK 86790-0K051-00 without dock 'ต้องระบุ Dock' with BN and D1 candidates, and is case/whitespace insensitive.",
+        "updateRowsBatch with 20 items calls buildSummary once and logs 20 entries.",
+        "Exported workbook: edited cells fill FFFFF1C2, other written cells unchanged, patching twice does not grow cellXfs; 'Manual Edits' sheet has one row per edit; reason '=1+1' exported neutralised; sheet absent when no edits or for customer profile.",
+        "Tab badge equals the number of edited rows; undo toast restores the pre-edit state and expires after 6 seconds."
+      ],
+      "new_files": [
+        "src/features/manual-edit/index.jsx",
+        "src/features/manual-edit/edits.js",
+        "src/features/manual-edit/paste.js",
+        "src/features/manual-edit/notes.js",
+        "src/features/manual-edit/EditableCell.jsx",
+        "src/features/manual-edit/EditBar.jsx",
+        "src/features/manual-edit/PastePanel.jsx",
+        "src/features/manual-edit/undo.js",
+        "tests/manual-edit.test.js"
+      ],
+      "shared_files": [
+        "src/state/useConsolidator.js",
+        "src/lib/excel/templatePatcher.js",
+        "src/components/PreviewTab.jsx",
+        "src/App.jsx"
+      ],
+      "decision_notes": "All edit proposals merged into one pure edits core (planner's engine) with ux's inline keyboard editing; bulk paste is a panel on the same core (no Adjustments sheet, no new tab). Day reconciliation is default from day one (unanimous critique); 'ไม่ปรับวัน' allowed but flagged. Reason: required but one chip click (management vs adoption/ux compromise). Day move kept as small additive function, UI integrated with daily grid only if present. Undo toast scoped to edit actions only (file-removal undo left out to avoid overlap with upload/storage items). Notes: reasons stored via shared notes module if present else in-feature adapter; no dashboard notes panel here (belongs to dashboard item). Changelog grouping/badge left to ui-kit/feature-contract except the edit-count badge. Security hardening not added beyond reusing sanitizeCellText.",
+      "tests": [
+        "vitest: applyRowEdit default/proportional/none on SR and BP fixture rows incl. day sums",
+        "vitest: revertRow, replayEdits applied/orphans, editKey normalisation",
+        "vitest: applyDayMove success and refusals",
+        "vitest: parseAdjustments/matchAdjustments incl. dock disambiguation",
+        "vitest: exportSheets aoa shape and sanitised reason; patchTemplate yields 'Manual Edits' sheet and FFFFF1C2 style without cellXfs growth on second run",
+        "vitest: undo.js push/restore/expire/replace",
+        "e2e: dblclick N cell, type, Enter, choose chip, save, summary N changes, chip shown, revert restores; toast undo"
+      ],
+      "merged_from": [
+        "planner:manual-edit-ui",
+        "ux:inline-edit",
+        "integration:bulk-adjust-import",
+        "planner:day-move",
+        "ux:undo-destructive",
+        "management:change-notes"
+      ],
+      "support_count": 4,
+      "oppose_count": 0,
+      "modify_count": 28,
+      "wave": 6
+    },
+    {
+      "id": "flat-export",
+      "title_th": "ส่งออกข้อมูลดิบ CSV/JSON และสคีมา",
+      "title_en": "Flat data export and schemas",
+      "spec": "Feature src/features/flat-export/index.jsx (order 50, no tab). headerActions: button \"ส่งออกข้อมูล (CSV/JSON)\" (Icons.Share, enabled only when state.processedData has rows) opens a Modal \"ส่งออกข้อมูลสำหรับระบบอื่น\". Modal contents: (1) \"ดาวน์โหลด CSV รายวัน (long)\" -> forecast_long_{month}.csv; (2) \"ดาวน์โหลด CSV สรุป (wide)\" -> forecast_summary_{month}.csv; (3) \"ดาวน์โหลด JSON\" -> forecast_{month}.json; (4) \"ดาวน์โหลดเป็นชุด (.zip)\" bundling the three files (JSZip via lazy barrel only, off by default); (5) select \"รูปแบบสำหรับ\" with column presets.\n\nPure logic in logic.js (no DOM): buildLongRows(processedData, productionMonth, flags) emits one record per plant x part-row x month_offset(0..3) x day(1..31 or TOTAL). Columns: plant, plant_code, file_name, revision, part_number, base_part (strip trailing -NN), part_code, part_desc, supp_code, shipping_dock, dock_code, car_family, packing_size, month_offset, month (YYYY-MM), horizon (N..N+3), day, qty, edited, carried_over, spilled. Read rawRow through colPositions (monthStart/total indexes) and tolerate short rows; blank source cell -> qty '' (never 0). Flags default 0 and are filled only if the row carries them (updateRowValues edits logged). Skip forecast_kind unless a horizon helper exists. buildSummaryRows(summaryData, pm): fixed header part_number, plants, n, n1, n2, n3, total, month_n..month_n3 (YYYY-MM as data, single header line). buildJsonExport(state,{now}): { schemaVersion:1, appVersion, generatedAt (injectable clock, default new Date), productionMonth{raw,year,month}, monthLabels, files[{name,plant,plantCode,revision,forecastType,issueDate,size,sha256:null unless provided,rows}], rows[{plant,fileName,partNumber,basePart,partCode,dockCode,packingSize,n,n1,n2,n3,daily:[[31]x4] null for blanks,edited,carriedOver,spilled}], summary[] }; add qa/manifestSha256 only when those features supply them.\n\nPresets (presets.js): built-ins \"มาตรฐาน\", \"Odoo\", \"Google Sheets\", \"Power Query\"; applyPreset(rows,preset) handles column order, rename, omit, delimiter, TOTAL-only. Odoo names are editable defaults. Persist last choice via localStorage in try/catch (profile store is a separate item; leave a hook).\n\nSerialisation: toCsv in logic-adjacent serialize.js (feature-local unless share-clipboard provides src/utils/serialize.js): UTF-8 BOM, CRLF, RFC 4180 quoting, raw numbers, strings starting with = + - @ prefixed with '. Download helper src/utils/download.js (downloadText/downloadBlob) so no heavy import. format.js gains monthKey(pm, offset).\n\nOpt-in sheet: exportSheets(ctx) returns {name:'Data (flat)', aoa} ONLY when a setting enables it (checkbox in the modal stored locally, default false); no sheet by default, so default export is unchanged.\n\nSchemas: docs/schema/flat-export.schema.json (draft 2020-12, schemaVersion const 1) and small validate in schema.js (rejects higher major with Thai message \"ไฟล์นี้สร้างจากเวอร์ชันใหม่กว่า (schema N) กรุณาอัปเดตแอป\"). Tests validate output against the schema with a hand-written checker (ajv only as devDependency if wanted). File names use {month} = PRODUCTION MONTH raw.",
+      "acceptance_criteria": [
+        "With the 5 fixtures buildLongRows yields rows x 4 months x 32 records (29 rows -> 3,712); BP 86790-0K051-00 offset 0 TOTAL qty 1891; offset 1 month is '2026-03'; base_part '86790-0K051'; blank source day gives '' not 0",
+        "toCsv starts with BOM, uses CRLF, RFC 4180 quoting, no thousands separators, and '=SUM(1)' is written as \"'=SUM(1)\"",
+        "Wide CSV has exactly one header line with 11 fixed names; month_n..month_n3 = 2026-02..2026-05",
+        "JSON: rows 29, summary 15, files 5, productionMonth.raw '202602', daily[0].length 31, sum of non-null daily[0] equals n for BP row 0, generatedAt equals injected clock",
+        "Header button and modal appear only when processedData exists; zip contains the three files",
+        "Default Excel export has no 'Data (flat)' sheet; with the option on, the sheet exists, row 1 equals the CSV header and template parts/pivots remain",
+        "Schema file validates the JSON output; schemaVersion 2 input is rejected with the Thai message"
+      ],
+      "new_files": [
+        "src/features/flat-export/index.jsx",
+        "src/features/flat-export/logic.js",
+        "src/features/flat-export/presets.js",
+        "src/features/flat-export/schema.js",
+        "src/utils/download.js",
+        "docs/schema/flat-export.schema.json",
+        "tests/flat-export.test.js"
+      ],
+      "shared_files": [
+        "src/utils/format.js",
+        "tests/e2e/smoke.mjs"
+      ],
+      "depends_on": [
+        "feature-contract"
+      ],
+      "effort": "M",
+      "priority": 4,
+      "decision_notes": "Merged the flat export, column-mapping presets, bundle zip and schemas into one feature. Critics (planner, excel, ux, adoption) all objected to a default-on 'Data (flat)' sheet, so it is opt-in and default off, with the fixed name. Accepted qa/supply additions: edited/carried/spilled flags, base_part, blank days not 0, formula-prefix escaping, colPositions guard; dropped second header line in wide CSV. Dependencies on profile, run-manifest, QA, CLI and the export dialog are optional hooks, not blockers; the feature uses local storage for presets until the settings item lands. Serializer stays local if share-clipboard has not delivered serialize.js, to avoid overlap. Security hardening not added. Details of colPositions and state shapes should be confirmed in the code during implementation.",
+      "tests": [
+        "vitest: buildLongRows counts, TOTAL and day values, blank handling, short rawRow tolerance",
+        "vitest: toCsv BOM/CRLF/quoting/formula escaping",
+        "vitest: buildSummaryRows header and month columns",
+        "vitest: buildJsonExport shape, injected clock, daily sums equal n",
+        "vitest: applyPreset rename/omit/order/TOTAL-only",
+        "vitest: schema validator accepts v1, rejects v2 with Thai message",
+        "vitest: export without option has no 'Data (flat)' sheet; with option includes it",
+        "e2e: modal opens after processing, long CSV download first line equals header"
+      ],
+      "merged_from": [
+        "integration:flat-data-export",
+        "integration:column-mapping-presets",
+        "integration:bundle-download",
+        "integration:export-schemas"
+      ],
+      "support_count": 2,
+      "oppose_count": 0,
+      "modify_count": 6,
+      "wave": 6
+    },
+    {
+      "id": "provenance-manifest",
+      "title_th": "Manifest รอบรัน ตราประทับที่มา นาฬิกา และส่งแล้ว",
+      "title_en": "Run manifest, provenance, clock and sent marker",
+      "priority": 4,
+      "effort": "L",
+      "depends_on": [
+        "feature-contract"
+      ],
+      "spec": "Goal: one manifest object feeding one Run Info sheet, one JSON download, one optional docProps/custom.xml stamp, plus deterministic exports, an injectable clock, and a mark-as-sent sign-off. Merges integration:run-manifest, excel:template-provenance (stamp part), integration:injectable-clock, planner:mark-as-sent and management:run-signoff.\n\nModules (pure, Node-testable, no DOM/React):\n- src/utils/clock.js: now(), today(), isoNow(), setClock(fn|null), withClock(fixed, fn). src/utils/format.js todayStamp() delegates to it. The clock is overridden only by tests.\n- src/utils/hash.js: async sha256(bufferOrBlob) using globalThis.crypto.subtle, returns hex; returns 'n/a' when unavailable. Hash each buffer once. processAll and setTemplateFile store entry.sha256, and later features reuse it.\n- src/lib/appVersion.js: APP_VERSION guarded for Node. Use typeof __APP_VERSION__ !== 'undefined' (Vite define), otherwise a constant.\n- src/features/provenance-manifest/manifest.js: buildManifest(state, {now, operator}) -> {schemaVersion:1, appVersion, generatedAt, productionMonth, template:{name,size,sha256}, files:[{name,plant,plantCode,revision,forecastType,issueDate,size,sha256,rows}], totals per plant and N..N+3, edits (references keyed plant|part|dock from changeLog 'edit' entries, no day values copied), output:{fileName,sha256}|null, sent:{...}|null, operator (free text, never auto-collected)}.\n- stamp.js: writeProvenance(zip, subset) and readProvenance(zip). Writes docProps/custom.xml with moowhan.schemaVersion, appVersion, productionMonth, templateSha256, inputsHash, plus the [Content_Types].xml override and the _rels/.rels relationship. No creator names. exportedAt only when the caller passes a clock. Absence on read means 'unknown', not 'clean'.\n- sent.js: pure helpers makeSentRecord({fileName, sha256, month, totals, rowCounts, note, by, now, dataSignature}), isStaleSent(record, currentSignature), sentChipText.\n\nPatcher determinism (small additive edits in src/lib/excel/templatePatcher.js): writeText takes {date}. A replaced entry keeps its original zip date and new parts get Date.UTC(1980,0,1). patchTemplate and buildExport accept opts.now and opts.stamp. No new Date() is called for zip entries. Identical inputs and options give byte-identical output.\n\nFeature (index.jsx, order about 60, NO new top-level tab; if feature-contract provides group 'ประวัติ' use it, otherwise a modal opened from headerActions):\n- Section 'รอบการประมวลผล' shows version, time, PRODUCTION MONTH, a per-file table (ชื่อไฟล์/โรงงาน/REVISION/ISSUE DATE/ขนาด/SHA-256 short 8 chars/แถว), totals, and the last export's name and hash. Buttons 'ดาวน์โหลด Manifest (.json)' (run_{month}.json) and 'คัดลอก JSON'.\n- exportSheets returns the values-only sheet 'Run Info' (A1 'moowhan run manifest'), default on for the 'ภายใน' profile if settings exist, otherwise on. The name is registered as a fixed name and must not collide with any template sheet.\n- Sent: the header chip 'ส่งแล้ว HH:MM · <8 hex>'. After export a notice button 'ทำเครื่องหมายว่าส่งแล้ว' opens a small form with optional 'หมายเหตุ (ส่งให้ใคร/ช่องทาง)' and 'ผู้ส่ง' (empty by default). The record is saved in feature state, and the changelog gets action 'sent'. When updateRowValues or a source change makes the data signature differ, the chip shows '(มีการแก้ไขหลังส่ง)' and a banner offers to mark again. Reset clears the record. The UI says in one sentence that the hash identifies the bytes the app produced, not a file re-saved in Excel.\nShared edits: add onExported(ctx,result) via feature-contract (fallback: read exportReport in state), sha256 on entries, exportReport.sha256 = sha256(blob), reset clears them. Add docs/schema/manifest.schema.json.\n\nStyle hygiene (StyleRegistry reuse and de-highlight) is OUT of scope here and belongs to patcher-safety. Lineage month rule belongs to qa-engine and reads readProvenance. The template-card badge belongs to template-inspector, which may call readProvenance.",
+      "acceptance_criteria": [
+        "patchTemplate run twice on identical inputs with injected clocks 10 s apart returns byte-identical buffers (equal sha256); replaced zip entries keep their original dates and new ones use 1980-01-01",
+        "All existing patcher assertions still pass (parts preserved, pivots refreshOnLoad, highlight styles)",
+        "buildManifest on the 5 fixtures lists 5 files with 64-hex sha256, revision, issueDate, productionMonth '202602', and totals equal to computeTotals; edits stay empty until an edit is applied and then reference plant|part|dock only",
+        "sha256 is called once per buffer (6 calls for template plus 5 files) and later consumers reuse entry.sha256",
+        "Export includes sheet 'Run Info' with A1 'moowhan run manifest' and one row per source file; the sheet never replaces a sheet that already exists in the template",
+        "run_{month}.json parses with schemaVersion 1 and validates against docs/schema/manifest.schema.json",
+        "custom.xml stamp is written with Content_Types override and rels, contains no creator names, readProvenance round-trips it, and the original template reads null; exportedAt only appears when a clock is supplied",
+        "withClock('2026-02-01T00:00:00Z', () => todayStamp()) === '2026-02-01'",
+        "Mark-as-sent stores sha256 equal to an independent digest of the export blob; the chip shows 'ส่งแล้ว HH:MM · <8 hex>'; an edit after sending shows the stale warning; export with no changes shows none; reset clears the record",
+        "manifest, stamp, sent, clock and hash modules run under plain Node with no React or Vite-only imports"
+      ],
+      "new_files": [
+        "src/utils/clock.js",
+        "src/utils/hash.js",
+        "src/lib/appVersion.js",
+        "src/features/provenance-manifest/index.jsx",
+        "src/features/provenance-manifest/manifest.js",
+        "src/features/provenance-manifest/stamp.js",
+        "src/features/provenance-manifest/sent.js",
+        "docs/schema/manifest.schema.json",
+        "tests/provenance-manifest.test.js"
+      ],
+      "shared_files": [
+        "src/lib/excel/templatePatcher.js",
+        "src/lib/excel/exportWorkbook.js",
+        "src/state/useConsolidator.js",
+        "src/utils/format.js",
+        "src/features/index.js"
+      ],
+      "decision_notes": "All parties agreed on one manifest, one hash util and one Run Info sheet, so the four proposals are merged into one feature. The planner and management sign-off proposals are the same idea and become a single sent marker. Run history, compare baselines and the dashboard card are left to their own items, which read the stored record. Excel's style hygiene is moved to patcher-safety because the architect said it must be unconditional and independent of the stamp. The lineage month rule goes to qa-engine and the template-card badge to template-inspector, as QA and UX asked. Timestamps stay opt-in and clock-driven so determinism holds. The zip-date test uses an injected clock because DOS time has 2-second granularity. There is no top-level tab, per the UX and management objections. Security and privacy scope (operator PII, scrubbing) is not added, per the user request; operator is free text the user types. The user asked for light effort, so I read only the registry, patcher and state files. The effort is L because the work spans several modules, and it depends on feature-contract for the onExported hook.",
+      "tests": [
+        "vitest: clock withClock/todayStamp",
+        "vitest: sha256 known vector 'abc' and 'n/a' fallback when crypto.subtle is missing",
+        "vitest: patchTemplate byte-identical across two injected clocks, and replaced entry dates preserved",
+        "vitest: buildManifest on fixtures (5 files, hashes, totals, empty edits then edit reference)",
+        "vitest: stamp write/read round-trip and null on the original template; no exportedAt without a clock",
+        "vitest: manifest JSON validates against the schema",
+        "vitest: makeSentRecord and isStaleSent behaviour",
+        "vitest: Node-import contract for the pure modules",
+        "e2e: export, mark as sent, chip shown, edit a value, stale warning shown, Run Info sheet present in the download"
+      ],
+      "merged_from": [
+        "integration:run-manifest",
+        "excel:template-provenance",
+        "integration:injectable-clock",
+        "planner:mark-as-sent",
+        "management:run-signoff"
+      ],
+      "support_count": 8,
+      "oppose_count": 0,
+      "modify_count": 8,
+      "wave": 7
+    },
+    {
+      "id": "help-center",
+      "title_th": "ศูนย์ช่วยเหลือ ข้อผิดพลาด วินิจฉัย และเอกสาร",
+      "title_en": "Help center, errors, diagnostics and docs",
+      "spec": "Ship one help surface fed by one content source.\n\n1) Glossary: src/features/help-center/glossary.js exports GLOSSARY [{key, term, th, en, example, group, source('fixture-inferred'|'tmt-doc'|'team')}] with groups month (N..N+3, PRODUCTION MONTH, ISSUE DATE, revision, forecast type), column (PART NUMBER, PART CODE, PART DESC, SUPP CODE, SHIPPING DOCK, DOCK CODE, CAR FAMILY, PACKING SIZE), plant (BP/BPK/GW/SR built from PLANTS in constants plus the P/B/G/S letter map), file (PART TYPE V/P, file-name rule 'ชื่อไฟล์ต้องขึ้นต้น BP/BPK/GW/SR'), sheet (Summary, By Plant, Monthly FC, X Daily, Total, Analyze, Sheet1/2), supply (SHIPPING DOCK vs DOCK CODE, PACKING SIZE, Firm vs FC, run-out) and ui terms. Helpers getEntry(key), searchGlossary(q), renderWritePlanSummary(constants) (which template cells the app writes vs what stays manual; derived from DAILY_SHEETS/ANALYZE_SHEET). Add PLANT_CODE_MAP to constants.js only if the profile does not provide it yet.\n\n2) UI: index.jsx headerActions shows button 'วิธีใช้' (Icons.Info) on every tab. HelpModal.jsx is React.lazy (so glossary text stays out of the entry chunk), Modal label 'ศูนย์ช่วยเหลือ', sections: ขั้นตอนการใช้งาน, คำศัพท์ (searchable), โรงงานและไฟล์, สิ่งที่แอปเขียน/ไม่เขียน, คำถามที่พบบ่อย (offline sentence 'ไฟล์ไม่ออกจากเครื่อง'), เมื่อบริษัทแก้ template.xlsx, คีย์ลัด (opened by '?' outside inputs), มีอะไรใหม่ (parsed CHANGELOG.md via ?raw), footer 'รายงานปัญหา'. helpStore.js: tiny external store (open(section), close, subscribe) used with useSyncExternalStore; deep link openHelp('glossary#part-code') scrolls and focuses. Accordion on mobile, no horizontal overflow at 390px.\n\n3) InfoTip: src/components/InfoTip.jsx, a 14px muted tap/hover/focus button, aria-expanded, portal to body with fixed position, closes on outside click/Escape/scroll. Content from a glossary key or function. Used only on ambiguous headers (Dock, Pack, Plants, N..N+3 resolved with month labels e.g. Mar'26), KPI month cards, plant counters and the disabled-tab hint in App.jsx (replace hover-only tooltip; text stays visible about 2s). At most one per header; none on Part Number or Total. Keep edits to tab components minimal and additive (a small headers spec in src/features/help-center/columns.js is optional).\n\n4) Errors: src/lib/errors.js (pure, Thai) ERROR_CATALOG {title, cause, fix, helpKey} and toUserError(err, ctx) mapping JSZip/SheetJS messages to Thai, raw text kept in technical, never echoing cell values; buildExportNotice(report, fileName) surfaces report.skipped ('ข้ามชีท (ไม่พบในเทมเพลต): GW Daily') with warning tone. Banner accepts string or {title,cause,fix,actions,helpKey,technical} (additive). Fix silent failure: 0-row source file gets status 'warning' (amber) not 'done', still exportable. Plant-code mismatch and missing-sheet texts are catalog entries consumed by QA/template-inspector later.\n\n5) Diagnostics: src/lib/diagnostics.js buildDiagnostics(state, extras) merges both bundle proposals: schemaVersion, appVersion, env, template name/size/sheets/capacity, files (name,size,plant,rows,status,meta), exportReport, last errors, changelog tail with action names only. No part numbers, descriptions or quantities (drop details strings, do not regex). Button 'รายงานปัญหา' opens a modal with preview, 'คัดลอก', 'ดาวน์โหลด .json' (moowhan-diagnostics-YYYY-MM-DD.json). sha256 optional via crypto.subtle, 'n/a' fallback.\n\n6) Docs: rewrite README.md in Thai (flow, file-name rule, privacy sentence, link to guide), add CHANGELOG.md (Keep-a-Changelog, Thai bullets, 'เทมเพลต:' line); a test ties first version to package.json. Screenshots only from synthetic samples (defer if demo mode not landed).",
+      "acceptance_criteria": [
+        "Button 'วิธีใช้' is in the header on every tab; click opens dialog aria-label 'ศูนย์ช่วยเหลือ'; Escape closes; '?' outside inputs opens the คีย์ลัด section; no horizontal overflow at 390px",
+        "GLOSSARY has non-empty th and a source for every PLANTS entry, SOURCE_HEADERS entry and sheet name in DAILY_SHEETS plus Analyze/Summary/By Plant/Total",
+        "HelpModal is a separate lazy chunk and the entry chunk lacks a glossary sentinel string",
+        "InfoTip is a portal to body with aria-expanded toggling; tapping the grey tab shows 'ต้องประมวลผลไฟล์ก่อน'; n1 tip contains the resolved next-month label",
+        "toUserError maps 'Can't find end of central directory' to a Thai title/cause/fix and keeps the original in technical; unknown errors give the generic Thai title",
+        "buildExportNotice with skipped ['GW Daily'] returns warning tone containing 'ข้ามชีท' and 'GW Daily'; with none it returns success",
+        "A source file with 0 rows ends with status 'warning' and the UploadTab row shows 'ไม่พบแถวข้อมูล'",
+        "buildDiagnostics on the processed fixture state contains no fixture part number, partDesc or quantity values but contains file names, row counts and template capacities; works with no template/files",
+        "Banner error shows 'รายงานปัญหา' and download file name matches moowhan-diagnostics-YYYY-MM-DD.json",
+        "README.md has no 'ข้อมูลจำลอง' or old title and mentions every core tab label read from App.jsx; CHANGELOG first version equals package.json version"
+      ],
+      "new_files": [
+        "src/features/help-center/index.jsx",
+        "src/features/help-center/HelpModal.jsx",
+        "src/features/help-center/helpStore.js",
+        "src/features/help-center/glossary.js",
+        "src/features/help-center/columns.js",
+        "src/features/help-center/diagnostics.js",
+        "src/features/help-center/changelog.js",
+        "src/components/InfoTip.jsx",
+        "src/lib/errors.js",
+        "CHANGELOG.md",
+        "tests/help-center.test.js"
+      ],
+      "shared_files": [
+        "src/components/Banner.jsx",
+        "src/state/useConsolidator.js",
+        "src/App.jsx",
+        "src/components/UploadTab.jsx",
+        "src/components/PreviewTab.jsx",
+        "src/constants.js",
+        "README.md",
+        "tests/e2e/smoke.mjs"
+      ],
+      "depends_on": [
+        "feature-contract"
+      ],
+      "effort": "L",
+      "priority": 4,
+      "decision_notes": "Merged glossary, help modal, InfoTip, error catalog, both diagnostics proposals (one bundle, kept pure in a single module), README and release notes into one feature. Planner/management noise concern resolved by limiting InfoTip to ambiguous headers. Architect sprawl concern: one content source (glossary) and a lazy modal. Two bundle proposals deduplicated into diagnostics.js with action-level changelog only. Screenshot-based guide and generator scripts deferred until synthetic samples exist; README and CHANGELOG ship now. Validation of templates and plant-code checks stay with template-inspector/QA; this item only supplies the Thai catalog entries. Security hardening scope excluded per user request; the diagnostics redaction is a data-minimisation convenience only.",
+      "tests": [
+        "vitest: glossary coverage against PLANTS, SOURCE_HEADERS, DAILY_SHEETS",
+        "vitest: toUserError mapping and generic fallback",
+        "vitest: buildExportNotice tone with and without skipped sheets",
+        "vitest: buildDiagnostics redaction on fixture-derived state and empty state",
+        "vitest: CHANGELOG first version equals package.json version",
+        "vitest: renderWritePlanSummary sheets exist in template.xlsx",
+        "e2e: 'วิธีใช้' opens dialog, Escape closes, '?' opens shortcuts, 390px no overflow",
+        "e2e: tap disabled tab shows hint; 0-row file shows warning row"
+      ],
+      "merged_from": [
+        "adoption:help-center",
+        "adoption:column-tooltips",
+        "adoption:actionable-errors",
+        "architect:diagnostics-bundle",
+        "adoption:support-bundle",
+        "adoption:user-guide-docs",
+        "adoption:release-notes"
+      ],
+      "support_count": 32,
+      "oppose_count": 0,
+      "modify_count": 8,
+      "wave": 8
+    },
+    {
+      "id": "storage-session",
+      "title_th": "ที่เก็บข้อมูลในเครื่องและกู้คืนงาน",
+      "title_en": "Local storage layer and session restore",
+      "spec": "สร้างโมดูลเก็บข้อมูลในเครื่องเพียงหนึ่งเดียว src/lib/storage (logic ล้วน ไม่พึ่ง React) แล้วต่อ UI ผ่านฟีเจอร์ src/features/storage-session.\n\nโมดูล storage:\n- createStorage({ backend }) พร้อม backend: indexeddb.js (native API ไม่เพิ่ม dependency), memory.js (ใช้ในเทสต์และเป็น fallback เมื่อ IndexedDB ใช้ไม่ได้/private mode), และ localStorage namespace moowhan.* สำหรับ prefs เล็กๆ\n- Tiers: prefs, template (ไฟล์หลักที่จำไว้: ชื่อ, ขนาด, savedAt, sha256 prefix 8 ตัว + buffer), session (งานค้างปัจจุบันเพียง 1 รายการ: buffer ไฟล์ต้นทาง, fileMeta, edits ที่ key เป็น plant|part|dock, changelog, productionMonth), runs (manifest กะทัดรัดไม่มี rawRow ให้ run-history/compare ใช้), handles (reserved)\n- registry.js: registerKey({key,tier,purpose,retention}); เขียน key ที่ไม่ลงทะเบียนจะ throw ใน DEV; features ลงทะเบียนผ่านฟังก์ชันนี้ ห้าม feature อื่นแตะ IndexedDB/localStorage ตรง\n- ทุก record มี schemaVersion; migrate(from,to) registry เดียวรันตอน open; sweepExpired() ตอนเริ่ม (template/runs 90 วัน, session เลือก 24 ชม./7 วัน/90 วัน ค่าเริ่มต้น 7 วัน); inventory() คืน [{key,tier,purpose,size,savedAt,expiresAt}]; wipeAll() ล้างทุก store และ key moowhan.*; wipeTier(tier) \n- ทุกการเรียก try/catch; ถ้า IndexedDB ใช้ไม่ได้ ตกไป memory และ log warning ใน changelog เพียงครั้งเดียว พร้อม notice ไทย 'ไม่สามารถบันทึกในเครื่องได้ ฟังก์ชันอื่นยังใช้งานได้'\n- session.js (pure): serializeSession / deserializeSession (ArrayBuffer <-> Blob/bytes) ไม่เก็บ processedData เพราะ restore ต้องรัน processAll ใหม่\n\nนโยบาย (opt-in): จำ template = checkbox แสดงครั้งเดียวหลังอัปโหลด template ครั้งแรก 'จำไฟล์หลักไว้ในเครื่องนี้ (เก็บในเบราว์เซอร์นี้เท่านั้น ไม่ส่งออกไปที่ใด)'; การ์ด template แสดง 'ใช้ไฟล์หลักที่จำไว้: ชื่อ (บันทึก วันที่, hash)' พร้อมปุ่ม 'เปลี่ยนไฟล์หลัก' / 'ลืมไฟล์นี้'; การลากไฟล์ใหม่แทนที่ทันที. งานค้าง = toggle 'บันทึกงานไว้ในเครื่อง' ค่าเริ่มต้นปิด; ขณะปิดห้ามเขียน session tier เด็ดขาด; เมื่อเปิด autosave debounce 1 วินาทีหลัง processAll/updateRowValues/exportExcel และมีปุ่ม 'บันทึกงาน' ชัดเจน. Flag เก็บใน prefs (ภายหลัง settings-profile ย้ายมาเป็น profile.storage ได้).\n\nState (เพิ่มเล็กน้อยใน useConsolidator): saveSession(), restoreSession(), forgetTemplate(), hydrate ตอน mount (อ่าน meta session/template เพื่อแสดงแบนเนอร์เท่านั้น ยังไม่โหลด buffer ใหญ่จนกด). restoreSession: สร้าง File จาก buffer -> setTemplateFile/addSourceFiles -> processAll ผ่านเส้นทางปกติ -> replay edits ผ่าน updateRowValues (ถ้ามี edits.js ของ manual-edit ให้ใช้ replayEdits; ถ้ายังไม่มีให้ใช้ loop ภายในฟีเจอร์) รายงาน orphan edits -> log รายการ 'กู้คืนงาน' หนึ่งรายการ.\n\nUI (features/storage-session/index.jsx): แบนเนอร์กู้คืน 'พบงานค้างเมื่อ 14:02 · เดือนผลิต Feb'26 · 5 ไฟล์ · แก้ไข 2 รายการ' ปุ่ม 'กู้คืน'/'เริ่มใหม่' แสดงเฉพาะเมื่อยังไม่มีไฟล์ในแอป; แผงใน tab หรือ section 'ข้อมูลที่เก็บในเครื่องนี้' แสดง inventory + ปุ่ม 'ล้างข้อมูลที่เก็บในเครื่องทั้งหมด' (ยืนยันก่อน); ชิป 'บันทึกอัตโนมัติ ✓ เวลา' เมื่อเปิด tier 2; footnote ความเป็นส่วนตัว. รีเซ็ตเดิม: ถาม 'ล้างงานที่ค้างด้วยหรือไม่' / 'ลืมไฟล์หลักด้วยหรือไม่' (ใช้ Modal ที่มีอยู่ ถ้า ui-kit ConfirmDialog มาแล้วค่อยสลับ). Auto-wipe ไม่อยู่ในขอบเขต. Safari อาจล้าง IndexedDB หลัง 7 วัน: แสดง savedAt และถือเป็น best-effort.",
+      "acceptance_criteria": [
+        "saveSession -> restoreSession ในเทสต์ (memory backend) คืน fileMeta, changeLog, edits เหมือนเดิม และการบันทึกครั้งที่สองแทนที่ session เดิม (ไม่มีหลายรายการ)",
+        "เมื่อปิด 'บันทึกงาน' การประมวลผล/แก้ไขไม่สร้าง record ใน session tier เลย",
+        "migrate(1,2) อ่าน record v1 ได้; sweepExpired ลบ record เก่าเกิน retention และเก็บ record ใหม่",
+        "wipeAll ล้างทุก store และ key moowhan.*; inventory แสดงเฉพาะ key ที่ลงทะเบียน; เขียน key ไม่ลงทะเบียน throw ใน DEV",
+        "เมื่อ backend ล้มเหลว แอปยังประมวลผลและส่งออกได้ แบนเนอร์กู้คืนไม่แสดง และมี warning ใน changelog เพียง 1 รายการ",
+        "หลัง restore ผลรวม summaryData เท่ากับก่อนบันทึก (fixture + 1 edit) และ edit ที่หา key ไม่เจอถูกรายงานเป็น orphan",
+        "ไม่ติ๊กจำ template -> ไม่มี record template; 'ลืมไฟล์นี้' ลบเฉพาะ template",
+        "grep test: มีเพียง src/lib/storage ที่อ้าง indexedDB/localStorage",
+        "e2e: เปิดบันทึกงาน, อัปโหลด+ประมวลผล, reload, กด 'กู้คืน' แล้วแท็บตรวจสอบข้อมูลแสดงข้อมูลโดยไม่ต้องอัปโหลดใหม่"
+      ],
+      "new_files": [
+        "src/lib/storage/index.js",
+        "src/lib/storage/registry.js",
+        "src/lib/storage/migrate.js",
+        "src/lib/storage/backends/indexeddb.js",
+        "src/lib/storage/backends/memory.js",
+        "src/features/storage-session/index.jsx",
+        "src/features/storage-session/session.js",
+        "src/features/storage-session/restore.js",
+        "tests/storage-session.test.js"
+      ],
+      "shared_files": [
+        "src/state/useConsolidator.js",
+        "src/components/UploadTab.jsx",
+        "src/App.jsx",
+        "package.json"
+      ],
+      "depends_on": [
+        "feature-contract"
+      ],
+      "effort": "L",
+      "priority": 3,
+      "decision_notes": "รวม 4 แบบเป็น storage layer เดียว ตามที่ทุกฝ่ายวิจารณ์ ใช้ engineering ของ architect (tiers, registry, migrate, sweep, wipe, backend ฉีดได้) นโยบายตามฝ่าย security/excel/qa: จำ template และบันทึกงานเป็น opt-in ทั้งคู่ มีวันหมดอายุและปุ่มล้างเดียว ตัดแท็บ 'เซสชัน' และ LRU-5 ออก เหลือ session ปัจจุบัน 1 รายการตามที่ planner/ux ขอ ส่วน default-on ของ template (management/supply) ตัดออกเพราะขัดกับคำมั่น 'ไฟล์ไม่ออกจากเครื่อง' บนเครื่องส่วนกลาง; restore ต้องรัน processAll ใหม่และ replay edits รายงาน orphan (qa) ใช้ session expiry 7 วันเริ่มต้นให้ข้ามคืนได้ (planner). ใช้ fake-indexeddb เป็นตัวเลือก แต่เทสต์หลักใช้ memory backend เพื่อไม่เพิ่ม dependency. ไม่รวม auto-wipe, settings panel เต็ม, ConfirmDialog (เป็นของ item อื่น) และ run-history เป็นผู้ใช้ runs tier",
+      "tests": [
+        "vitest: memory backend save/restore round-trip (ความยาว ArrayBuffer และ 4 ไบต์แรกเท่ากัน)",
+        "vitest: session tier ไม่ถูกเขียนเมื่อ flag ปิด",
+        "vitest: migrate v1->v2, sweepExpired, wipeAll, inventory, unregistered key throws",
+        "vitest: backend ที่ throw ได้ warning เดียวและ fallback memory",
+        "vitest: debounce autosave ด้วย fake timers เขียนครั้งเดียวต่อ burst",
+        "vitest: replay edits รายงาน orphan 1 รายการเมื่อ part หาย",
+        "vitest: grep ว่า indexedDB/localStorage ถูกใช้เฉพาะใน src/lib/storage",
+        "e2e: opt-in checkbox, reload, แบนเนอร์กู้คืน, กู้คืนแล้วเห็นข้อมูล, ลืมไฟล์นี้, ล้างทั้งหมด"
+      ],
+      "merged_from": [
+        "architect:session-store",
+        "planner:session-autosave",
+        "ux:session-restore"
+      ],
+      "support_count": 1,
+      "oppose_count": 0,
+      "modify_count": 23,
+      "wave": 9
+    },
+    {
+      "id": "settings-profile",
+      "title_th": "การตั้งค่าโปรไฟล์ และปฏิทินวันทำงาน",
+      "title_en": "Profile/settings store and working calendars",
+      "spec": "เป้าหมาย: โปรไฟล์เดียว (single profile) เป็นแหล่งตั้งค่าเดียวของแอป + แท็บ 'ตั้งค่า' เดียว + ปฏิทินวันทำงานต่อโรงงาน\n\n1) src/features/settings-profile/profile.js (pure, ไม่ใช้ DOM). DEFAULT_PROFILE = { schemaVersion:1, plants:[{code,label,filePrefixes,sourcePlantCode,dailySheet,color}] (ค่าเริ่มต้นจาก constants.js: BP/BPK/GW/SR, P/B/G/S), source:{headerCell:'PART NUMBER'}, template:{analyzeSheet:'Analyze', plantColFallback:'EH', capacityOverrides:{}, stamps:[{sheet,cell,value,enabled:false}]}, export:{fileNamePattern:'Production_Updated_{monthLabel}_{date}.xlsx', highlight:true, extraSheets:{}}, startTab, features:{ calendar:{...}, <featureId>:{...} } }. stamps เป็นข้อมูลเท่านั้น (ชี้ By Plant!C2/C3 และ Analyze แถว 1; ห้ามชี้เซลล์สูตร) ผู้เขียนจริงคือ export-gate/patcher-safety ผ่าน cellWrites; item นี้ไม่เขียนลง template.\n - validateProfile(json) -> {ok, errors:[ข้อความไทย]}: schemaVersion ไม่รู้จัก, JSON > 64KB, รหัสโรงงานซ้ำ, dailySheet ซ้ำ, filePrefixes ว่าง/regex ไม่ถูกต้อง, stamp นอก writableSheets, คีย์ระดับบนที่ไม่รู้จัก (เช่น files), ปฏิทินผิดรูปแบบ. โปรไฟล์ที่ไม่ผ่านห้ามแทนที่ของเดิม. mergeWithDefaults(json) เติมค่าที่ขาด.\n - renderFileName(pattern, ctx) ใน src/utils/format.js: token {month}{monthLabel}{rev}{date}{time}; token ไม่รู้จักคงไว้; ตัดอักขระต้องห้ามของ Windows, / \\\\, จุดนำหน้า, ชื่อสงวน (CON/NUL), จำกัดความยาว; clock inject ได้. ค่าเริ่มต้นต้องยังตรง e2e /ดาวน์โหลด Production_/.\n - exportProfile(profile)->JSON string, importProfile(text)->{ok,profile,errors}.\n\n2) ปฏิทินวันทำงาน (profile.features.calendar, ฟังก์ชัน pure ใน src/features/settings-profile/calendar.js): ต่อโรงงาน (หรือ scope 'ทุกโรงงาน'): workingWeekdays (ค่าเริ่มต้น จ–ศ), holidays[{date ISO,name}], extraWorkDays[ISO] (เสาร์ทำงาน), shutdowns[{from,to,name}]. ค่าเริ่มต้นไม่มีวันหยุดฝังในโค้ด. API: isWorkingDay(cal,plant,iso), workingDaysInMonth(cal,plant,{year,month}), addWorkingDays(cal,plant,iso,n), lastWorkingDay, suggestNonWorkingDays(rows, monthIdx) = วันที่ทุกแถวเป็น 0 แสดงเป็น 'คาดว่าหยุด' แยกจากที่ยืนยัน (ไม่ใช้เป็นข้อมูลยืนยัน). Validation: ISO date จริง, รวม ≤ 500 รายการ; ข้อมูลเสียหาย -> ค่าเริ่มต้น. เสาร์ 14 และ 28 ก.พ.'26 ใน fixture ต้องไม่ถูกเดาเป็นวันหยุด.\n\n3) UI index.jsx: tab 'ตั้งค่า' (order 95). ส่วน 'ทั่วไป' (รูปแบบชื่อไฟล์ + ตัวอย่างผลลัพธ์, ไฮไลต์, แท็บเริ่มต้น), 'ปฏิทินวันทำงาน' (เลือกโรงงาน, สลับ จ–อา, รายการวันหยุด/เสาร์ทำงาน/shutdown พร้อมปุ่ม 'เพิ่มวันหยุด', แถบ 31 ช่องเดือนที่โหลดอยู่แบบกะทัดรัด), 'ขั้นสูง' (ตารางโรงงาน, ชื่อชีต, capacityOverrides), ปุ่ม 'ส่งออกโปรไฟล์ (JSON)', 'นำเข้าโปรไฟล์', 'คืนค่าเริ่มต้น' (confirm ระบุว่าคงไฟล์/เซสชัน). ไม่ทำ settings modal แยก, ไม่ทำ URL presets (ตัด ?autoprocess; ?tab= เป็นหน้าที่ feature-contract). จอมือถือไม่ล้นแนวนอน.\n\n4) การเก็บ: ผ่าน src/lib/storage (key moowhan.profile.v1) เมื่อ storage-session พร้อม; ระหว่างนั้นใช้ adapter เล็ก try/catch + memory fallback. useConsolidator เพิ่ม state.profile, actions.setProfile/resetProfile แบบ additive และส่ง ctx.profile. constants.js คงไว้เป็นค่าที่ derive จาก DEFAULT_PROFILE.\n\nExport impact: ไม่เพิ่ม extraSheets ในไอเท็มนี้ (ผู้ใช้ปฏิทินอื่นเป็นคนอ่านค่า).",
+      "acceptance_criteria": [
+        "validateProfile ปฏิเสธ: รหัสโรงงานซ้ำ, dailySheet ซ้ำ, filePrefixes ว่าง, regex ผิด, schemaVersion ไม่รู้จัก, JSON > 64KB, stamp นอก writableSheets, คีย์ 'files' ระดับบน แต่ละอย่างมีข้อความไทยของตัวเอง และโปรไฟล์ที่ใช้งานอยู่ไม่ถูกแทนที่",
+        "โปรไฟล์ที่ส่งออกแล้วนำเข้ากลับ deep-equal กับเดิม",
+        "renderFileName('Production_Updated_{monthLabel}_{date}.xlsx') ให้ชื่อถูกต้อง, ตัดอักขระต้องห้าม, 'CON.xlsx' ถูกเขียนใหม่ และ e2e /ดาวน์โหลด Production_/ ยังผ่าน",
+        "ปฏิทินค่าเริ่มต้น: workingDaysInMonth('BP', ก.พ. 2026) = 20; เพิ่มเสาร์ทำงาน 14 และ 28 -> 22; เพิ่มวันหยุด 2026-02-16 -> 21",
+        "isWorkingDay ของ shutdown 2026-04-13..15 ที่ scope ทุกโรงงานเป็น false ทุกโรงงาน; addWorkingDays ถูกต้องข้ามเสาร์-อาทิตย์",
+        "suggestNonWorkingDays(fixture BP, ก.พ.) = [1,7,8,15,21,22] และไม่รวม 14, 28",
+        "ปฏิทินเสียหายหรือเกิน 500 รายการ -> ใช้ค่าเริ่มต้นและแอปทำงานต่อ",
+        "แท็บ 'ตั้งค่า' แสดงตามปกติบนจอมือถือ และ 'คืนค่าเริ่มต้น' รีเซ็ตเฉพาะโปรไฟล์หลัง confirm",
+        "ไม่มีวันหยุดราชการฝังใน src และ npm test + npm run build ผ่าน"
+      ],
+      "new_files": [
+        "src/features/settings-profile/index.jsx",
+        "src/features/settings-profile/profile.js",
+        "src/features/settings-profile/calendar.js",
+        "src/features/settings-profile/SettingsPanel.jsx",
+        "tests/settings-profile.test.js"
+      ],
+      "shared_files": [
+        "src/state/useConsolidator.js",
+        "src/utils/format.js",
+        "src/constants.js",
+        "src/components/Icons.jsx",
+        "CLAUDE.md"
+      ],
+      "depends_on": [
+        "feature-contract",
+        "storage-session"
+      ],
+      "effort": "L",
+      "priority": 5,
+      "decision_notes": "รวม architect:template-profile, integration:url-presets, planner:working-calendar, supply:plant-calendar เป็นหนึ่งเดียว. ทุกฝ่ายเห็นตรงกันว่าต้องมีที่ตั้งค่าและแท็บเดียว จึงยุบ url-presets เข้าโปรไฟล์ เก็บเฉพาะ renderFileName และตัวเลือกส่งออกที่จำไว้ ตัด URL sharing/autoprocess. Stamps: ตามข้อโต้แย้งของ excel/qa/ux เป็นเพียงข้อมูลในโปรไฟล์ ชี้ By Plant!C2/C3 และ Analyze แถว 1 (ไม่ใช่เซลล์สูตรของ Monthly FC) ปิดเป็นค่าเริ่มต้น และให้ export-gate/patcher-safety เขียนผ่าน cellWrites เดียว ไอเท็มนี้ไม่เขียนลง template. ปฏิทิน: ใช้โมเดลของ supply (วันทำงานรายสัปดาห์ + วันหยุด + เสาร์ทำงาน + shutdown เป็นช่วง) ร่วมกับแนวคิดของ planner ที่เสนอวันหยุดที่คาดจากเลข 0 เป็นเพียงคำแนะนำที่แยกจากค่าที่ยืนยัน เพราะ qa ชี้ว่าการเดาวันหยุดจากเลข 0 พิสูจน์ไม่ได้. ไม่ฝังรายการวันหยุดราชการ. ตัดการ plumbing พารามิเตอร์ profile ลงทุกฟังก์ชัน excel (readSource/patcher/inspect) และตัด R06/R04/L02 ออกจากไอเท็มนี้ เพราะเป็นงานของ patcher-safety, qa-engine, template-inspector ผู้ใช้ปฏิทินอื่น (edits, daily-grid, runout) อ่านผ่าน ctx.profile. ตามคำขอผู้ใช้ ไม่เพิ่มขอบเขต security เช่นการ scrub ข้อมูล แต่ validateProfile ยังตรวจรูปแบบเพื่อความถูกต้องของข้อมูล.",
+      "tests": [
+        "vitest: validateProfile แต่ละกรณีปฏิเสธพร้อมข้อความไทย และ DEFAULT_PROFILE ผ่าน",
+        "vitest: export/import round-trip deep-equal และ mergeWithDefaults เติมค่าที่ขาด",
+        "vitest: renderFileName token, sanitize, ชื่อสงวน, clock inject",
+        "vitest: calendar workingDaysInMonth/isWorkingDay/addWorkingDays/shutdown ตามเลขในเกณฑ์",
+        "vitest: suggestNonWorkingDays บน fixture input/*.xls ทั้ง 4 โรงงาน = [1,7,8,15,21,22]",
+        "vitest: ปฏิทินเสียหาย/เกิน 500 รายการ fallback เป็นค่าเริ่มต้น",
+        "e2e: เปิดแท็บ 'ตั้งค่า' แล้วแก้รูปแบบชื่อไฟล์ ส่งออกแล้ว notice ตรง /ดาวน์โหลด Production_/ และหน้าจอ 375px ไม่ล้นแนวนอน"
+      ],
+      "merged_from": [
+        "architect:template-profile",
+        "integration:url-presets",
+        "planner:working-calendar",
+        "supply:plant-calendar"
+      ],
+      "support_count": 1,
+      "oppose_count": 0,
+      "modify_count": 15,
+      "wave": 10
+    },
+    {
+      "id": "qa-engine",
+      "title_th": "เครื่องมือกฎตรวจคุณภาพและแท็บ QA",
+      "title_en": "QA rules engine and tab",
+      "priority": 5,
+      "effort": "L",
+      "depends_on": [
+        "feature-contract",
+        "template-inspector"
+      ],
+      "new_files": [
+        "src/features/qa-engine/index.jsx",
+        "src/features/qa-engine/QaTab.jsx",
+        "src/features/qa-engine/model.js",
+        "src/features/qa-engine/engine.js",
+        "src/features/qa-engine/waivers.js",
+        "src/features/qa-engine/report.js",
+        "src/features/qa-engine/rules/row.js",
+        "src/features/qa-engine/rules/file.js",
+        "src/features/qa-engine/rules/month.js",
+        "src/features/qa-engine/rules/layout.js",
+        "src/features/qa-engine/rules/consistency.js",
+        "src/features/qa-engine/rules/template.js",
+        "tests/qa-engine.test.js"
+      ],
+      "shared_files": [
+        "src/lib/excel/readSource.js",
+        "src/constants.js",
+        "src/utils/format.js",
+        "src/components/PreviewTab.jsx",
+        "src/components/ChangelogTab.jsx",
+        "src/state/useConsolidator.js",
+        "tests/e2e/smoke.mjs"
+      ],
+      "spec": "เป้าหมาย: เครื่องมือกฎตรวจคุณภาพเดียวของแอป (pure, ทดสอบใน Node) + แท็บ \"ตรวจคุณภาพ\" + ชีต \"QA Report\" + การรับทราบ (waiver). ทุกฟีเจอร์อื่น (runout-alerts, qa-file-guards, export-gate) ส่ง Issue เข้า engine นี้ ไม่สร้าง engine/แท็บ/badge ซ้ำ.\n\nIssue model (model.js): {rule, group, level:'error'|'warning'|'info', scope:'row'|'file'|'plant'|'template'|'run', plant, fileName, partNumber, dockCode, sheet, rowNumber, month, message, fix, expected, actual, helpKey, action?:{kind:'goTo'|'removeFile'|'useNewer', payload}, waived?, reason?}. ป้ายระดับไทย: ต้องแก้ / ควรดู / ข้อมูล. Helpers: countByLevel, filter, toCsvRows (escape ค่าที่ขึ้นต้น = + - @).\n\nengine.js: runRules({processedData, sourceFiles, productionMonth, template, inspection, settings, today, waivers}) -> Issue[]. rule = {id, group, level, defaultOn, run(ctx)}; เปิด/ปิดด้วย settings.rules[id]; today inject ได้. ไม่แตะ DOM/React.\n\nกลุ่มกฎ: \nrow: R01 ผลรวม 31 วัน != ยอดรวมเดือน (ใช้ row.colPositions ห้าม hard-code; expected=ผลรวมวัน, actual=ยอดรวม); R02 มีปริมาณในวันที่ไม่มีในปฏิทิน (เช่น 30 ก.พ.); R03 ค่าไม่ใช่ตัวเลขถูกตีเป็น 0; R04 รูปแบบ Part Number; R05 SUPP CODE ไม่ตรง; R08 ติดลบ=error, PACKING SIZE<=0 หรือไม่ใช่จำนวนเต็ม=warning, N..N+3 เป็น 0 ทั้งหมด=info, ยอดไม่ลงตัวกับ PACKING SIZE=info; R09 แถวที่ถูกข้ามตอนอ่าน.\nfile: R06 PLANT CODE ไม่ตรงชื่อไฟล์ (warning, ใช้แผนที่เดียวใน constants); R07 FORECAST/REVISION TYPE ผิดปกติ; R10 ใช้ตำแหน่งคอลัมน์สำรอง; R11 โรงงานไม่มีไฟล์ (warning)/อ่านไฟล์ไม่สำเร็จ (error).\nmonth: M01 เดือนผลิตต่างกันระหว่างไฟล์=error; M02 เทมเพลตต่างจากไฟล์=warning (ข้ามถ้าไม่มี inspection.templateMonth); M03 ไฟล์เดือนที่ผ่านแล้ว=warning เท่านั้น; M04 ISSUE DATE ผิดปกติ=warning. ไม่มีกฎเดือนใดเป็น error นอกจาก M01.\nlayout: L01 ตำแหน่ง N..N+3 ไม่ตรง inspection.dailyLayout=error; L02-L05 warning/info. (ข้ามเงียบถ้า inspection ไม่มีข้อมูล)\nconsistency: K01 Part Number ต่างกันแค่ช่องว่าง/ตัวพิมพ์=error; K02 ข้อมูลหลักขัดกัน; K03 dock ไม่อยู่ในแผนที่; K04 ปริมาณไม่ใช่จำนวนเต็ม; K05/K06 ผิดปกติ=info (ข้ามเดือนที่เป็น 0).\ntemplate: T01 key ไม่อยู่ใน By Plant, C01 แถวเกินความจุ Daily (ใช้ inspection.capacity เท่านั้น ไม่ parse ซ้ำ; ไม่ทราบ -> ข้าม). D01 (ซ้ำ part+dock) อยู่ qa-file-guards ผ่าน validate hook.\n\nreadSource.js (เพิ่มเล็กน้อย): คืน skippedRows (ค่าดิบ) และ meta.monthColumnsFromHeader, meta.plantCode; เพิ่ม PLANT_CODE, PART_NUMBER_PATTERN, DEFAULT_SUPP_CODE ใน constants.js.\n\nFeature (index.jsx): {id:'qa-engine', order:25, group:'ตรวจสอบ', tab:{label:'ตรวจคุณภาพ', Icon, enabled: มี processedData, badge: จำนวน error ที่ไม่ waived จาก validate ของทุกฟีเจอร์}, validate(ctx)=runRules, settings:{defaults (rules[id], suppCode, partPattern, thresholds), Component} แสดงใน Settings tab ใต้ 'ขั้นสูง', exportSheets(ctx)->[{name:'QA Report', aoa, defaultOn:{internal:true, external:false}}] แถว = findings+1 หัวตาราง (กฎ, ระดับ, โรงงาน, ไฟล์, Part Number, Dock, ชีต/แถว, รายละเอียด, วิธีแก้, ค่าที่คาด, ค่าจริง, สถานะ), onProcessed(ctx,result)-> log action 'qa' เช่น 'QA: 0 ต้องแก้, 2 ควรดู'}.\n\nQaTab.jsx: การ์ด 3 ใบ (ต้องแก้/ควรดู/ข้อมูล), ตัวกรอง ระดับ/โรงงาน/กลุ่มกฎ/สถานะ(รวมรับทราบแล้ว), ค้นหา, ตารางมีคอลัมน์ 'วิธีแก้', ปุ่ม 'ไปดูแถว' (actions.goTo('preview') + setFeatureState('preview',{query}) ให้ PreviewTab ใช้เป็นค่าค้นหาเริ่มต้น), 'ตรวจอีกครั้ง', 'คัดลอกสรุป', 'ดาวน์โหลด QA (.csv)'. useMemo ตาม processedData/sourceFiles/template/settings เพื่อ re-validate หลังแก้มือ. มือถือไม่ล้น (ตาราง overflow-x ภายใน container).\n\nWaivers (waivers.js): waiverKey = rule|scopeKey|productionMonth; waive({issue,reason(>=3 ตัว),expires}), unwaive; เก็บผ่าน storage layer namespace 'waivers' (ถ้ายังไม่มี ใช้ adapter inject ได้ + fallback memory; try/catch ทุกครั้ง); หมดอายุสิ้นเดือนผลิต; waived ออกจาก badge/gate แต่คงใน QA Report สถานะ 'รับทราบ: เหตุผล'; ตัวเลือกห้าม waive ระดับต้องแก้. ChangelogTab เพิ่ม ACTION_META 'qa'.",
+      "acceptance_criteria": [
+        "runRules บน 5 fixtures + template.xlsx ให้ 0 error และ R01 ผ่านทุกแถวทุกเดือน",
+        "แก้ rawRow day 3 ของ BP แถวแรก +5 ได้ R01 error เดียว มี plant BP, sheet 'BP Daily', rowNumber 14, expected/actual ต่างกัน 5 และ fix ไม่ว่าง",
+        "ใส่ค่า 10 ที่วันที่ 30 ก.พ. ได้ R02; ค่า '1,891' ในช่องยอดรวมได้ R03; plantCode ไม่ตรงชื่อไฟล์ได้ R06 warning",
+        "settings.rules.R01===false ข้าม R01; UI ตั้งค่ากฎอยู่ใน 'ขั้นสูง' เท่านั้น",
+        "badge เท่ากับจำนวน error ที่ไม่ waived; ชีต 'QA Report' มีเมื่อเปิดในตัวเลือก export และไม่มีเมื่อปิด; จำนวนแถว = findings+1",
+        "waived issue ไม่นับใน badge แต่ยังอยู่ใน QA Report พร้อมเหตุผล; เดือนผลิตอื่นไม่ถูก waive; waiver หมดอายุถูกละเลย",
+        "รายการกฎ M03 ไม่เคยเป็น error; ไม่มีกฎใดอ่าน/แสดงว่าตรวจแล้วเขียนทับสูตร",
+        "Playwright: แท็บ 'ตรวจคุณภาพ' เปิดหลังประมวลผลและแสดง '0 ต้องแก้'; 'ไปดูแถว' ไปแท็บตรวจสอบข้อมูลพร้อมค่าค้นหา",
+        "npm test และ npm run build ผ่าน; engine import ได้ใน Node โดยไม่มี React/DOM"
+      ],
+      "tests": [
+        "vitest: R01 clean บน fixtures ทุกแถว x 4 เดือน",
+        "vitest: R01 mutation +5 -> 1 error พร้อม plant/sheet/rowNumber/expected/actual",
+        "vitest: R02 วันที่ 30 ก.พ.; R03 สตริง '1,891'; R06 plantCode ไม่ตรง",
+        "vitest: settings.rules[id]=false ข้ามกฎ; today inject สำหรับ M03 (2026-10-05 warning, 2026-01-25 ไม่มี)",
+        "vitest: K01 เติมช่องว่างท้าย Part Number ได้ 1 error; K03/K04",
+        "vitest: waivers waive/unwaive/expire/ต่างเดือน ด้วย in-memory adapter",
+        "vitest: exportSheets คืนแถว findings+1 และหัวตารางถูกต้อง; toCsvRows escape สูตร",
+        "vitest: contract - feature มี validate, settings, exportSheets",
+        "e2e: แท็บ QA badge/0 ต้องแก้ และ ไปดูแถว pre-fill ค้นหา"
+      ],
+      "decision_notes": "รวมข้อเสนอ qa-rules-tab (เป็นฐาน), preflight-check, production-month-guard, layout-drift, consistency-rules, findings-waivers เป็น engine เดียว. ตามเสียงวิจารณ์ทั้งหมด: ไม่มีแท็บ/engine/ชีต QA Report ที่สอง; badge นับเฉพาะ error; คำไทย ต้องแก้/ควรดู/ข้อมูล ใช้ทั้งแอป; M03 เป็น warning พร้อม today inject; ส่วนเขียนหัวเทมเพลต (planMonthWrites) ตัดออกจากไอเท็มนี้ ให้ patcher-safety/export-gate เป็นเจ้าของ primitive cellWrites. ความจุและ key By Plant อ่านจาก template-inspector เท่านั้น (ไม่ parse ซ้ำ). ที่อยู่ไฟล์ย้ายจาก src/lib/qa ไปอยู่ใน src/features/qa-engine ตามกติกา architecture แต่ยังเป็น pure และ CLI ใช้ซ้ำได้. กฎระดับไฟล์ (D01 ซ้ำ, expected-files, stale revision) เป็นของ qa-file-guards ซึ่งส่ง Issue ผ่าน validate hook; กฎ run-out เป็นของ runout-alerts; เกต export เป็นของ export-gate ที่อ่าน Issue จาก engine นี้. Settings UI ผ่าน settings hook ของ feature-contract/settings-profile (ซ่อนใน 'ขั้นสูง'); ถ้า storage-session ยังไม่พร้อม waivers ใช้ adapter inject + memory fallback. ชีต QA Report ลงทะเบียนผ่าน exportSheets โดยค่าเริ่มต้นเปิดเฉพาะโปรไฟล์ภายใน (ลดความเสี่ยงส่งออกภายนอก). ไม่เพิ่มขอบเขตด้านความปลอดภัย ยกเว้น escape สูตรใน CSV ที่เป็นความถูกต้องของข้อมูล.",
+      "spec_placeholder_ignore": "",
+      "merged_from": [
+        "qa:qa-rules-tab",
+        "planner:preflight-check",
+        "qa:production-month-guard",
+        "qa:layout-drift",
+        "qa:consistency-rules",
+        "qa:findings-waivers"
+      ],
+      "support_count": 8,
+      "oppose_count": 0,
+      "modify_count": 16,
+      "wave": 11
+    },
+    {
+      "id": "export-gate",
+      "title_th": "หน้าต่างส่งออก ด่านตรวจ และตรวจไฟล์หลังส่งออก",
+      "title_en": "Export dialog, gate and verification",
+      "spec": "เป้าหมาย: รวม qa:export-gate, ux:export-preflight, adoption:post-export-checklist, qa:export-verify (รวม architect:export-verify) และ excel:expected-totals เป็นฟีเจอร์เดียว src/features/export-gate/ (index.jsx + logic ไฟล์ข้างเคียง) โดยไม่มีหน้าต่างอื่นเปิดตอนส่งออก\n\n1) Gate (gate.js, pure): buildGate(ctx) -> Issue[] {level:'block'|'confirm'|'info', code, message, fix, action?}. กฎ: G01 isStale -> block (action 'ประมวลผลใหม่'); G02 โรงงานไม่มีไฟล์ -> confirm ('ไม่มีไฟล์ SR - ชีต SR Daily จะถูกล้างข้อมูลเดิม n แถว'), ไม่ทำ carry-over; G03 QA error n รายการ -> confirm (อ่านจาก feature qa ถ้ามี, ไม่มีก็ข้าม); G04 เดือนผลิตไม่ตรงกัน -> block; G05 Analyze เกินความจุ -> confirm; G06 แถวเกินความจุ Daily (ชน SUM row) -> block; G07 เกินแถวสูตรช่วย -> info; G08 ไม่มี template .xlsx -> info; G09 ชีตที่ต้องมีหาย -> block. ความจุอ่านจาก template.inspection (จาก template-inspector); ถ้ายังไม่มี ให้ fallback คำนวณเองแบบ pure จาก constants. ถ้าไม่มี confirm/block -> ดาวน์โหลดทันที ไม่เปิด dialog.\n2) Hook beforeExport(ctx) ใน feature contract (feature-contract เป็นเจ้าของ); App.jsx ห่อ exportExcel (รวมปุ่มใน ExcelPreview และ Ctrl+S) เก็บ issue จากทุกฟีเจอร์ + buildGate.\n3) ExportDialog.jsx (components, ใช้ Modal เดิม): ส่วน 'ต้องแก้ก่อน' (block) + checkbox 'ฉันเข้าใจความเสี่ยงและต้องการดาวน์โหลดต่อ' ที่ปลดล็อกปุ่ม; 'โปรดยืนยัน'/'ข้อมูล'; แผนเขียน planExport (sheet, rows, startRow, Analyze n/capacity) จาก processedData+inspection ไม่ parse XML ซ้ำ; ตัวเลือก: ไฮไลต์, เลือกชีตเสริมจาก registry exportSheets, ชื่อไฟล์ผ่าน renderFileName (format.js, default Production_Updated_{month}_{date}.xlsx, sanitise / : \\ ? * [ ]); ปุ่ม 'ตัวเลือก' ข้างดาวน์โหลดเปิด dialog เสมอ. override บันทึก changelog action 'override' และส่งเป็น extraSheet 'Run Info' แถวหมายเหตุถ้ามี. ส่วนหัวเทมเพลต (cellWrites) เป็นของ patcher-safety: dialog แสดงรายการเมื่อ plan นั้นมีให้ (slot) มิฉะนั้นข้าม.\n4) lastExport {blob,fileName,report} เก็บในหน่วยความจำ ล้างเมื่อ reset; toast/ปุ่ม 'ดาวน์โหลดอีกครั้ง' ไม่ patch ซ้ำ.\n5) verifyExport.js (src/lib/excel, lazy ผ่าน barrel): verifyExport(buffer,{processedData,analyzeRows,extraSheets,templateBuffer,report,sample}) -> {ok,checks:[{id,label,ok|null,expected,actual,sheet,advisory}]}. ตรวจ V01 แถวต่อชีต, V02 ผลรวม N..N+3 ต่อโรงงาน, V03 cells ที่เขียน, V04 Analyze (EH), V05 โครงสร้าง zip/pivot refreshOnLoad/fullCalcOnLoad, V06 ชีตเสริม, V08 ช่วง autoFilter/pivot ขยาย, V09 จำนวนสูตรไม่เปลี่ยน, V10 cellXfs prefix. เกิน 2000 แถวใช้ sample ด้วย seed. โหมด fallback ให้ V05/V08-V10 เป็น null. ขนาดเล็ก verify ก่อนดาวน์โหลด (check ไม่ผ่าน -> เตือนใน dialog, ไม่บล็อกถาวร) ใหญ่ดาวน์โหลดก่อน.\n6) expectedTotals.js (pure): คำนวณค่า SUM ที่ Excel ควรแสดง (ติดป้าย 'advisory/สำหรับ SUM ธรรมดา') รวมเป็นส่วนของผลตรวจ ไม่ทำชีตแยก (ถ้ามี Run Info/README จากฟีเจอร์อื่นค่อยแนบผ่าน exportSheets).\n7) Post-export panel (checklist.js + Panel.jsx): buildChecklist({report,verification,expected,highlight}) -> items written/skipped/warning/info (ผล ตรวจ, ชีตที่ข้าม, report.warnings, 'เปิดไฟล์แล้วกด Enable Editing/Refresh All'). แสดงใน state หลังดาวน์โหลดของ ExportDialog ชื่อ 'ผลการส่งออก (<ไฟล์>)' และ Banner ปุ่ม 'ดูผลการส่งออก'. รายการเซลล์หัวที่ยังไม่เขียน มาจาก cellWrites ของ patcher-safety หักที่เขียนแล้ว.\n8) SummaryTab: แถบพร้อมส่งออก 'พร้อมดาวน์โหลด' / 'ต้องยืนยัน n' / 'ติดขัด n'. ข้อความทั้งหมดภาษาไทย.",
+      "acceptance_criteria": [
+        "buildGate กับข้อมูลครบ 4 โรงงาน ไม่ stale ไม่มี error คืน [] และดาวน์โหลดโดยไม่เปิด dialog",
+        "ถอดไฟล์ SR แล้ว G02 confirm มีข้อความ SR Daily; isStale ให้ G01 block; เดือนไม่ตรง G04 block; BP 13 แถว G06 block มี 'BP Daily' และ 12",
+        "ปุ่มดาวน์โหลดใน dialog ถูกปิดจนกว่าติ๊ก override เมื่อมี block และมี changelog action override",
+        "renderFileName คืน Production_Updated_Feb26_2026-10-05.xlsx และกรอง / : ออก",
+        "verifyExport บนผลส่งออก fixture ทั้ง 5 ไฟล์ ok=true และ V02 ได้ BP 5399, BPK 23660, GW 17594, SR 2281",
+        "แก้ค่า AN14 ใน zip ผลลัพธ์ทำให้ V02 ของ BP Daily fail (expected 5399 actual 3508) ส่วน check อื่นผ่าน",
+        "expectedTotals ได้ BP Daily!AN26 = 5399 และ SR Daily!AN21 = 48934 (advisory) และเปลี่ยนตาม updateRowValues",
+        "ดาวน์โหลดอีกครั้งไม่เรียก patchTemplate ซ้ำ และ lastExport เป็น null หลังรีเซ็ต",
+        "เกิน 2000 แถวตั้ง flag sample และเสร็จใน 2 วินาที; fixture ใน 500 ms",
+        "ไม่ import xlsx/jszip แบบ static จาก component/state"
+      ],
+      "new_files": [
+        "src/features/export-gate/index.jsx",
+        "src/features/export-gate/gate.js",
+        "src/features/export-gate/plan.js",
+        "src/features/export-gate/checklist.js",
+        "src/features/export-gate/Panel.jsx",
+        "src/components/ExportDialog.jsx",
+        "src/lib/excel/verifyExport.js",
+        "src/lib/excel/expectedTotals.js",
+        "tests/export-gate.test.js"
+      ],
+      "shared_files": [
+        "src/features/index.js",
+        "src/App.jsx",
+        "src/state/useConsolidator.js",
+        "src/components/SummaryTab.jsx",
+        "src/components/ExcelPreview.jsx",
+        "src/lib/excel/index.js",
+        "src/lib/excel/exportWorkbook.js",
+        "src/utils/format.js",
+        "tests/e2e/smoke.mjs"
+      ],
+      "depends_on": [
+        "feature-contract",
+        "template-inspector",
+        "patcher-safety"
+      ],
+      "effort": "L",
+      "priority": 5,
+      "decision_notes": "รวม 5 ข้อเสนอเป็นชิ้นเดียว. dialog: ตามข้อตกลงกลาง - ล้วนสะอาดคลิกเดียวไม่เปิด dialog, confirm ต้องกดยืนยัน, block ปิดปุ่มจนติ๊ก override (ไม่ใช่ hard stop ถาวร ยกเว้น guard ของ patcher ที่เป็นของ patcher-safety). carry-over แถวเดือนก่อนถูกถอน (supply/ux/adoption) เหลือแค่การยอมรับที่บันทึกไว้. verifier เดียว (qa + architect รวม) ตรวจก่อนดาวน์โหลดเมื่อไฟล์เล็ก ไม่แยกแท็บ; checks ของ architect (zip parts, formula count, cellXfs prefix, ช่วง autoFilter) รวมเป็น V05/V08-V10. expected totals ย่อเป็นส่วนของผลตรวจและ checklist แทนชีตแยก/README แยก เพื่อเลี่ยงชีตซ้ำซ้อน. การเขียนเซลล์หัวเทมเพลตและความจุเทมเพลตเป็นของ patcher-safety/template-inspector จึงเป็น dependency และมี fallback. ไม่เพิ่มขอบเขต security. ใช้ฟีเจอร์ README/Run Info ของ provenance-manifest เป็นตัวเลือกภายหลัง ไม่ผูกแน่น.",
+      "tests": [
+        "vitest: buildGate กรณีสะอาด/ขาด SR/stale/เดือนไม่ตรง/เกินความจุ BP/Analyze เกิน",
+        "vitest: planExport จาก fixture ได้จำนวนแถวต่อชีตและ Analyze capacity",
+        "vitest: renderFileName และ sanitise",
+        "vitest: verifyExport บน buildExport ของ template+5 fixtures ok และกรณีแก้ zip แล้ว V02 fail; fallback ให้ null",
+        "vitest: expectedTotals ตรงกับผลรวม และเปลี่ยนหลัง updateRowValues",
+        "vitest: buildChecklist กรณี skipped/warning/verification",
+        "e2e: ข้อมูลครบ ดาวน์โหลดหนึ่งครั้งไม่มี dialog; ถอด SR แล้ว dialog 'ตรวจสอบก่อนดาวน์โหลด' ปรากฏและดาวน์โหลดต่อได้; ปุ่ม override ปลดล็อก; 'ดาวน์โหลดอีกครั้ง' ไม่ patch ซ้ำ; Ctrl+S ผ่าน gate เดียวกัน"
+      ],
+      "merged_from": [
+        "qa:export-gate",
+        "ux:export-preflight",
+        "adoption:post-export-checklist",
+        "qa:export-verify",
+        "architect:export-verify",
+        "excel:expected-totals"
+      ],
+      "support_count": 17,
+      "oppose_count": 0,
+      "modify_count": 23,
+      "wave": 12
+    },
+    {
+      "id": "runout-alerts",
+      "title_th": "สัญญาณ Run-out และการเตือนเชิงธุรกิจ",
+      "title_en": "Run-out signals and business alerts",
+      "priority": 4,
+      "effort": "M",
+      "depends_on": [
+        "feature-contract",
+        "qa-engine",
+        "settings-profile",
+        "storage-session",
+        "manual-edit"
+      ],
+      "new_files": [
+        "src/features/runout-alerts/index.jsx",
+        "src/features/runout-alerts/classify.js",
+        "src/features/runout-alerts/rows.js",
+        "src/features/runout-alerts/rules.js",
+        "src/features/runout-alerts/RunoutView.jsx",
+        "tests/runout-alerts.test.js"
+      ],
+      "shared_files": [
+        "src/features/qa/rules.js"
+      ],
+      "spec": "ONE feature, src/features/runout-alerts/, holding a single shared classifier plus a QA rule group 'business'. No second rule engine, no separate badge, no 'Alerts' sheet.\n\nPure logic (DOM-free, Node-testable).\n1) classify.js: classify({n,n1,n2,n3}) returns 'zero' (all 0), 'new' (n=0,n1=0 and n2 or n3 >0), 'runout-n1' (n>0, n1=0 and n2=n3=0), 'runout-n2' (n1>0, n2=0, n3=0), 'runout-n3' (n2>0, n3=0), 'gap' (a 0 followed by a positive later month), otherwise 'normal'. Check the order against the fixture, since n1=0 with n2=n3=0 is a run-out while n1=0 with n2>0 is a gap. Expected: {2,4,0,0}=runout-n2; {1891,1677,919,0}=runout-n3; {0,0,100,120}=new; {100,0,50,60}=gap; {5790,7980,5490,3720}=normal. Read the proposal's examples literally and fix the rule table so all pass. Also export lastPackDate(row, productionMonth) which finds the last day with a positive value across the 4 months, using the day block derived from colPositions (nCol-31) with the constant as fallback, and returns {monthIndex, day, iso}. Normal rows are flagged continues:true ('ยังมี forecast ต่อ'), not run-out. Example: SR 86790-0K141-00 gives 2026-03-27 and BP 0K051 gives 2026-04-30.\n\n2) rows.js: buildRunoutRows(processedData, productionMonth, overrides) gives one row per plant x part x dock with status, lastPackEstimated, lastPackOfficial (from overrides, key plant|part|dock, with the edit date), N..N+3 and notes. Sort runout, then new, gap, normal. Fixture expectation is 8 signal rows: runout-n3 = BP 0K051/0K141/0K171/0K230 and SR 0K051/0K171; runout-n2 = BP 0K080 and SR 0K141; BPK and GW all normal.\n\n3) rules.js: QA rule group 'business', B01 on the findings bus. Each signal row becomes a finding {level:'warning' shown as 'ควรดู' (new/gap = info), category:'business', code:'B01', scope:{plant,part,dock}, message in Thai using the word 'สัญญาณ', action, weight high for n2/n3 both zero else medium}. It only imports classify, never a copy. Optional thresholds (swing rules BIZ-02/03) are out of scope for v1 and go in as a later extension. Freshness BIZ-05 is dropped. The compare feature may later consume the classifier. Plant-missing/month-mismatch/file-error rules are NOT redefined here.\n\nUI. index.jsx default-exports { id:'runout-alerts', group:'วิเคราะห์', order from the analysis band, tab:{label:'Run-out', Component:RunoutView}, validate(ctx) (the rules), settings none, exportSheets(ctx) }. There is no tab badge of its own. The count shows from findings with category business. RunoutView has filters for status and plant, a Thai table with columns สถานะ, โรงงาน, Dock, Part, Last Pack (ประมาณ), Last Pack (ทางการ, editable date input, empty = estimate), N..N+3, หมายเหตุ. Official overrides are saved to profile.features['runout-alerts'].overrides through the settings/storage layer and are restored after a reload. Notes go through the shared notes store (manual-edit), key plant|part|dock, with no key of its own. Acknowledge uses the findings acknowledge-with-reason mechanism (key = month+code+scope). The table must not overflow horizontally on mobile (use a scroll container).\n\nExport. exportSheets returns [{name:'Runout', aoa}] only when the user opted in (export dialog flag), with columns Plant, Dock, Part, Part Code, สถานะ, Last Pack (ประมาณ), Last Pack (ทางการ), N..N+3, หมายเหตุ. Last Pack is text YYYY-MM-DD. The name is checked against the template's protected sheet names. The sheet does not touch the BPK Daily rows 1-13.",
+      "acceptance_criteria": [
+        "classify() returns the expected values for the five examples plus zero",
+        "lastPackDate matches SR 0K141 = 2026-03-27 and BP 0K051 = 2026-04-30, and normal rows carry continues:true",
+        "The fixture yields exactly 8 signal rows (6 runout-n3, 2 runout-n2 as listed), BPK and GW are all normal",
+        "The QA B01 finding count equals the number of signal rows and equals the number shown in the Run-out view",
+        "Official Last Pack saved to profile.features overrides survives a reload; notes use the shared notes store",
+        "The Runout sheet is opt-in, Last Pack is text, and rows are ordered runout, new, gap, normal",
+        "Business findings do not change the QA error badge",
+        "The view does not scroll horizontally at 390px width"
+      ],
+      "tests": [
+        "vitest classify table cases (5 examples + zero + runout-n1 edge)",
+        "vitest lastPackDate on fixture rows (SR 0K141, BP 0K051, BP 0K080 = 2026-03-31)",
+        "vitest buildRunoutRows on real fixtures: 8 signals, sort order, overrides applied",
+        "vitest B01 findings count equals signal rows and rules.js imports classify from classify.js (grep)",
+        "vitest exportSheets returns no sheet when opt-in is off and Text dates when on",
+        "e2e: open Run-out tab, filter by plant, enter an official date, reload and see it remain"
+      ],
+      "decision_notes": "Both proposals were merged. All critics demanded one classifier, so classify/lastPackDate live only in this feature (placed in the feature folder per architecture rules, not src/lib/analytics) and the alerts rule imports them. management-alerts was cut to the run-out rule B01: plant-missing, month-mismatch, file-error and revision rules stay with QA, and the swing/freshness/compare rules (BIZ-02..05) are deferred because they overlap compare, dashboard and settings items and would raise scope. The 'Alerts' sheet was dropped; the opt-in 'Runout' sheet was kept. No tab badge of its own: counts come from the findings bus category business. Notes use the shared notes store rather than a new localStorage key, thresholds and overrides use profile.features. The rows 1-13 patcher test moves to patcher-safety/export-gate, not here. The proposal's own error (BP 0K080 is runout-n2) is corrected. Security scope was not added.",
+      "merged_from": [
+        "supply:runout-tracker",
+        "management:management-alerts"
+      ],
+      "support_count": 1,
+      "oppose_count": 0,
+      "modify_count": 15,
+      "wave": 12
+    },
+    {
+      "id": "onboarding",
+      "title_th": "เริ่มต้นใช้งาน ข้อมูลตัวอย่าง และตรวจเบราว์เซอร์",
+      "title_en": "Guided first run, demo and browser check",
+      "spec": "ฟีเจอร์เดียว src/features/onboarding/ รวม 3 ส่วน: StepStrip, โหมดข้อมูลตัวอย่าง, ตรวจเบราว์เซอร์ตอนบูต (ไม่มีแท็บ ไม่มี coach marks ในรอบแรก)\n\n1) StepStrip (steps.js, pure): computeSteps(state, findings?) คืน [{id,label,status:'todo'|'current'|'done',hint}] 5 ขั้น: 1 ไฟล์หลัก (done เมื่อมี template; ไม่บังคับ ถ้ามีไฟล์แต่ไม่มี template hint 'ข้าม - จะสร้างไฟล์ใหม่'), 2 ไฟล์โรงงาน (done เมื่อมีไฟล์ status done/ready อย่างน้อย 1; hint 'BP 1 · BPK 1 · GW 2 · SR 0' และ 'ขาด: SR' คำนวณจาก fileCounts/categorizeFile), 3 ประมวลผล (current เมื่อมีไฟล์และ (ไม่มี processedData หรือ isStale); stale hint มีคำว่า 'ประมวลผลใหม่'), 4 ตรวจสอบ (current หลังประมวลผล; done เมื่อ findings ไม่มี level error หรือถูก acknowledge ทั้งหมด; ถ้าไม่มี findings store ให้ถือว่า done), 5 ดาวน์โหลด (done เมื่อ state.lastExport ตรงกับ processedSignature ปัจจุบัน). อ่าน field ของ state จริงจาก useConsolidator.js แบบ defensive (field ไม่มีให้ข้าม). index.jsx export default {id:'onboarding', order:5, slots:{banner}} เรนเดอร์ <StepStrip/> ผ่านช่อง banner(ctx) ของ feature-contract; แต่ละ step เป็นปุ่ม กด step ที่ done/current เพื่อเรียก actions.goTo (ถ้าไม่มีให้ใช้ setTab ที่มีอยู่). สตริปแสดงเป็นการสะท้อน state ไม่ใช่นำทางซ้อน; มือถือ 390px ต้องเลื่อนแนวนอนในสตริปเองได้ ไม่ทำให้หน้าล้น; มี data-testid=step-strip และมีได้ชิ้นเดียว. ไอคอนจาก Icons.jsx เท่านั้น.\n\n2) โหมดตัวอย่าง: headerActions แสดงปุ่ม 'ลองข้อมูลตัวอย่าง' เฉพาะเมื่อ sourceFiles ว่างและยังไม่ processedData. loadSamples.js เป็นโมดูลเดียวที่ใช้ fetch แบบ relative same-origin: โหลด samples/manifest.json {demo:true, productionMonth, template, sources[], expected{partNumbers,...}} แล้วโหลดไฟล์เป็น File; จากนั้น setTemplateFile, addSourceFiles, processAll และ setNotice โทน warning 'กำลังใช้ข้อมูลตัวอย่าง (เดือนผลิต ...) - ตัวเลขเป็นข้อมูลสังเคราะห์ กดรีเซ็ตเพื่อใช้ไฟล์จริง'. เพิ่ม flag isDemo + setDemo ใน useConsolidator (additive), reset ล้าง isDemo; StepStrip แสดง chip 'ตัวอย่าง'; ชื่อไฟล์ export เติม prefix 'DEMO_' ผ่าน hook ชื่อไฟล์ที่มี (ถ้า renderFileName ยังไม่มี ให้ทำ wrapper เล็กใน onboarding แล้วย้ายไปใช้ภายหลัง). ไฟล์ตัวอย่างอยู่ public/samples ที่ได้จาก fixture generator ของ test-infra เท่านั้น (ห้ามรวมข้อมูลจริง); ถ้า manifest โหลดไม่ได้ให้ setNotice ภาษาไทยบอกว่าไม่พบข้อมูลตัวอย่าง ไม่ throw.\n\n3) ตรวจเบราว์เซอร์: public/boot-check.js สคริปต์คลาสสิก (ไม่ inline) อ้างใน index.html ก่อน module entry; ตรวจ structuredClone, Array.prototype.at, Object.hasOwn, Blob.prototype.arrayBuffer, Promise.allSettled. index.html #root มี 'กำลังโหลด...'; main.jsx ตั้ง window.__moowhanBooted=true หลัง render; หลัง 8 วินาทีถ้าไม่ boot หรือขาดความสามารถ แทน #root ด้วยข้อความไทย 'เบราว์เซอร์นี้เก่าเกินไป กรุณาใช้ Chrome หรือ Edge เวอร์ชันล่าสุด หรือติดต่อ IT' พร้อม userAgent. ฟังก์ชัน isSupported(win) แยกเป็น UMD-style ให้ Node test เรียกได้ (public/boot-check.js ตั้ง module.exports เมื่อมี). Edge: แสดงข้อความเฉพาะกรณีจำเป็น และลบ timer เมื่อ booted.\n\nตัดออกจากรอบนี้ (ลดขอบเขตตามคำขอ): coach marks, การ์ด readiness ที่กดได้, TabBar scroll ใหม่, EmptyState ทุกแท็บ, ซึ่งเป็นของ ui-kit/help-center ภายหลัง; Banner action prop ให้ทำเฉพาะปุ่ม 'ประมวลผลใหม่' ของ stale banner ถ้าแก้ได้เล็กน้อย.",
+      "acceptance_criteria": [
+        "computeSteps ผ่านเคส: มีแค่ template (ขั้น 2 current), มีไฟล์ (ขั้น 3 current), isStale (ขั้น 3 current และ hint มี 'ประมวลผลใหม่'), ประมวลผลแล้วมี error finding (ขั้น 4 current), acknowledge แล้ว (ขั้น 4 done), lastExport ตรง signature (ขั้น 5 done)",
+        "hint 'ขาด: X' แสดงเฉพาะโรงงานที่ fileCounts เป็น 0",
+        "StepStrip เรนเดอร์ผ่าน slots.banner เพียงชิ้นเดียว และไม่ทำให้หน้า 390px เลื่อนแนวนอน",
+        "ปุ่ม 'ลองข้อมูลตัวอย่าง' โหลด samples ประมวลผล และแสดง notice ตัวอย่าง; ซ่อนเมื่อมีไฟล์จริง; รีเซ็ตแล้ว isDemo=false",
+        "ชื่อไฟล์ดาวน์โหลดตอน isDemo ขึ้นต้น DEMO_",
+        "fetch ปรากฏเฉพาะใน src/features/onboarding/loadSamples.js และใช้ URL แบบ relative",
+        "isSupported(fakeWindow) คืน false เมื่อขาด structuredClone และ true เมื่อมีครบ",
+        "index.html โหลด boot-check.js แบบ classic script ก่อน module entry โดยไม่มี inline script",
+        "เมื่อ boot ปกติข้อความ 'กำลังโหลด...' หายและไม่มีข้อความ unsupported",
+        "npm test และ npm run build ผ่าน"
+      ],
+      "new_files": [
+        "src/features/onboarding/index.jsx",
+        "src/features/onboarding/steps.js",
+        "src/features/onboarding/StepStrip.jsx",
+        "src/features/onboarding/loadSamples.js",
+        "public/boot-check.js",
+        "tests/onboarding.test.js",
+        "tests/bootCheck.test.js"
+      ],
+      "shared_files": [
+        "src/state/useConsolidator.js",
+        "src/main.jsx",
+        "index.html",
+        "tests/e2e/smoke.mjs"
+      ],
+      "depends_on": [
+        "feature-contract",
+        "test-infra"
+      ],
+      "effort": "M",
+      "priority": 4,
+      "decision_notes": "รวม ux:guided-stepper และ adoption:guided-first-run เป็น StepStrip เดียว (ทุกฝ่ายค้านสองแถบ) คำนวณด้วย computeSteps แบบ pure และเรนเดอร์ผ่าน slots.banner ของ feature-contract; เงื่อนไข QA (ขั้น 4 done เมื่อไม่มี error หรือ acknowledge หมด) และ hint 'ขาด: SR' รับเข้ามา โดยอ่านจาก findings เมื่อมี ไม่งั้นใช้ fileCounts. demo-mode รับข้อกำหนดทั้งหมดของฝ่ายค้าน: ตัวอย่างต้องมาจาก fixture generator ตัวเดียว (ไม่มีข้อมูลจริง), fetch เฉพาะ same-origin relative ในโมดูลเดียว (CSP connect-src 'self'), prefix DEMO_ ผ่านกลไกชื่อไฟล์กลาง, ปิดการเขียน autosave/history เมื่อ isDemo (guard ผ่าน flag ให้ฟีเจอร์ storage ตรวจ). browser-check รวมเป็นส่วนที่สาม แบบ classic script ไม่ inline เพื่อเข้ากับ CSP. ตามคำขอผู้ใช้ให้ลดความพยายาม จึงเลื่อน coach marks, การ์ด readiness ที่กดได้, TabBar ใหม่ และ EmptyState ไปให้ ui-kit/help-center; ไม่เพิ่มขอบเขตด้านความปลอดภัย. ปัญหา label เปลี่ยนต้องอัปเดต smoke.mjs ใน commit เดียวกัน.",
+      "tests": [
+        "vitest: computeSteps ครบ 6 เคสตาม AC และเคส state ว่าง",
+        "vitest: hint ขาดโรงงานจาก fileCounts",
+        "vitest: isSupported(fakeWindow) true/false",
+        "vitest: grep ว่า fetch( อยู่เฉพาะ loadSamples.js",
+        "vitest: manifest ตัวอย่างอ่านได้และ categorizeFile ตรงกับ expected (เมื่อ generator พร้อม)",
+        "e2e: step-strip มี 1 ชิ้นหลังประมวลผล",
+        "e2e: คลิกลองข้อมูลตัวอย่างแล้วถึงหน้าตรวจสอบข้อมูล ชื่อไฟล์ดาวน์โหลดขึ้นต้น DEMO_ และไม่มี request ข้ามโดเมน",
+        "e2e: block __moowhanBooted ด้วย init script แล้วข้อความ unsupported ปรากฏภายใน 10 วินาที"
+      ],
+      "merged_from": [
+        "ux:guided-stepper",
+        "adoption:guided-first-run",
+        "adoption:demo-mode",
+        "adoption:browser-check"
+      ],
+      "support_count": 6,
+      "oppose_count": 0,
+      "modify_count": 18,
+      "wave": 13
+    },
+    {
+      "id": "run-history",
+      "title_th": "ประวัติการรัน แนวโน้ม และความแม่นยำ",
+      "title_en": "Run history, trends and accuracy",
+      "priority": 3,
+      "effort": "M",
+      "depends_on": [
+        "feature-contract",
+        "storage-session",
+        "provenance-manifest"
+      ],
+      "new_files": [
+        "src/features/run-history/index.jsx",
+        "src/features/run-history/logic.js",
+        "src/features/run-history/trend.js",
+        "src/features/run-history/accuracy.js",
+        "src/features/run-history/RunHistoryPanel.jsx",
+        "src/features/run-history/TrendChart.jsx",
+        "tests/run-history.test.js"
+      ],
+      "shared_files": [
+        "src/state/useConsolidator.js"
+      ],
+      "spec": "Goal: persist a compact snapshot of every processing run, show history, plant-level trends, and forecast accuracy (what N+1..N+3 said vs the Firm N). Single feature src/features/run-history, no new top-level tab (the nav is already overfull): it renders as a section inside the existing summary/dashboard area through the contract's panel slot, and as a baseline option for the compare feature.\n\nData (logic.js, pure, no DOM):\n- toSnapshot(ctx, manifest?) -> { schemaVersion:1, id, createdAt, productionMonth, issueDate, revision, forecastType, files:[{name, plant, rows, size, sha256?}], totals:{n,n1,n2,n3}, byPlant:{BP:{n,n1,n2,n3}...}, qa:{errors,warnings,overrides}|null, editsCount, export:{fileName,sha256,exportedAt}|null, parts?:[{plant,part,dock,n,n1,n2,n3}] }. When the manifest from provenance-manifest (buildManifest) exists, reuse its fields (same schema); otherwise derive from state (processedData, totals, summaryData, changeLog) and leave hash/qa as null. Never store rawRow or partDesc.\n- Tier A (default): no parts, under 3 KB per run. Tier B 'เก็บข้อมูลราย Part เพื่อเทียบรอบก่อน' opt-in (setting stored in the storage settings namespace, in the Toyota-data tier with its expiry): adds parts, aggregated per plant|part|dock (about 29 rows on the fixture).\n- upsertRun(list, snap): replace entry with same signature (sorted file sha256 or name+size set, plus productionMonth), else prepend; cap 24, drop oldest; returns new list. Pure.\n- loadRuns/saveRuns go through the shared storage layer (src/lib/storage, namespace 'runs'); on QuotaExceeded halve the list and retry, never throw to the UI. Do not touch localStorage or IndexedDB directly. Until storage-session lands, accept an injected backend (default in-memory) so tests run in Node.\n- importRuns(json)/exportRuns(list): JSON of manifests; validate schemaVersion and shape, merge via upsertRun, reject bad files with a Thai message.\n\nHooks: onProcessed(ctx, result) writes the snapshot; onExported(ctx, result) patches export.fileName/sha256 on the latest run. If onProcessed receives a stale ctx (known bug), use the result argument from the contract. Reset does not clear history; wipe-all in the storage panel does. Register the 'runs' entry in the 'ข้อมูลที่เก็บในเครื่องนี้' panel (n runs, size).\n\ntrend.js (pure): buildTrend(runs,{months:12}) groups by productionMonth, picks the signed-off run, else the latest; returns series.total and series.byPlant ordered by calendar month; drift per plant/month = (N of month m) vs (N+3 given by the run 3 months earlier), pct, null when no overlapping run. TrendChart: inline SVG line chart plus small table; viewBox-scaled, no horizontal overflow at 390px; show an empty state with one point.\n\naccuracy.js (pure): accuracy(runs) pairs, for each calendar month m with a Firm value (horizon N of its latest run, highest revision), the values given earlier at N+1, N+2, N+3; error % = (forecast-firm)/firm; bias (signed mean) and MAPE per horizon x plant, plus pair counts; level plant (Tier A) or part (Tier B). Show '-' when no pair, never 0. Fewer than 2 runs: empty state 'ต้องมีประวัติอย่างน้อย 2 รอบ'. Use the same calendar-month alignment helper as compare.\n\nUI (Thai): RunHistoryPanel lists latest 6 runs (date, production month, Rev, N files, N total, exported file name, ส่งแล้ว badge), per-row 'ลบ', and buttons 'ใช้เป็นฐานเปรียบเทียบ' (disabled with tooltip 'ไม่มีข้อมูลราย Part (เปิดใน ตั้งค่า)' without parts; calls actions.setFeatureState('compare',{baseline}) when available), 'ส่งออก JSON', 'นำเข้า JSON'. Sub-sections 'แนวโน้ม' and 'ความแม่นยำ'. exportSheets: opt-in values-only sheet 'FC Accuracy' (aoa) only when enabled in settings; default off. Only plain extraSheets, no template writes.",
+      "acceptance_criteria": [
+        "After processAll on the fixtures, loadRuns returns 1 entry with productionMonth '202602', per-file rows, totals and byPlant matching computeTotals; no parts when Tier B is off and JSON under 3 KB; with Tier B on, parts present and JSON under 20 KB",
+        "upsertRun with the same file set and month replaces the entry (count unchanged); more than 24 runs drops the oldest",
+        "saveRuns with a backend throwing QuotaExceededError keeps a reduced list and does not throw",
+        "onExported patches export.fileName of the latest run; reset keeps history; storage wipe-all clears it",
+        "buildTrend over 4 synthetic runs returns 4 calendar-ordered points; when two runs share a month the signed-off (else latest) one is used; drift is null without an overlapping run and the UI shows '-'",
+        "accuracy: pairs earlier N+k forecasts with the Firm N, uses highest revision only, shows '-' for horizons with no pairs, empty state with fewer than 2 runs",
+        "importRuns accepts exportRuns output and rejects malformed JSON with a Thai message",
+        "No horizontal overflow at 390px; no static import of xlsx/jszip; no new dependency"
+      ],
+      "decision_notes": "Merged run-history, trend-view and forecast-accuracy into one feature because all three read the same snapshots. Critics (excel, qa, architect, integration, adoption, ux, supply) objected to a sixth persistence design: resolved by storing only through the shared storage layer namespace 'runs' with its wipe/expiry, and by making the snapshot the same schema as buildManifest. onExported comes from the feature-contract hook instead of wrapping actions.exportExcel. UX objection to a new tab: no tab; panel inside dashboard/summary plus compare baseline option. Supply wanted plant x part x dock rows while security wanted minimal data: Tier A (totals only, default) and Tier B per-part opt-in with expiry; plant-level trend and accuracy work on Tier A, part-level needs Tier B. Compare owns the sub-view integration; this feature only provides baseline data and shared alignment. Security hardening scope is not added beyond what the storage layer already provides.",
+      "tests": [
+        "vitest toSnapshot on fixture: productionMonth 202602, files with rows, totals equal computeTotals, no rawRow, JSON size under 3 KB (Tier A) and under 20 KB (Tier B)",
+        "vitest upsertRun: replace same signature, cap 24 drops oldest",
+        "vitest saveRuns with quota-throwing in-memory backend: no throw, list reduced",
+        "vitest importRuns/exportRuns round trip and malformed input rejection",
+        "vitest buildTrend: ordering, signed-off preference, drift value and null case",
+        "vitest accuracy: pairing, highest revision only, '-' for missing horizons, empty with fewer than 2 runs",
+        "e2e: process fixtures, history panel shows 1 run; reset keeps it; at 390px no horizontal scroll"
+      ],
+      "merged_from": [
+        "management:run-history",
+        "management:trend-view",
+        "supply:forecast-accuracy"
+      ],
+      "support_count": 1,
+      "oppose_count": 0,
+      "modify_count": 7,
+      "wave": 14
+    },
+    {
+      "id": "qa-file-guards",
+      "title_th": "ตรวจไฟล์นำเข้า ซ้ำ revision และ metadata",
+      "title_en": "Intake file guards and metadata",
+      "priority": 5,
+      "effort": "M",
+      "depends_on": [
+        "feature-contract",
+        "qa-engine",
+        "template-inspector"
+      ],
+      "spec": "เป้าหมาย: ป้องกันไฟล์ซ้ำ/revision เก่า/ไฟล์ขาด ตั้งแต่ตอนวางไฟล์ และแสดง metadata ชัดเจน (ไม่มีขอบเขต security)\n\n1) readSource.readMetadata (src/lib/excel/readSource.js, additive): เพิ่ม meta.partType ('V'|'P'|'' จากแถว PART TYPE), meta.revisionType, meta.wocWeek. ไม่แตะ key เดิม. เพิ่ม helper บริสุทธิ์ fingerprintRows(rows): normalize (trim, uppercase, ยุบช่องว่าง) แล้วสร้างบรรทัด `${partNumber}|${dockCode}|${n}|${n1}|${n2}|${n3}` เรียงลำดับ แล้ว hash (ไม่รวม PART DESC). เพิ่ม inspectSourceBuffer(buffer) -> {meta,rowCount,rows,fingerprint} parse ครั้งเดียว.\n2) src/features/qa-file-guards/hash.js: sha256Hex(bufferOrString) ผ่าน globalThis.crypto.subtle (Node webcrypto ใน test). ถ้ามี util กลางจาก provenance-manifest ให้ re-export แทนการเขียนซ้ำ.\n3) src/features/qa-file-guards/logic.js (pure): findDuplicateFiles(files) (sha256 หรือ rowsHash เท่ากัน ชื่อต่างกัน -> duplicateOf), compareRevisions(files) (โรงงาน+partType เดียวกัน revision/issueDate ต่างกัน -> เตือนไฟล์เก่า), resolveNewer(a,b) (revision สูงกว่า > issueDate ใหม่กว่า > lastModified), expectedFilesChecklist(prevSnapshotFiles, currentFiles) -> [{plant,partType,label,present}], และ findings รูปแบบ Issue ของ qa-engine (กลุ่ม D01 ไฟล์ซ้ำ, D02/D03 Part+Dock ซ้ำ (key รวม DOCK CODE เพื่อไม่ flag BPK 0K051 BN/D1), D04 revision/issue date ต่างกัน, F01 ไฟล์ที่เคยมีรอบก่อนแต่ไม่มี). ลงทะเบียนเป็นกลุ่มกฎผ่าน qa-engine; ถ้า engine ยังไม่พร้อม export ฟังก์ชันให้ engine เรียก.\n4) useConsolidator.addSourceFiles (additive): หลังรับไฟล์ ตั้ง status 'inspecting' แล้วคำนวณ sha256 + meta ด้วย inspectSourceBuffer แบบ lazy/async cache ต่อ file id (processAll ใช้ cache ถ้ามี); เติม sourceFiles[i].sha256/meta/duplicateOf. เพิ่ม actions removeSourceFile (มีแล้ว) และ useNewerFile(idA,idB) ที่ลบไฟล์เก่าและ log ผ่าน log(). ชื่อซ้ำเดิมยังข้าม; เพิ่ม replaceSourceFile(id,file) (ถามแทนที่/ข้าม).\n5) UI: FileCard (src/features/qa-file-guards/FileCard.jsx) แสดง chip 'เดือน 202602 · ออก 23/01/2026 · Rev 0 · Vehicle/Packing · F · 12 แถว', chip แดง 'ซ้ำกับ <ชื่อ>' พร้อมปุ่ม 'ลบไฟล์นี้' และ 'ใช้ไฟล์ใหม่กว่า', chip เหลือง 'Rev เก่ากว่า'. ExpectedFilesCard: 'ไฟล์ที่คาดว่าจะได้รับ (อ้างอิงรอบก่อน)' ✓/– ต่อ plant+type อ่านจาก snapshot ของ run-history ผ่าน storage layer; ไม่มี snapshot ไม่แสดง; ข้อความ 'ข้อมูลอ้างอิงเก็บในเบราว์เซอร์เครื่องนี้เท่านั้น'. ผ่าน slot uploadPanel/banner ของ feature-contract.\n6) ป้าย Firm/FC: constants.HORIZON_META [{key:'n',kind:'firm',badge:'Firm'},{n1..n3 kind:'forecast',badge:'FC'}] แสดงที่หัวคอลัมน์ N..N+3 ของ Summary/Preview ผ่านคอมโพเนนต์ HorizonBadge ขนาดเล็ก; ถ้าไฟล์ใด forecastType != 'F' ไม่แสดง Firm แต่แสดง 'ประเภท forecast: X'. PreviewTab เพิ่มตัวกรอง Vehicle/Packing (ซ่อนถ้า partType ว่างทั้งหมด).\n7) feature object ไม่มี onProcessed/setNotice; คำเตือนทั้งหมดผ่าน QA findings. ไม่เพิ่มชีท 'Source Files' (manifest/Run Info เป็นของ provenance-manifest ซึ่งอ่าน meta ใหม่นี้).",
+      "acceptance_criteria": [
+        "readSource: GW veh DG7 partType 'V', GW packing B-MPV 'P', revisionType 'M', wocWeek '00-00' ทุกไฟล์; aoa ที่ไม่มี PART TYPE -> partType '' และ test เดิมผ่าน",
+        "อัปโหลด BPK packing 481D.xls สองชื่อ -> D01 error 1 รายการ และ D02 12 รายการ; fixtures ปกติ 0 รายการ (BPK 0K051 BN/D1 ไม่ถูก flag)",
+        "ลบไฟล์ซ้ำแล้ว process ใหม่ ยอด N ของ 86790-0K051-00 = 9673",
+        "BP สอง revision (0,1) -> D04 เตือนไฟล์ rev 0 และ resolveNewer เลือก rev 1",
+        "rowsHash เท่ากันเมื่อต่างแค่ช่องว่างใน PART DESC และต่างเมื่อค่า N เปลี่ยน",
+        "chip 'ซ้ำ' และ meta เดือน/วันที่ออก/Rev ขึ้นบนการ์ดก่อนกดประมวลผล",
+        "ExpectedFilesCard แสดง – ที่ 'GW veh' เมื่อขาดไฟล์; ไม่แสดงอะไรเมื่อไม่มี snapshot",
+        "ป้าย Firm ที่หัว N ของ Summary/Preview; ไม่มีเมื่อ forecastType != 'F'; ตัวกรอง Packing = 14 แถว, Vehicle = 15 แถว",
+        "npm test และ npm run build ผ่าน"
+      ],
+      "new_files": [
+        "src/features/qa-file-guards/index.jsx",
+        "src/features/qa-file-guards/logic.js",
+        "src/features/qa-file-guards/hash.js",
+        "src/features/qa-file-guards/FileCard.jsx",
+        "src/features/qa-file-guards/ExpectedFilesCard.jsx",
+        "src/features/qa-file-guards/HorizonBadge.jsx",
+        "tests/qa-file-guards.test.js"
+      ],
+      "shared_files": [
+        "src/lib/excel/readSource.js",
+        "src/state/useConsolidator.js",
+        "src/constants.js",
+        "src/components/UploadTab.jsx",
+        "src/components/PreviewTab.jsx",
+        "src/components/SummaryTab.jsx"
+      ],
+      "decision_notes": "รวม 4 ข้อเสนอเป็นฟีเจอร์เดียว. กฎซ้ำ/revision ทำครั้งเดียว (D01-D04 ใน logic.js ป้อน QA engine) ตัด onProcessed/setNotice ของ horizon-meta ตามคำวิจารณ์ทุกฝ่าย. sha256 util เดียว (ใช้ร่วมกับ provenance-manifest). expected-files อ่านจาก snapshot ของ run-history ผ่าน storage layer ไม่สร้าง localStorage key ใหม่ ตัด F03/partsPerPlant เพื่อไม่เก็บเลข part. ชีท 'Source Files' ตัดทิ้ง ใช้ Run Info. Firm/FC badge ใช้ HorizonBadge เล็ก ๆ เพิ่มใน header ที่มีอยู่ (หรือ column def กลางถ้ามี) แทนการรื้อหลายคอมโพเนนต์. smart-file-cards ย่อเหลือ chip metadata + replace + cache ต่อ id; ส่วน template checklist และ PLANT_CODE/R06 ปล่อยให้ template-inspector และ qa-engine/settings-profile.",
+      "tests": [
+        "vitest: sha256Hex เสถียรเมื่อ buffer เดิม",
+        "vitest: fingerprintRows ไม่สนใจ PART DESC",
+        "vitest: findDuplicateFiles/D01-D03 บน fixture BPK สองชุด",
+        "vitest: compareRevisions + resolveNewer",
+        "vitest: expectedFilesChecklist ขาด GW veh -> F01",
+        "vitest: readMetadata partType/revisionType/wocWeek ทั้ง 5 fixtures",
+        "vitest: feature object ไม่มี onProcessed",
+        "e2e: วาง 5 ไฟล์ เห็นเดือน/วันที่ออก/Rev บนการ์ด, วางซ้ำเห็น chip ซ้ำ, ป้าย Firm ใน Summary"
+      ],
+      "merged_from": [
+        "qa:duplicate-revision-guard",
+        "qa:expected-files-memory",
+        "ux:smart-file-cards",
+        "supply:horizon-meta"
+      ],
+      "support_count": 21,
+      "oppose_count": 0,
+      "modify_count": 11,
+      "wave": 15
+    },
+    {
+      "id": "import-cli",
+      "title_th": "นำเข้าแบบอื่นและโหมด CLI",
+      "title_en": "Alternative intake and CLI",
+      "priority": 3,
+      "effort": "L",
+      "depends_on": [
+        "feature-contract",
+        "qa-engine",
+        "qa-file-guards",
+        "export-gate",
+        "provenance-manifest",
+        "flat-export",
+        "settings-profile"
+      ],
+      "spec": "Three deliverables in one item, shipped in this order: (1) zip/eml expansion, (2) Node CLI, (3) folder picker. All logic is pure and DOM-free.\n\n1. Archive intake. Pure modules src/features/import-cli/zip.js and eml.js. expandZip(buf) uses JSZip (loaded only through the lazy barrel src/lib/excel/index.js, which must re-export a loadJSZip/expand helper). It keeps entries whose basename ends in .xls/.xlsx, skips directories and __MACOSX/ or names starting with '._', reduces path-like names to their basename, and returns { files:[{name, bytes, lastModified}], skipped:[{name, reason}] }. LIMITS: max 200 entries, 50 MB inflated total counted while inflating, and abort without partial results; one nesting level (an inner .zip is skipped with a warning). eml.js (second step): multipart boundary walk, filename from Content-Disposition/Content-Type name=, RFC 2047 =?UTF-8?B?..?= and RFC 2231 filename*=, base64 decode; quoted-printable attachments produce a warning and are skipped; a .zip attachment is expanded one level; body and headers are dropped and never logged or stored. A .msg (CFB magic D0CF11E0) gets the Thai error 'ไฟล์ .msg (Outlook) ยังไม่รองรับ - บันทึกอีเมลเป็น .eml หรือลากไฟล์แนบออกมาก่อน'. index.jsx default-exports { id:'import-cli', order:15, expandFiles(file) } with no tab. expandFiles returns File[] or null (not mine). It is the hook defined by feature-contract; if that item has not landed, add the hook minimally. addSourceFiles in useConsolidator becomes async: for each dropped file run expandFiles, then send every resulting File through the existing categorizeFile, the duplicate check and validators from qa-file-guards. Add a notice in the form 'แตกไฟล์จาก forecast.zip: เพิ่ม 5 ไฟล์ (...) • ข้าม 2: ...' and a changelog entry with counts and basenames only. UploadTab source accept becomes '.xlsx,.xls,.zip,.eml' with the hint 'ลากไฟล์ .xls/.xlsx หรือ .zip ที่มีไฟล์แนบมาวางได้เลย'.\n\n2. CLI. scripts/consolidate.mjs plus package.json bin, scripts.consolidate and engines.node '>=20.19'. Pipeline: scan --input, categorizeFile on basenames (unknown names such as download.xlsx get a warning), readSourceBuffer, buildSummary, qa-engine rules, then the gate: any block or confirm finding means no workbook, exit 2, and Thai findings on stderr. --allow-warnings lets confirm-level findings pass. Then buildExport with --template/--profile/--name (renderFileName), verifyExport (failure means exit 3 and file suffix _UNVERIFIED), a manifest run_{month}.json, optional --csv/--json/--bundle through flat-export, --now for a deterministic clock, --quiet. stdout is exactly one JSON line { schemaVersion, outputs:[{path,sha256,bytes}], files:[{name,plant,rows,productionMonth,revision,sha256}], totals, findings, verification, warnings, exitCode }. Exit codes: 0 ok, 1 fatal, 2 gate, 3 verification. A `verify` subcommand re-checks an output file. Import only src/lib/**, src/utils/**, src/constants.js and src/features/*/logic.js, never components, React or Vite-only code. A guarded appVersion is needed because __APP_VERSION__ is undefined in Node. No network APIs. Write docs/cli.md (n8n Execute Command example, exit codes, JSON contract, a note that the batch host holds confidential files) and link it from the README under 'สำหรับ IT / รันแบบ batch'.\n\n3. Folder picker, experimental, last. src/features/import-cli/folder.js has pure planFolderImport(entries) which returns {template, sources, previousOutput, skipped}. A header button 'เปิดโฟลเดอร์เดือนนี้ (ทดลอง – Chrome/Edge)' renders only when window.showDirectoryPicker exists. A modal summarises the files and runs setTemplateFile, addSourceFiles and processAll. Saving back to a folder is an explicit target in the ExportDialog ('บันทึกลงโฟลเดอร์'), written only after the gate and verifyExport pass, never overwriting (collision suffix _v2/_v3), with a fallback to download plus a Thai warning on failure. The handle is persisted only through src/lib/storage (namespace 'handles'). If export-gate or storage-session are missing, ship only planFolderImport and the import button and defer the save target.",
+      "acceptance_criteria": [
+        "A zip built in-test from the 5 fixtures plus __MACOSX, a sub/dir/download.xlsx and an inner.zip expands to 5 files with original basenames and byte-identical content; inner.zip is reported as skipped (nesting)",
+        "A zip with 201 entries or an inflated total over 50 MB is refused with a Thai message and adds no files",
+        "addSourceFiles given [forecast.zip] ends with 5 source files, counts BP1/BPK1/GW2/SR1, and every extracted file passes the same validators; dropping the same zip twice adds nothing",
+        "A synthetic .eml with two base64 attachments (RFC 2047 name and RFC 2231 name) yields two Files with decoded names; quoted-printable is skipped with a warning; body and header sentinel strings never appear in state, changelog or console",
+        "A .msg file yields the Thai 'ยังไม่รองรับ' error without a crash",
+        "CLI on the fixtures exits 0, writes an xlsx with 'BP Daily'!A14 = '86790-0K051-00' and Analyze!EH3 = 'BP', prints exactly one JSON line with files.length 5 and a warning mentioning download.xlsx",
+        "CLI exits 2 and writes no xlsx on a block-level finding; a confirm-level finding gives exit 2 without and 0 with --allow-warnings",
+        "Two CLI runs with the same --now produce an identical xlsx sha256",
+        "A contract test confirms the CLI and its imports use no react, vite, components, features/index.js or network APIs",
+        "planFolderImport picks the template with the Daily+Analyze sheets, lists previous output and skipped files, and the button is absent when showDirectoryPicker is missing",
+        "npm test and npm run build pass, and the Vite bundle does not include scripts/"
+      ],
+      "new_files": [
+        "src/features/import-cli/index.jsx",
+        "src/features/import-cli/zip.js",
+        "src/features/import-cli/eml.js",
+        "src/features/import-cli/folder.js",
+        "src/features/import-cli/cli.js",
+        "scripts/consolidate.mjs",
+        "docs/cli.md",
+        "tests/import-cli.test.js",
+        "tests/cli.test.js"
+      ],
+      "shared_files": [
+        "src/state/useConsolidator.js",
+        "src/components/UploadTab.jsx",
+        "src/features/index.js",
+        "src/lib/excel/index.js",
+        "src/lib/excel/exportWorkbook.js",
+        "package.json",
+        "README.md",
+        "CLAUDE.md"
+      ],
+      "decision_notes": "The three member proposals are merged into one feature delivered in phases: zip first, then eml (same expandFiles hook, per planner), then the CLI, with the folder picker last and optional. Planner's opposition to the CLI is resolved by making it run the identical qa-engine gate and verifyExport: block or confirm findings mean no output and exit 2, and only the explicit --allow-warnings flag relaxes this. Architect's points are accepted: expandFiles is defined once in the feature contract, the appVersion guard, and a contract test that logic files import no React or Vite code. ux and management on the folder picker are accepted: it is an explicit ExportDialog target, labelled experimental, hidden when the API is absent, never overwrites, and always falls back to download. The storage handle goes through the shared storage layer only. Security-hardening scope was dropped at the user's request, so the CLI keeps only the cheap archive limits needed to avoid hangs and no extra sanitizers. The proposals' separate archive-import and folder-sync feature dirs were folded into the single import-cli directory as the item requires. The qa and security-driven file renames were dropped in favour of the shared renderFileName.",
+      "tests": [
+        "vitest: expandZip on in-test zips (basenames, skips, nesting, 201-entry and size limits)",
+        "vitest: parseEml with RFC 2047 and RFC 2231 names, quoted-printable skip, sentinel not leaked, .msg refusal",
+        "vitest: planFolderImport table cases and the collision suffix helper",
+        "vitest: tests/cli.test.js spawns scripts/consolidate.mjs on the fixtures and checks exit codes, JSON line, determinism and the gate",
+        "vitest: contract grep test for forbidden imports in scripts and logic files",
+        "e2e: dropping a zip built from input/ gives the same totals as dropping the 5 files"
+      ],
+      "merged_from": [
+        "integration:archive-email-import",
+        "integration:local-folder-workflow",
+        "integration:cli-batch"
+      ],
+      "support_count": 13,
+      "oppose_count": 1,
+      "modify_count": 10,
+      "wave": 16
+    }
+  ],
+  "rejected": [
+    {
+      "proposal_id": "supply:material-coverage",
+      "reason": "ผู้เสนอถอนในรอบโต้แย้ง: 3 oppose / 5 modify / 0 support — ยอมรับเหตุผลหลัก: OH/on-order/lead time ไม่มี source of truth ในไฟล์ TMT (อยู่ใน Odoo/ERP) ค่าที่พิมพ์มือจะล้าสมัยแต่แสดงด้วยสีแดงแบบมีอำนาจ (planner/management/ux), การประมาณ N+4/N+5 ด้วยค่าเฉลี่ยเป็น false precision ที่จะถูกส่งออกข้างตัวเลขที่ตรวจแล้ว (qa), และชีท"
+    },
+    {
+      "proposal_id": "architect:worker-pipeline",
+      "reason": "ผู้เสนอถอนในรอบโต้แย้ง: Six opposes and three 'defer' against a measured 185 ms patch and 667 ms for 1000 rows, with ~30 real rows a month; the CLI cannot share a worker, module-worker chunking on Vercel adds a failure mode, and the worker boundary would complicate passing findings and verification results. Withdrawn. The "
+    },
+    {
+      "proposal_id": "security:privacy-check",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:input-guard",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:offline-guarantee",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:audit-trail",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:local-session",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:auto-wipe",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:render-safety",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:synthetic-fixtures",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:repo-remediation",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:export-recipient",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:trusted-template",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:reset-hygiene",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "security:dependency-hygiene",
+      "reason": "ผู้ใช้สั่งข้ามด้านความปลอดภัย (ข้อเสนอจากฝ่ายความปลอดภัย)"
+    },
+    {
+      "proposal_id": "excel:extend-capacity-mode",
+      "reason": "XL effort and rewrites row numbers and formulas across sheets, which risks damaging template pivots and formulas, so it is rejected."
+    }
+  ]
+}

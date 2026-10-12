@@ -1,31 +1,31 @@
 {
-  "name": "excell",
-  "version": "1.0.0",
-  "description": "",
+  "name": "moowhan",
+  "version": "1.1.0",
+  "description": "เครื่องมือรวมไฟล์แผนการผลิต (Excel) รายโรงงาน BP / BPK / GW / SR",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "node tests/e2e/smoke.mjs"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "dependencies": {
-    "exceljs": "^4.4.0",
     "jszip": "^3.10.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
     "@vitejs/plugin-react": "^5.1.2",
-    "autoprefixer": "^10.4.23",
-    "postcss": "^8.5.6",
+    "exceljs": "^4.4.0",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4.1.18",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^5.0.3"
   }
 }

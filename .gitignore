@@ -7,3 +7,4 @@ dist-ssr
 .env.*.local
 .vscode
 .DS_Store
+.e2e-out

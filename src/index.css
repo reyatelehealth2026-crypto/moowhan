@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+/* System Thai-capable stack only: no external font request. */
+:root {
+  --font-sans: "Leelawadee UI", Thonburi, Sarabun, "Noto Sans Thai", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -8,10 +26,60 @@
   body {
     @apply bg-slate-100 text-slate-900;
     margin: 0;
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: var(--font-sans);
+  }
+
+  table {
+    line-height: 1.6;
+  }
+
+  :focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
   }
 
   button {
     font-family: inherit;
+  }
+}
+
+/* ---------- daily-grid: print plan ---------- */
+@page {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
+@media print {
+  body > #root {
+    display: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-overlay {
+    position: static !important;
+    overflow: visible !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-overlay,
+  .print-overlay table {
+    font-size: 9pt;
+  }
+
+  .print-overlay thead {
+    display: table-header-group;
+  }
+
+  .print-overlay tr {
+    break-inside: avoid;
+  }
+
+  .print-overlay .print-break {
+    break-before: page;
   }
 }
