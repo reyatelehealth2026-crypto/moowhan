@@ -17,6 +17,7 @@
 //   - fullCalcOnLoad + refreshOnLoad are set so Excel recalculates formulas
 //     and refreshes every pivot table on open
 import JSZip from 'jszip';
+import { writeProvenance } from '../../features/provenance-manifest/stamp.js';
 import { getColumnIndex, getColumnLetter, safeSheetName } from '../../utils/format.js';
 import { ANALYZE_SHEET, TEMPLATE } from '../../constants.js';
 import { resolveSheetName, spillSheetName } from './sheetNames.js';
@@ -47,7 +48,11 @@ const readText = async (zip, path) => {
   return f ? f.async('string') : null;
 };
 // write without adding synthetic folder entries to the archive
-const writeText = (zip, path, content) => zip.file(path, content, { createFolders: false });
+// Deterministic: a replaced part keeps its original zip date, a new part gets 1980-01-01 (never "now"),
+// so identical inputs give byte-identical output.
+const ZIP_EPOCH = Date.UTC(1980, 0, 1);
+const writeText = (zip, path, content) =>
+  zip.file(path, content, { createFolders: false, date: zip.files[path]?.date ?? new Date(ZIP_EPOCH) });
 
 const resolveTarget = (target) => (target.startsWith('/') ? target.slice(1) : `xl/${target}`);
 
@@ -721,11 +726,13 @@ const overflowWarning = (sheet, total, capacity, firstFormulaRow, spilled) =>
  * @param {'block'|'spill'} [opts.overflow='block']  rows that do not fit above the template's formula row
  * @param {boolean} [opts.clearBeyondTable=false]  also clear side columns right of N+3 (old behaviour)
  * @param {boolean} [opts.addAutoFilter=true]  add an autoFilter to daily sheets that have none
+ * @param {object|null} [opts.stamp]  provenance facts to write into docProps/custom.xml (see provenance-manifest/stamp.js)
+ * (opts.now is accepted and ignored: zip entry dates never depend on the clock)
  * @returns {Promise<{ buffer: ArrayBuffer, report: object }>}
  */
 export const patchTemplate = async (templateBuffer, {
   processedData, analyzeRows = [], highlight = true, extraSheets = [], cellWrites = [],
-  overflow = 'block', clearBeyondTable = false, addAutoFilter = true,
+  overflow = 'block', clearBeyondTable = false, addAutoFilter = true, stamp = null,
 }) => {
   const zip = await JSZip.loadAsync(templateBuffer);
   const sheets = await listSheets(zip);
@@ -869,6 +876,7 @@ export const patchTemplate = async (templateBuffer, {
   await extendDefinedNames(zip, patched);
   await extendPivotSources(zip, patched);
   await applyRecalcFlags(zip);
+  if (stamp) await writeProvenance(zip, stamp); // opt-in docProps/custom.xml (provenance-manifest)
 
   const buffer = await zip.generateAsync({
     type: 'arraybuffer',

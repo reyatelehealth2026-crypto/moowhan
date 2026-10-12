@@ -1,4 +1,6 @@
 // ==================== FORMATTING HELPERS ====================
+import { today as clockToday } from './clock.js';
+
 export const formatNumber = (num) => (Number(num) || 0).toLocaleString('en-US');
 
 export const formatSize = (bytes) => {
@@ -50,7 +52,7 @@ export const formatMonth = (pm, offset = 0) => {
 export const monthLabels = (pm) =>
   ['N', 'N+1', 'N+2', 'N+3'].map((h, i) => (pm ? `${h} (${formatMonth(pm, i)})` : h));
 
-export const todayStamp = () => new Date().toISOString().slice(0, 10);
+export const todayStamp = () => clockToday();
 
 // Excel sheet names: max 31 chars, none of []*?/\: and no leading/trailing apostrophe.
 export const safeSheetName = (name) =>
