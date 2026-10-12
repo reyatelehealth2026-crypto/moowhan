@@ -3,8 +3,9 @@
 // expires at the end of its production month (or earlier if `expires` is given), and cannot be set on
 // "ต้องแก้" (error) issues. Waived issues leave badges/gates but stay in the QA Report with their reason.
 //
-// Storage: an adapter { read(): object|null, write(obj) } injected with setWaiverAdapter(). The storage-session
-// feature can supply one for namespace 'waivers'; until then localStorage (guarded) or plain memory is used.
+// Storage: an adapter { read(): object|null, write(obj) }; the default is storageAdapter() over src/lib/storage.
+
+import { getStorage, registerKey } from '../../lib/storage/index.js';
 
 export const MIN_REASON = 3;
 
@@ -36,10 +37,24 @@ export const memoryAdapter = (initial = {}) => {
   let data = { ...initial };
   return { read: () => data, write: (next) => { data = { ...next }; } };
 };
-export const localStorageAdapter = (key = 'moowhan:waivers') => ({
-  read: () => { try { return JSON.parse(globalThis.localStorage.getItem(key) || 'null'); } catch { return null; } },
-  write: (obj) => { try { globalThis.localStorage.setItem(key, JSON.stringify(obj)); } catch { /* storage unavailable: keep working in memory */ } },
-});
+// Persisted through the storage layer (prefs tier): reads are served from memory (hydrate with loadSavedWaivers),
+// writes go to storage in the background and never throw.
+export const WAIVERS_KEY = 'qa.waivers';
+registerKey({ key: WAIVERS_KEY, tier: 'prefs', purpose: 'รายการ “รับทราบ” ของผลตรวจคุณภาพ (หมดอายุสิ้นเดือนผลิต)', retention: null });
+export const storageAdapter = (storage = getStorage()) => {
+  let data = {};
+  return {
+    read: () => data,
+    write: (obj) => { data = { ...obj }; Promise.resolve(storage.put('prefs', WAIVERS_KEY, data)).catch(() => {}); },
+  };
+};
+/** Waivers saved in a previous session (or {} when none / storage unavailable). */
+export const loadSavedWaivers = async (storage = getStorage()) => {
+  try {
+    const saved = await storage.get('prefs', WAIVERS_KEY);
+    return saved && typeof saved === 'object' ? saved : {};
+  } catch { return {}; }
+};
 
 /** Store over an adapter; every storage call is wrapped, with a memory copy as the fallback. */
 export const createWaiverStore = (adapter = memoryAdapter()) => {
@@ -83,6 +98,8 @@ export const createWaiverStore = (adapter = memoryAdapter()) => {
       save();
       return had;
     },
+    /** merge records loaded from storage (existing in-memory records win) without writing back */
+    hydrate(records) { cache = { ...(records || {}), ...load() }; },
     clear() { cache = {}; save(); },
   };
 };
@@ -93,8 +110,7 @@ let injected = null;
 export const setWaiverAdapter = (adapter) => { injected = adapter; defaultStore = null; };
 export const getWaiverStore = () => {
   if (!defaultStore) {
-    const browser = typeof window !== 'undefined' && !!globalThis.localStorage;
-    defaultStore = createWaiverStore(injected || (browser ? localStorageAdapter() : memoryAdapter()));
+    defaultStore = createWaiverStore(injected || storageAdapter());
   }
   return defaultStore;
 };

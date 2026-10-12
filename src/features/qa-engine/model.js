@@ -5,6 +5,8 @@
 // Issue = { rule, group, level: 'error'|'warning'|'info', scope: 'row'|'file'|'plant'|'template'|'run',
 //           plant, fileName, partNumber, dockCode, sheet, rowNumber, month, message, fix, expected, actual,
 //           helpKey, action?: { kind: 'goTo'|'removeFile'|'useNewer', payload }, waived?, reason? }
+import { toCsv as toSharedCsv } from '../../utils/serialize.js';
+
 
 export const LEVELS = ['error', 'warning', 'info'];
 export const LEVEL_LABEL = { error: 'ต้องแก้', warning: 'ควรดู', info: 'ข้อมูล' };
@@ -101,11 +103,7 @@ export const toReportRows = (issues) => [
 /** Same rows with every cell made formula-safe (CSV / clipboard). */
 export const toCsvRows = (issues) => toReportRows(issues).map((r, idx) => (idx === 0 ? r : r.map(csvSafe)));
 
-const csvCell = (v) => {
-  const s = String(v ?? '');
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-export const toCsv = (issues) => `﻿${toCsvRows(issues).map((r) => r.map(csvCell).join(',')).join('\r\n')}`;
+export const toCsv = (issues) => toSharedCsv(toReportRows(issues)); // escaping/BOM live in utils/serialize.js
 
 /** Same keys the model documents, in a fixed order (for tests and docs). */
 export const ISSUE_FIELDS = FIELDS;
