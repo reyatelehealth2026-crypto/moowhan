@@ -131,3 +131,41 @@ export const monthKey = (pm, offset = 0) => {
   const month = ((idx % 12) + 12) % 12;
   return `${year}-${String(month + 1).padStart(2, '0')}`;
 };
+
+// ==================== FILE NAME PATTERN ====================
+const RESERVED_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/**
+ * renderFileName('Production_Updated_{monthLabel}_{date}.xlsx', { productionMonth, rev, now })
+ * Tokens: {month} 202602 · {monthLabel} Feb'26 · {rev} · {date} 2026-02-05 · {time} 1432.
+ * Unknown tokens stay as typed. The result is safe for Windows/macOS: forbidden characters, "/" "\",
+ * leading dots and reserved names (CON, NUL ...) are cleaned and the length is capped.
+ * `now` (Date | ms) is injectable for tests; defaults to the format.now clock.
+ */
+export const renderFileName = (pattern, ctx = {}) => {
+  const { productionMonth = null, rev = '', now = format.now(), fallback = 'Production_Updated.xlsx' } = ctx;
+  const d = now instanceof Date ? now : new Date(now);
+  const valid = !Number.isNaN(d.getTime());
+  const tokens = {
+    month: productionMonth ? `${productionMonth.year}${pad2(productionMonth.month)}` : '',
+    monthLabel: productionMonth ? formatMonth(productionMonth) : '',
+    rev: String(rev ?? ''),
+    date: valid ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : '',
+    time: valid ? `${pad2(d.getHours())}${pad2(d.getMinutes())}` : '',
+  };
+  let name = String(pattern ?? '').replace(/\{(\w+)\}/g, (m, k) => (Object.prototype.hasOwnProperty.call(tokens, k) ? tokens[k] : m));
+  name = name
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+    .replace(/_{2,}/g, '_')
+    .replace(/^[.\s_]+/, '')
+    .replace(/[.\s]+$/, '');
+  const dot = name.lastIndexOf('.');
+  let base = dot > 0 ? name.slice(0, dot) : name;
+  let ext = dot > 0 ? name.slice(dot) : '';
+  base = base.replace(/_+$/, '');
+  if (!/\.xlsx$/i.test(ext)) { base = `${base}${ext}`.replace(/\.+$/, ''); ext = '.xlsx'; }
+  if (!base || RESERVED_NAMES.test(base)) base = base ? `${base}_file` : fallback.replace(/\.xlsx$/i, '');
+  if (base.length > 120) base = base.slice(0, 120);
+  return `${base}${ext}`;
+};
